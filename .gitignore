@@ -1,0 +1,22 @@
+# Sensitive files
+.env
+.env.local
+*.key
+*.pem
+credentials.json
+secrets.json
+api-keys.json
+tokens.json
+
+# System
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temp
+/tmp/
+/temp/
+*.tmp
