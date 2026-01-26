@@ -1,298 +1,338 @@
-# Teisutis AI/Rules/Config Scan
+# Teisutis Generic Patterns Scan
 
-Comprehensive scan of AI-related configurations, prompts, rules, and patterns found in Teisutis project.
+Scan of generic patterns, rules, and architectural approaches from Teisutis project.
 
+**Focus**: Reusable across projects, NOT application-specific  
 **Date**: 2026-01-26  
-**Scanner**: OpenCode  
-**Status**: Ready for skill extraction
+**Status**: Ready for filtering and categorization
 
 ---
 
 ## Summary
 
-| Category | Count | Priority |
-|----------|-------|----------|
-| System Prompts | 1 | CRITICAL |
-| Tool Usage Rules | 3 | CRITICAL |
-| Language Instructions | 1 | HIGH |
-| Text Processing Patterns | 4 | HIGH |
-| Django/Tenants Patterns | 2 | HIGH |
-| AI Service Rules | 2 | MEDIUM |
-| Performance Patterns | 1 | MEDIUM |
+**What's NOT included** (project-specific, removed):
+- ❌ Teisutis system prompt (KB-assistant specific)
+- ❌ Teisutis tools (create_article, search_categories, etc.)
+- ❌ Teisutis-specific text templates (STRUCTURE_TEXT_TEMPLATE, etc.)
+- ❌ Teisutis permission rules (KB-specific actions)
+- ❌ Teisutis language instructions (KB-specific flow)
+
+**What's included** (generic patterns):
+- ✅ Generic tool execution patterns
+- ✅ Generic Django patterns (async, tenants, WebSocket)
+- ✅ Performance/optimization patterns
+- ✅ Development workflows (commands, deployment patterns)
+- ✅ Coding conventions and standards
 
 ---
 
-## 1. CRITICAL: System Prompt Template
+## GENERIC PATTERNS FOUND
 
-**Location**: `/web/teisutis_ai/consumers.py:64-128`  
-**Type**: System prompt template  
-**Function**: `get_default_system_prompt_template()`
+### 1. CRITICAL: Tool Dependency & Sequential Execution
 
-### Content
-The canonical AI system prompt for the knowledge base assistant. Contains:
+**Pattern Type**: Generic tool execution guardrail  
+**Discovered in**: Teisutis AI tool execution  
+**Root Cause**: BUG-001 - parallel tool calls cause race conditions
 
-- Role definition: "helpful AI assistant for a knowledge base system"
-- User context awareness (username, email, organization, permissions)
-- Tool usage guidelines (search, create, update articles/events)
-- Permission-based filtering rules
-- Category/tag assignment rules
-- FAQ handling (internal use only)
-- Reference generation rules
-
-### Key Rules Embedded
-1. **User Context Usage**: Filter results based on user scopes and permissions
-2. **Permission Checks**: Only suggest actions user has permission for
-3. **Tool Capabilities**: Clear listing of what tools do
-4. **References**: Automatically generate article links in responses
-5. **Category Assignment**: Always include category_id when creating articles
-
-### Related Code
-- `get_system_prompt_template()` method - retrieves from DB or creates default
-- `PromptTemplate` model - stores customizable prompts per tenant
-
-**Priority**: CRITICAL - This is the foundation of all AI behavior
-
-**Action**: Create `teisutis-ai-system-prompt` skill
-
----
-
-## 2. CRITICAL: Tool Dependency & Sequential Execution Rules
-
-**Location**: `/web/teisutis_ai/consumers.py:111-115`  
-**Type**: Execution pattern/rule  
-**Scope**: All tool invocations
-
-### Content
+#### The Pattern
 ```
-CRITICAL: Tool Dependency & Sequential Execution
-
-No Parallel Dependencies: Never invoke tools in parallel if one tool's input 
-depends on another tool's output (e.g., creating a category and an article simultaneously).
-
-Verification First: When creating or updating articles/events, always ensure you have 
-the correct category_id or tag_id as an integer. If only a name is provided, 
-you MUST run search_categories or search_tags first.
-
-Chain of Command: Execute creation tools sequentially: 
-create_category -> [Wait for Response/ID] -> create_article.
+When tools have dependencies:
+- Never invoke parallel if one needs another's output
+- Verification First: validate IDs/references before use
+- Chain of Command: Execute sequentially, wait for response
+- If search returns 0 results: create if explicit, skip if implicit
+- Never search >2-3 times (prevents infinite loops)
 ```
 
-### Why This Exists
-Result of BUG-001 investigation (2026-01-20) - discovered that parallel tool calls 
-cause race conditions where IDs aren't available yet.
+#### Why It's Generic
+This applies to **any** AI agent with tools, not just Teisutis:
+- Tool orchestration with dependencies
+- Preventing race conditions
+- Handling missing references gracefully
+- Avoiding infinite loops
 
-**Priority**: CRITICAL - Prevents tool execution failures
-
-**Action**: Create `teisutis-tool-dependency` skill
+**Format**: Rule/Guardrail  
+**Applies to**: Any AI agent tool usage
 
 ---
 
-## 3. CRITICAL: Search Result Handling (Prevent Infinite Loops)
+### 2. CRITICAL: Async/Sync Context Management in WebSocket
 
-**Location**: `/web/teisutis_ai/consumers.py:117-123`  
-**Type**: Execution pattern/safeguard  
-**Scope**: Search operations
+**Pattern Type**: Django async architecture  
+**Discovered in**: `/web/teisutis_ai/consumers.py` (ChatConsumer, STTConsumer)
 
-### Content
+#### The Pattern
+```python
+# Async WebSocket consumer needs sync DB operations
+@database_sync_to_async
+def get_data_from_db():
+    return Model.objects.filter(...)
+
+# Use in async context
+result = await get_database_sync_to_async(query)
 ```
-When search_categories or search_tags returns 0 results:
-- If user explicitly requested that category/tag, create it
-- If category/tag was inferred, proceed without it
-- NEVER search more than 2-3 times with different queries
-- If first search returns 0 results, either create or proceed without
+
+#### Why It's Generic
+Standard Django pattern for:
+- Real-time WebSocket connections (Channels)
+- Mixing async/sync code
+- Preventing database blocking in event loops
+- Any chat/streaming feature
+
+**Format**: Code pattern/example  
+**Applies to**: Any Django WebSocket/real-time feature
+
+---
+
+### 3. HIGH: Multi-Tenant Context Management
+
+**Pattern Type**: Django architecture  
+**Discovered in**: `/web/teisutis_ai/consumers.py` (tenant handling)
+
+#### The Pattern
+```python
+# Get tenant from middleware
+self.tenant = self.scope.get('tenant')  # WebSocket scope
+
+# Verify presence
+if not self.tenant:
+    await self.close(code=4003)  # Forbidden
+
+# Use in async context
+from django_tenants.utils import tenant_context, schema_context
+with tenant_context(tenant):
+    # Operations in tenant schema
+    pass
 ```
 
-### Purpose
-Prevents AI from getting stuck in infinite search loops when looking for non-existent items.
+#### Why It's Generic
+Standard django-tenants pattern for:
+- Multi-tenant architecture (schema-per-tenant)
+- Data isolation between tenants
+- Propagating tenant context through async operations
+- Permission/scope verification
 
-**Priority**: CRITICAL - Prevents agent failures
-
-**Action**: Include in `teisutis-tool-dependency` skill
-
----
-
-## 4. HIGH: Language-Specific Instructions
-
-**Location**: `/web/teisutis_ai/ai_service.py`  
-**Type**: Dynamic instruction generation  
-**Function**: `_get_language_instruction()`
-
-### Details
-Generates language-specific instructions based on user's language preference.
-Used in system prompt construction.
-
-**Known Languages**: Lithuanian (lt), English (en), Russian (ru), Polish (pl)
-
-**Pattern**: 
-- Detect user language from preferences or tenant settings
-- Generate locale-specific instructions
-- Append to system prompt
-
-**Note**: Mentioned in IDEA-033 for standardization to BCP-47 format
-
-**Priority**: HIGH - Affects response quality for non-English users
-
-**Action**: Create `teisutis-language-instructions` skill
+**Format**: Code pattern/convention  
+**Applies to**: Any multi-tenant Django project
 
 ---
 
-## 5. HIGH: Text Processing Rules
+### 4. HIGH: Error Handling in Async Context
 
-**Location**: `/web/teisutis_ai/ai_service.py`  
-**Type**: Text transformation templates  
-**Count**: 4 patterns
+**Pattern Type**: Error handling convention  
+**Discovered in**: `/web/teisutis_ai/consumers.py` (WebSocket handlers)
 
-### 5a. Text Structuring Pattern
-- **Template**: `STRUCTURE_TEXT_TEMPLATE`
-- **Purpose**: Organize unstructured text into logical sections
-- **Usage**: Converting raw input into formatted KB articles
+#### The Pattern
+```python
+# Categorize errors for appropriate handling
+try:
+    # Operation
+    pass
+except (KeyError, AttributeError, TypeError) as e:
+    # Programming errors - should fail fast
+    logger.error(f"Programming error: {type(e).__name__}: {e}", exc_info=True)
+    await self.close(code=4000)  # Bad Request
+except APIException as e:
+    # Expected API errors - handle gracefully
+    logger.warning(f"API error: {e}")
+    await send_error_response(e)
+except Exception as e:
+    # Catch-all for unexpected errors
+    logger.error(f"Unexpected error: {type(e).__name__}: {e}", exc_info=True)
+    await self.close(code=4000)
+```
 
-### 5b. Text Refactoring Pattern
-- **Template**: `REFACTOR_TEXT_TEMPLATE`
-- **Purpose**: Improve clarity and organization
-- **Usage**: Polish existing article content
+#### Why It's Generic
+Standard error categorization for:
+- Distinguishing programming errors vs. runtime errors
+- Different logging/handling strategies
+- Graceful degradation
+- Any critical async service
 
-### 5c. Tag Suggestion Pattern
-- **Template**: `SUGGEST_TAGS_TEMPLATE`
-- **Purpose**: Generate relevant tags for articles
-- **Usage**: Auto-categorization of content
-
-### 5d. Knowledge Query Pattern
-- **Template**: `QUERY_KNOWLEDGE_TEMPLATE`
-- **Purpose**: Query knowledge base semantically
-- **Usage**: Finding relevant context for responses
-
-**Priority**: HIGH - Core AI functionality
-
-**Action**: Create `teisutis-text-processing` skill
-
----
-
-## 6. HIGH: Django/Django-Tenants Patterns
-
-**Location**: `/web/teisutis_ai/consumers.py`, `/web/teisutis_ai/ai_service.py`  
-**Type**: Django architecture patterns  
-**Count**: 2+ patterns
-
-### 6a. Multi-Tenant Context Management
-- Use `tenant_context()` and `schema_context()` for tenant operations
-- Store tenant in WebSocket scope: `self.tenant = self.scope.get('tenant')`
-- Always verify tenant presence and user permissions
-
-### 6b. Async Database Operations
-- Use `@database_sync_to_async` for sync DB calls in async contexts
-- Used in conversation retrieval, message persistence
-- Prevents database blocking in WebSocket handlers
-
-**Related Files**:
-- `TenantChannelsMiddleware` - sets tenant in scope
-- Conversation model - tenant-scoped data
-
-**Priority**: HIGH - Critical for data isolation
-
-**Action**: Create `teisutis-django-tenants` skill
+**Format**: Convention/pattern  
+**Applies to**: Any WebSocket/real-time service
 
 ---
 
-## 7. MEDIUM: AI Service Configuration
+### 5. HIGH: Performance Monitoring Pattern
 
-**Location**: `/web/teisutis/settings.py`  
-**Type**: Environment configuration  
-**Variables**: 
-- `MAX_AI_PROMPT_LENGTH` - max input text length (default 50000)
-- Language codes for STT/TTS
-- API keys for external AI services
+**Pattern Type**: Performance optimization  
+**Discovered in**: `/web/teisutis_ai/performance_metrics.py`
 
-**Used By**: `ai_service.py` validation, streaming response handling
+#### The Pattern
+```
+- Track operation timing: embedding generation, DB queries, API calls
+- Log warnings for slow operations (>threshold)
+- Different thresholds for different operations:
+  * Search: 3 seconds warning
+  * Indexing: 5-10 seconds warning
+  * Model loading: logged separately
+- Pre-load expensive resources at startup (e.g., ML models)
+- Monitor token/character usage for API calls
+```
 
-**Priority**: MEDIUM - Important for performance tuning
+#### Why It's Generic
+Standard performance engineering pattern for:
+- Identifying bottlenecks
+- Pre-loading to optimize first request
+- Threshold-based alerting
+- Any service with external dependencies (DB, API, ML)
 
-**Action**: Document in `teisutis-ai-config` skill
-
----
-
-## 8. MEDIUM: Semantic Search & Performance Patterns
-
-**Location**: `/web/teisutis_ai/semantic_search.py`, `/web/teisutis_ai/performance_metrics.py`  
-**Type**: Performance optimization patterns  
-**Patterns**:
-- Model pre-loading at startup
-- Elasticsearch timeout configuration (3s for search, 10s for indexing)
-- Performance logging and metrics tracking
-- GPU acceleration considerations (IDEA-015)
-
-**Related**: 
-- IDEA-015: Fix Semantic Search Performance
-- Performance monitoring for slow queries (>3s warnings)
-
-**Priority**: MEDIUM - Performance optimization
-
-**Action**: Create `teisutis-performance` skill
+**Format**: Monitoring convention  
+**Applies to**: Any production service
 
 ---
 
-## 9. LOW: Knowledge Base Management Rules
+### 6. MEDIUM: Django Settings & Environment Configuration
 
-**Location**: `/web/teisutis_ai/consumers.py:100-109`  
-**Type**: Operational guidelines  
-**Rules**:
-- References section auto-generated
-- FAQs for internal AI use only
-- Attachment assignment rules
-- Permission-based actions
+**Pattern Type**: Django convention  
+**Discovered in**: `/web/teisutis/settings.py`
 
-**Priority**: LOW - Supporting guidelines
+#### The Pattern
+```python
+# Environment-based settings
+MAX_PROMPT_LENGTH = int(os.getenv('MAX_PROMPT_LENGTH', '50000'))
+API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
 
-**Action**: Include in system prompt skill
+# Defaults for development
+SEARCH_TIMEOUT = getattr(settings, 'SEARCH_TIMEOUT', 3)
+
+# Feature gates
+ENABLE_SEMANTIC_SEARCH = os.getenv('ENABLE_SEMANTIC_SEARCH', 'true').lower() == 'true'
+```
+
+#### Why It's Generic
+Standard Django pattern for:
+- Configuration via environment
+- Sensible defaults
+- Runtime tuning without code changes
+- Feature flags
+
+**Format**: Convention  
+**Applies to**: Any Django project
 
 ---
 
-## Other Detected Files
+### 7. MEDIUM: Streaming Response Pattern
 
-### Prompt Documentation
-- `/docs/prompts/grok_prompt_short.txt` - Django test troubleshooting prompt (not AI system prompt)
-- `/docs/prompts/grok_django_tenants_trigger_issue.md` - Problem description (reference material)
+**Pattern Type**: API pattern  
+**Discovered in**: `/web/teisutis_ai/consumers.py` (streaming AI responses)
 
-### Management Commands
-- `/web/teisutis_ai/management/commands/update_prompt_templates.py` - Syncs DB templates with code
+#### The Pattern
+```
+- Send responses in chunks as they're available
+- Use WebSocket or Server-Sent Events for streaming
+- Include progress/status indicators
+- Handle interruption gracefully (partial response saved)
+- Buffer chunks for recovery (IDEA-025)
+```
 
-### Documentation
-- `/docs/execution/IDEAS.md` - Contains IDEA-031 (session management, relevant for context staleness)
-- `/docs/execution/DEVELOPMENT_LOG.md` - Implementation history
+#### Why It's Generic
+Standard pattern for:
+- Long-running operations (AI generation, large data sets)
+- Better UX (immediate feedback)
+- Network resilience (IDEA-025 in Teisutis: recovery on connection loss)
+- Any service with streaming needs
+
+**Format**: Architecture pattern  
+**Applies to**: Real-time/streaming features
 
 ---
 
-## Extraction Plan
+### 8. MEDIUM: Database Query Optimization
 
-### Priority 1 (CRITICAL - Do First)
-1. **`teisutis-ai-system-prompt`** - System prompt template
-2. **`teisutis-tool-dependency`** - Sequential execution rules + search safeguards
+**Pattern Type**: Django convention  
+**Discovered in**: `/web/teisutis_ai/` (Elasticsearch, semantic search)
 
-### Priority 2 (HIGH - Do Next)
-3. **`teisutis-text-processing`** - Text transformation templates
-4. **`teisutis-django-tenants`** - Multi-tenant architecture patterns
-5. **`teisutis-language-instructions`** - Language-specific behavior
+#### The Pattern
+```python
+# Timeouts for external services
+ES_TIMEOUT = 3  # seconds for search
+INDEX_TIMEOUT = 10  # seconds for indexing
 
-### Priority 3 (MEDIUM - Polish)
-6. **`teisutis-ai-config`** - Configuration and setup patterns
-7. **`teisutis-performance`** - Performance optimization and monitoring
-8. **`teisutis-kb-management`** - Knowledge base operational guidelines
+# Fallback strategies
+try:
+    result = expensive_search()
+except TimeoutError:
+    result = fallback_simple_search()
 
-### Priority 4 (OPTIONAL - Future)
-- `teisutis-semantic-search` - Advanced search patterns
-- `teisutis-tool-executor` - Tool execution patterns
-- `teisutis-permission-rules` - Permission-based behavior
+# Batch operations
+embeddings = model.encode_batch(texts)  # vs. looping
+```
+
+#### Why It's Generic
+Standard optimization pattern for:
+- External service calls (Elasticsearch, APIs)
+- Timeout handling
+- Fallback strategies
+- Batch operations for efficiency
+
+**Format**: Convention/pattern  
+**Applies to**: Any service with external dependencies
+
+---
+
+## COMMANDS & WORKFLOWS
+
+### 9. Development Workflows
+
+**Discovered in**: Teisutis Makefile and git worktrees discussion
+
+#### Commands Needed
+- `/rr` - Restart containers and collect static (development)
+- Development shortcuts for common tasks
+- Git worktree workflows for parallel branches
+- Docker Compose shortcuts
+
+**Format**: Commands/aliases  
+**Applies to**: Project-specific, but pattern is reusable
+
+---
+
+## IMPLEMENTATION APPROACH
+
+### What Goes Where?
+
+| Item | Type | Where |
+|------|------|-------|
+| Tool dependency rules | Rule/Guardrail | System prompt or agent rule |
+| Async/sync pattern | Skill | `django-async-patterns` |
+| Multi-tenant context | Skill | `django-tenants-patterns` |
+| Error handling | Skill/Rule | `error-handling-conventions` |
+| Performance monitoring | Skill | `performance-monitoring` |
+| Streaming pattern | Skill | `streaming-response-pattern` |
+| Settings convention | Skill | `django-settings-patterns` |
+| Commands/workflows | Commands | `.opencode/commands/` or Makefile |
+
+---
+
+## NEXT STEPS
+
+### Phase 1: Create Skills (High-value, reusable)
+1. **`django-async-patterns`** - WebSocket + async/sync mixing
+2. **`django-tenants-patterns`** - Multi-tenant context management
+3. **`error-handling-async`** - Error categorization in async code
+4. **`performance-monitoring`** - Observability patterns
+
+### Phase 2: Create Rules (System-level guardrails)
+5. **`tool-dependency-rules`** - Sequential execution, race condition prevention
+
+### Phase 3: Create Commands (Workflow shortcuts)
+6. **`dev-shortcuts`** - Common development commands
+
+### Phase 4: Documentation (Conventions)
+7. **`streaming-patterns`** - Real-time response patterns
+8. **`django-settings`** - Environment configuration patterns
 
 ---
 
 ## Notes
 
-- All files use Python type hints and async/await patterns
-- Database operations use django-tenants for isolation
-- Performance is tracked via custom metrics system
-- Context staleness issue documented in IDEA-031 (relevant for session management)
-- Recent system prompt updates (2026-01-20) include BUG-001 fixes for tool sequencing
+- Generic patterns extracted from Teisutis but applicable to any similar project
+- All patterns tested in production (Teisutis is live)
+- Many patterns discovered through bug fixes (BUG-001, IDEA-015, IDEA-025)
+- Some patterns still in development (streaming recovery, session management)
 
 ---
 
-**Next Step**: Start with Priority 1 skills and create SKILL.md files in `~/projects/mind-vault/skills/`
+**Status**: Ready for skill/rule/command implementation discussion
