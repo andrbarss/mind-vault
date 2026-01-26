@@ -22,8 +22,8 @@ AI agent configuration, skills, and rules for Claude Code and OpenCode.
 
 From `~/.claude/` and `~/.config/opencode/`:
 ```bash
-ln -s ~/mind-vault/skills ~/.claude/skills
-ln -s ~/mind-vault/skills ~/.config/opencode/skills
+ln -s ~/projects/mind-vault/skills ~/.claude/skills
+ln -s ~/projects/mind-vault/skills ~/.config/opencode/skills
 ```
 
 Both Claude Code and OpenCode will discover skills from this vault.
