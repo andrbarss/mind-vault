@@ -278,6 +278,18 @@ Before finishing work on skills/rules/documentation:
 - [ ] Clear explanation of why this pattern matters
 - [ ] All sections follow template structure
 
+## Agent Roles
+
+Agent roles define specialization and focus areas when working in mind-vault. See individual role files in `agents/` directory:
+
+- [`AGENT_researcher.md`](agents/AGENT_researcher.md) - Pattern extraction and analysis
+- [`AGENT_architect.md`](agents/AGENT_architect.md) - Backend/technical design and validation
+- [`AGENT_frontend.md`](agents/AGENT_frontend.md) - Frontend/UX patterns and components
+- [`AGENT_documentation.md`](agents/AGENT_documentation.md) - Documentation quality (shared responsibility)
+- [`AGENT_test-engineer.md`](agents/AGENT_test-engineer.md) - Edge case and completeness validation
+- [`AGENT_curator.md`](agents/AGENT_curator.md) - Quality gates and consistency
+- [`AGENT_devops.md`](agents/AGENT_devops.md) - Deployment and operations patterns
+
 ## Next Steps
 
 For agents extending this repository:
