@@ -210,3 +210,23 @@ After all skills created:
 - All 4 skills ready for curator review
 - Cross-references verified
 - Ready for PR to main branch
+
+---
+
+## 📋 Referenced but Not Yet Created (TBD Rules)
+
+**Single-Tenant Rules** (safety guardrails):
+- [ ] `RULE_celery-safety.md` - Task context and error handling guardrails
+- [ ] `RULE_async-safety.md` - Async context and error handling guardrails
+
+**Multi-Tenant Rules** (critical guardrails):
+- [ ] `RULE_multi-tenant-safety.md` - Tenant context critical guardrails
+- [ ] `RULE_celery-multitenant-safety.md` - Critical guardrails for tenant context in tasks
+- [ ] `RULE_async-multitenant-safety.md` - Critical guardrails for tenant context in async
+
+**Status**: Listed in Related Rules sections of skills as "(TBD)" - DO NOT create until:
+1. Skills are finalized and in production use
+2. Actual safety issues/patterns emerge from usage
+3. We know what guardrails are actually needed (vs. theoretical)
+
+**Rationale**: Create rules when you have concrete patterns to enforce, not speculation.

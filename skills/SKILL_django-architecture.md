@@ -130,7 +130,7 @@ services:
       - ./web:/app              # ← Mount web/ to /app
 ```
 
-**Note**: The `project/` directory name should match your actual project name (e.g., `teisutis/`, `myapp/`). Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
+**Note**: The `project/` directory name should match your actual project name. Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
 
 **Why this structure**:
 - Each app is self-contained (models, views, serializers, permissions)
@@ -726,11 +726,11 @@ These patterns **don't require multi-tenancy, Celery, or async** - they're core 
 
 ## Example Use Cases
 
-- **Teisutis**: Knowledge base + AI features, uses all patterns
-- **Django REST API**: Any REST API project uses ViewSet + permission patterns
+- **REST APIs**: Any REST API project uses ViewSet + permission patterns
 - **Content management**: Soft deletes, timestamps, performance monitoring
-- **SaaS application**: BaseModel abstraction, middleware, query optimization
-- **Dashboard application**: DRF + permissions for role-based access
+- **SaaS applications**: BaseModel abstraction, middleware, query optimization
+- **Dashboard applications**: DRF + permissions for role-based access
+- **Knowledge bases**: Complex data models, soft deletes, query optimization
 
 ## Related Skills
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Multi-tenant architecture patterns using django-tenants for schema-per-tenant isolation. Complete guide to implementing multi-tenancy in Django with separate database schemas per tenant, automatic tenant resolution, context propagation, and permission layers. Build on SKILL_django-architecture for core patterns.
+Multi-tenant architecture patterns using django-tenants for schema-per-tenant isolation. Complete guide to implementing multi-tenancy in Django with separate database schemas per tenant, automatic tenant resolution, context propagation, and permission layers. Use when data isolation at the database level is required. Build on [SKILL_django-architecture.md](./SKILL_django-architecture.md) for core patterns.
 
 ## When to Use
 
@@ -16,6 +16,26 @@ Multi-tenant architecture patterns using django-tenants for schema-per-tenant is
 - Single-tenant application (use SKILL_django-architecture instead)
 - Row-level security is sufficient (use row-filtering instead)
 - Shared schema with row-level filtering needed (different pattern)
+
+## Context: Tenant vs. Organization Model
+
+**Important terminology**:
+
+In this skill and related skills ([SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md), [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md)):
+- **Tenant**: The isolated database schema (managed by django-tenants)
+- **Organization**: Business entity model (e.g., `Org` model in your app)
+- Both are the same thing in different contexts
+
+**How they relate**:
+- Your project has an Organization/Customer model (the business entity)
+- django-tenants creates a separate schema for each (database-level isolation)
+- When you see examples referencing an `Org` model: it maps to a Tenant schema
+- Use `tenant_context(org)` to switch schemas for database queries
+
+**In related skills**:
+- [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md) shows how to pass org_id to background tasks
+- [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md) shows how to handle org context in WebSocket consumers
+- Both reference this skill for `tenant_context()` patterns
 
 ## Pattern
 
@@ -32,9 +52,9 @@ Multi-tenant architecture patterns using django-tenants for schema-per-tenant is
 - Row-level: Shared schema, filter `WHERE tenant_id = X` (error-prone)
 - Schema-per-tenant: Separate schema per tenant (fool-proof)
 
-**Teisutis example**: 
-- Tenant A → schema `public_a`
-- Tenant B → schema `public_b`
+**Example**: 
+- Project A customer → schema `public_1`
+- Project B customer → schema `public_2`
 - Same models, complete isolation
 
 ### Installation & Configuration
@@ -45,7 +65,7 @@ django-tenants>=3.5.0
 psycopg2-binary>=2.9
 ```
 
-**settings.py** (located at `web/project/settings.py`):
+**settings.py** (project root settings):
 
 ```python
 # web/project/settings.py
@@ -702,16 +722,16 @@ class TenantIsolationTestCase(TenantTestCase):
 - **Schema-per-tenant**: Proven pattern for data isolation
 - **Middleware-based**: Works with any view type (FBV, CBV, ViewSet)
 - **Compatible with**: DRF, Celery, WebSocket (with proper context)
-- **Production-ready**: Used in Teisutis and other SaaS apps
+- **Production-ready**: Battle-tested pattern used in production SaaS applications
 - **Security-first**: Database-level isolation (no query bugs)
 
 ## Example Use Cases
 
-- **Teisutis**: Knowledge base + AI features, multi-tenant per organization
-- **SaaS dashboard**: Each customer gets isolated data
-- **Multi-organization app**: Each org completely separate
-- **Compliance-heavy**: Healthcare, finance, government (HIPAA, GDPR)
-- **API platform**: Each customer's API keys/data isolated
+- **SaaS platforms**: Each customer account gets isolated schema
+- **Multi-organization apps**: Each org completely separate
+- **Compliance-required systems**: Healthcare, finance, government (HIPAA, GDPR)
+- **Data privacy**: Regulatory data isolation requirements
+- **API platforms**: Each API customer's data isolated
 
 ## Related Skills
 
@@ -728,7 +748,6 @@ class TenantIsolationTestCase(TenantTestCase):
 - [django-tenants Documentation](https://django-tenants.readthedocs.io/)
 - [Django Database Router](https://docs.djangoproject.com/en/stable/topics/db/multi-db/)
 - [Middleware Ordering](https://docs.djangoproject.com/en/stable/topics/http/middleware/)
-- [Teisutis Architecture Analysis](../docs/TEISUTIS_ARCHITECTURE_ANALYSIS.md)
 - [Backwards Compatibility Tracking](../docs/BACKWARDS_COMPATIBILITY_TRACKING.md)
 
 ---

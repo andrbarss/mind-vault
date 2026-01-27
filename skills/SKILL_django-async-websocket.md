@@ -2,7 +2,11 @@
 
 ## Overview
 
-Real-time communication patterns using Django Channels for WebSocket connections. Complete guide to implementing async consumers with tenant awareness, database access via `@database_sync_to_async`, error handling, and integration with Celery for task updates. Build on SKILL_django-architecture, SKILL_django-multi-tenant, and SKILL_django-celery.
+Real-time communication patterns using Django Channels for WebSocket connections. Complete guide to implementing async consumers with database access via `@database_sync_to_async`, error handling, and integration with Celery for task updates. Single-tenant projects only.
+
+**For multi-tenant projects**: See [SKILL_django-async-websocket-multitenant.md](./SKILL_django-async-websocket-multitenant.md)
+
+Build on [SKILL_django-architecture.md](./SKILL_django-architecture.md) for core patterns.
 
 ## When to Use
 
@@ -29,7 +33,7 @@ channels-redis>=4.1.0
 daphne>=4.0.0
 ```
 
-**settings.py** (at `web/project/settings.py`):
+**settings.py** (project root):
 
 ```python
 # Add Channels
@@ -42,7 +46,7 @@ INSTALLED_APPS = [
     'core',
     'auth',
     'api',
-    'teisutis_ai',
+    'myapp',  # Your WebSocket app
 ]
 
 # Channels configuration
@@ -63,7 +67,7 @@ CHANNEL_LAYERS = {
 WS_TIMEOUT = 300  # 5 minutes
 ```
 
-**asgi.py** (at `web/project/asgi.py`):
+**asgi.py** (project root):
 
 ```python
 import os
@@ -75,7 +79,7 @@ from channels.auth import AuthMiddlewareStack
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
 django.setup()
 
-from teisutis_ai.routing import websocket_urlpatterns
+from myapp.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
@@ -85,7 +89,7 @@ application = ProtocolTypeRouter({
 })
 ```
 
-**routing.py** (at `web/teisutis_ai/routing.py`):
+**routing.py** (in your WebSocket app):
 
 ```python
 from django.urls import re_path
@@ -104,6 +108,7 @@ services:
   # HTTP + WebSocket on same server (Daphne)
   web:
     build: .
+    # Daphne runs both HTTP and WebSocket
     command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
     ports:
       - "8000:8000"
@@ -122,7 +127,7 @@ services:
 **AsyncWebsocketConsumer for real-time connections**:
 
 ```python
-# consumers.py - in app (teisutis_ai/consumers.py)
+# consumers.py - in your WebSocket app
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django_tenants.utils import tenant_context
@@ -280,7 +285,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def user_can_access_room(self, user_id, room_id, tenant_id):
         """Check if user has permission to access room."""
         from core.models import Tenant
-        from teisutis_ai.models import ChatRoom
+        from myapp.models import ChatRoom
         
         try:
             tenant = Tenant.objects.get(id=tenant_id)
@@ -298,7 +303,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Save message to database."""
         from django.contrib.auth.models import User
         from core.models import Tenant
-        from teisutis_ai.models import ChatMessage
+        from myapp.models import ChatMessage
         
         tenant = Tenant.objects.get(id=tenant_id)
         
@@ -635,7 +640,7 @@ from channels.testing import WebsocketCommunicator
 from django.test import TestCase
 from django_tenants.test.cases import TenantTestCase
 from core.models import Tenant, User
-from teisutis_ai.consumers import ChatConsumer
+from myapp.consumers import ChatConsumer
 
 class ChatConsumerTestCase(TenantTestCase):
     """Test WebSocket consumer."""
@@ -674,29 +679,30 @@ class ChatConsumerTestCase(TenantTestCase):
 ## Why It's Generic
 
 - **Channels**: Industry-standard for Django real-time features
-- **AsyncWebsocketConsumer**: Works with any real-time feature (chat, notifications, streaming)
+- **AsyncWebsocketConsumer**: Works with any WebSocket use case
 - **@database_sync_to_async**: Standard pattern for mixing async/sync code
-- **Multi-tenant support**: Works with any schema-per-tenant setup
-- **Group broadcasting**: Generic pattern for any multi-user feature
-- **Production-ready**: Used in Teisutis for chat, notifications, live AI responses
+- **Group broadcasting**: Generic for any multi-user messaging pattern
+- **Error handling**: Applies to any async code (categorize recoverable vs. fatal)
+- **Single-tenant focus**: Works for any single-tenant Django application
 
 ## Example Use Cases
 
-- **Teisutis**: Live chat with AI, real-time KB updates, notification streaming
-- **SaaS apps**: User collaboration, real-time notifications, live dashboards
-- **E-commerce**: Live inventory updates, order status tracking
-- **Analytics**: Real-time charts, live metric streaming
-- **Support systems**: Live chat, ticket updates, agent presence
+- **Chat applications**: Real-time messaging between users
+- **Collaboration apps**: Live document editing, real-time notifications
+- **Dashboards**: Live charts, real-time metric updates
+- **Status tracking**: Order progress, deployment status, task progress
+- **Presence tracking**: Who's online, typing indicators, agent status
+- **Notifications**: Push notifications via WebSocket (vs. polling)
 
 ## Related Skills
 
-- [`SKILL_django-architecture.md`](../skills/SKILL_django-architecture.md) - Core Django patterns (required foundation)
-- [`SKILL_django-multi-tenant.md`](../skills/SKILL_django-multi-tenant.md) - Multi-tenant context required
-- [`SKILL_django-celery.md`](../skills/SKILL_django-celery.md) - Background tasks sending updates via WebSocket
+- [`SKILL_django-architecture.md`](./SKILL_django-architecture.md) - Core Django patterns (required foundation)
+- [`SKILL_django-async-websocket-multitenant.md`](./SKILL_django-async-websocket-multitenant.md) - For multi-tenant applications, how to handle organization context in consumers
+- [`SKILL_django-celery.md`](./SKILL_django-celery.md) - Background tasks, can send progress updates via WebSocket
 
 ## Related Rules
 
-- [`RULE_async-context-safety.md`](../rules/RULE_async-context-safety.md) - Async context critical guardrails (TBD)
+- [`RULE_async-safety.md`](../rules/RULE_async-safety.md) - Async context and error handling guardrails (TBD)
 
 ## References
 

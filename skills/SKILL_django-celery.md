@@ -2,7 +2,9 @@
 
 ## Overview
 
-Background task patterns using Celery for asynchronous job processing in Django. Complete guide to implementing reliable async tasks with tenant context, error handling, retry strategies, and Channels integration for real-time updates. Build on SKILL_django-architecture and SKILL_django-multi-tenant for context.
+Background task patterns using Celery for asynchronous job processing in Django. Complete guide to implementing reliable async tasks with error handling, retry strategies, and Channels integration for real-time updates. Single-tenant projects only.
+
+**For multi-tenant projects**: See [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md)
 
 ## When to Use
 
@@ -11,14 +13,18 @@ Background task patterns using Celery for asynchronous job processing in Django.
 - Long-running operations triggered by user actions
 - Scheduled jobs (cron-like tasks)
 - Integration with Celery + Redis + Channels for real-time feedback
-- Multi-tenant apps where each task must know its tenant context
 
 **DO NOT USE if**:
 - Task is critical path (user must wait for result)
 - Task needs synchronous database lock
 - No task queue infrastructure available
+- Using multi-tenant architecture (use [SKILL_django-celery-multitenant.md](./SKILL_django-celery-multitenant.md))
 
 ## Pattern
+
+### Critical Principle: No Request Context in Tasks
+
+Tasks run in background workers **without request context**. You cannot access `request.user`, `request.session`, or any request-specific data. All required context must be passed explicitly as task parameters.
 
 ### Installation & Configuration
 
@@ -86,7 +92,7 @@ from channels.auth import AuthMiddlewareStack
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
 django.setup()
 
-from teisutis_ai.routing import websocket_urlpatterns
+from myapp.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
@@ -98,33 +104,26 @@ application = ProtocolTypeRouter({
 
 ### Core Task Pattern
 
-**Never assume request context in tasks!** Tasks run in background worker, no request object.
-
 ```python
 # tasks.py - in an app (auth/tasks.py, core/tasks.py, api/tasks.py)
 from celery import shared_task
 from django.core.mail import send_mail
-from django_tenants.utils import tenant_context
 
 @shared_task(bind=True, max_retries=3)
-def send_welcome_email(self, user_id, tenant_id):
+def send_welcome_email(self, user_id):
     """
     Send welcome email to newly created user.
     
-    CRITICAL: Pass tenant_id explicitly - no request context!
+    Args:
+        user_id: ID of user to email
     """
     from django.contrib.auth.models import User
-    from core.models import Tenant
     
     try:
-        # Get tenant from database (explicitly!)
-        tenant = Tenant.objects.get(id=tenant_id)
+        # Fetch user from database (explicit)
+        user = User.objects.get(id=user_id)
         
-        # Switch to tenant schema for this task
-        with tenant_context(tenant):
-            user = User.objects.get(id=user_id)
-        
-        # Send email (works fine outside tenant_context)
+        # Send email
         send_mail(
             subject='Welcome!',
             message=f'Hi {user.email}',
@@ -134,19 +133,24 @@ def send_welcome_email(self, user_id, tenant_id):
         
         return f'Email sent to {user.email}'
     
+    except User.DoesNotExist:
+        # User was deleted - don't retry
+        return {'error': 'User not found'}
+    
     except Exception as exc:
-        # Retry with exponential backoff
+        # Transient error - retry with exponential backoff
         retry_delay = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
         raise self.retry(exc=exc, countdown=retry_delay)
 ```
 
 **Key principles**:
-- ✅ Pass `tenant_id` as explicit parameter
-- ✅ Use `tenant_context()` to switch schemas
-- ✅ Wrap tenant-dependent queries in context
-- ✅ Retry with exponential backoff
-- ❌ Don't access `request` object (it doesn't exist)
-- ❌ Don't assume current tenant is set
+- ✅ Pass all required IDs as explicit parameters
+- ✅ Fetch context from database (no request object available)
+- ✅ Categorize errors: permanent errors return result, transient errors retry
+- ✅ Use exponential backoff for retries
+- ❌ Don't access `request` object (doesn't exist in background worker)
+- ❌ Don't assume current user is set
+- ❌ Don't pass complex objects, only IDs
 
 ### Signal-Based Task Triggering
 
@@ -156,7 +160,7 @@ def send_welcome_email(self, user_id, tenant_id):
 # models.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .tasks import send_welcome_email, generate_report
+from .tasks import send_welcome_email
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
@@ -166,11 +170,7 @@ class User(AbstractUser):
 def user_created(sender, instance, created, **kwargs):
     """Trigger welcome email when user is created."""
     if created:
-        # Pass tenant_id explicitly!
-        send_welcome_email.delay(
-            user_id=instance.id,
-            tenant_id=instance.tenant_id  # From request context or database lookup
-        )
+        send_welcome_email.delay(user_id=instance.id)
 ```
 
 **In views, trigger via signal**:
@@ -189,7 +189,7 @@ class RegisterView(APIView):
             password=request.data['password'],
         )
         
-        # Signal fires post_save → send_welcome_email.delay()
+        # Signal fires post_save → send_welcome_email.delay(user_id=...)
         # → Background worker sends email (no blocking)
         
         return Response({'user_id': user.id}, status=201)
@@ -197,52 +197,56 @@ class RegisterView(APIView):
 
 ### Task State & Real-Time Feedback (Channels)
 
-**Track task progress with Channels WebSocket**:
+**Track task progress with WebSocket (optional)**:
 
 ```python
 # tasks.py
 from celery import shared_task
-from django_tenants.utils import tenant_context
-import json
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 @shared_task(bind=True)
-def process_large_file(self, file_id, tenant_id, channel_name=None):
+def process_large_file(self, file_id, channel_name=None):
     """
     Process file in background.
-    Sends progress updates via WebSocket (Channels).
+    Optionally sends progress updates via WebSocket (Channels).
+    
+    Args:
+        file_id: File to process
+        channel_name: Channels group name for real-time updates (optional)
     """
-    from core.models import Tenant
     from uploads.models import File
     
     try:
-        tenant = Tenant.objects.get(id=tenant_id)
+        file_obj = File.objects.get(id=file_id)
+        channel_layer = get_channel_layer()
         
-        with tenant_context(tenant):
-            file_obj = File.objects.get(id=file_id)
+        # Process with progress updates
+        for step in range(1, 11):
+            # Do actual work...
+            process_chunk(file_obj, step)
             
-            # Simulate processing steps
-            for step in range(1, 11):
-                # Do actual work...
-                process_chunk(file_obj, step)
-                
-                # Send progress via Channels
-                if channel_name:
-                    async_to_sync(channel_layer.group_send)(
-                        channel_name,
-                        {
-                            'type': 'file_progress',
-                            'progress': step * 10,
-                            'status': 'processing',
-                        }
-                    )
-                
-                # Update Celery state
-                self.update_state(
-                    state='PROGRESS',
-                    meta={'current': step, 'total': 10}
+            # Send progress via WebSocket (if channel provided)
+            if channel_name:
+                async_to_sync(channel_layer.group_send)(
+                    channel_name,
+                    {
+                        'type': 'file_progress',
+                        'progress': step * 10,
+                        'status': 'processing',
+                    }
                 )
+            
+            # Also update Celery state (for polling via API)
+            self.update_state(
+                state='PROGRESS',
+                meta={'current': step, 'total': 10}
+            )
         
         return {'status': 'complete', 'file_id': file_id}
+    
+    except File.DoesNotExist:
+        return {'error': 'File not found'}
     
     except Exception as exc:
         retry_delay = 60 * (2 ** self.request.retries)
@@ -279,54 +283,60 @@ class FileProcessingConsumer(AsyncWebsocketConsumer):
 
 ### Error Handling & Retry Strategies
 
-**Categorize errors**: Retry vs. Fail
+**Categorize errors**: Transient (retry) vs. Permanent (fail)
 
 ```python
 # tasks.py
 from celery import shared_task
-from django_tenants.utils import tenant_context
 import requests
 
 @shared_task(bind=True, max_retries=5)
-def sync_external_data(self, org_id, tenant_id):
+def sync_external_data(self):
     """
     Sync data from external API.
     Retry on network errors, fail fast on validation errors.
     """
-    from core.models import Tenant
-    
     try:
-        tenant = Tenant.objects.get(id=tenant_id)
+        # Call external API with timeout
+        response = requests.get(
+            'https://api.example.com/data',
+            timeout=10
+        )
+        response.raise_for_status()
         
-        with tenant_context(tenant):
-            # Call external API
-            response = requests.get('https://api.example.com/data', timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            # Validate and save...
+        data = response.json()
+        save_data(data)
         
         return {'status': 'synced', 'records': len(data)}
     
     except requests.exceptions.Timeout as exc:
-        # Network timeout - RETRY (transient error)
+        # Network timeout - TRANSIENT - RETRY
         retry_delay = 60 * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay)
     
     except requests.exceptions.ConnectionError as exc:
-        # Connection failed - RETRY (transient error)
+        # Connection failed - TRANSIENT - RETRY
         retry_delay = 60 * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay)
     
     except ValueError as exc:
-        # Invalid data - FAIL FAST (permanent error)
-        # Don't retry bad data
+        # Invalid data - PERMANENT - FAIL FAST
         return {
             'status': 'failed',
             'error': 'Invalid data from API',
-            'exc': str(exc)
+            'details': str(exc)
         }
+
+
+def save_data(data):
+    """Save synced data to database."""
+    # Implementation depends on your models
+    pass
 ```
+
+**Error categorization**:
+- **Transient**: Network timeouts, connection errors, temporary database locks → RETRY
+- **Permanent**: Invalid data, missing resources, validation errors → FAIL FAST (don't retry)
 
 **Retry backoff patterns**:
 
@@ -356,16 +366,13 @@ countdown = min(60 * (2 ** self.request.retries), 3600)  # Max 1 hour
 # tasks.py
 import logging
 from celery import shared_task
-from django_tenants.utils import tenant_context
 import time
 
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True)
-def analyze_data(self, tenant_id, dataset_id):
+def analyze_data(self, dataset_id):
     """Analyze dataset with timing and logging."""
-    from core.models import Tenant
-    
     start_time = time.time()
     task_id = self.request.id
     
@@ -373,17 +380,13 @@ def analyze_data(self, tenant_id, dataset_id):
         f'Task {task_id} started',
         extra={
             'task_name': 'analyze_data',
-            'tenant_id': tenant_id,
             'dataset_id': dataset_id,
         }
     )
     
     try:
-        tenant = Tenant.objects.get(id=tenant_id)
-        
-        with tenant_context(tenant):
-            # Actual work...
-            result = compute_analysis(dataset_id)
+        # Actual work...
+        result = compute_analysis(dataset_id)
         
         duration = time.time() - start_time
         logger.info(
@@ -420,7 +423,7 @@ def analyze_data(self, tenant_id, dataset_id):
 ```python
 @shared_task
 def send_email(email):
-    user = request.user  # ❌ AttributeError: request doesn't exist
+    user = request.user  # ❌ NameError: request doesn't exist
     send_mail(...)
 ```
 
@@ -428,30 +431,55 @@ def send_email(email):
 
 ```python
 @shared_task
-def send_email(user_id, tenant_id):  # Pass IDs explicitly
+def send_email(user_id):
     user = User.objects.get(id=user_id)
     send_mail(...)
 ```
 
 ---
 
-**❌ WRONG: Losing tenant context**
+**❌ WRONG: Passing complex objects to tasks**
 
 ```python
 @shared_task
-def create_article(article_data):
-    # Which tenant does this belong to?
-    Article.objects.create(**article_data)  # ❌ Wrong schema?
+def process(user):  # ❌ Serialization issues
+    send_mail(...)
 ```
 
-**✅ CORRECT: Explicit tenant context**
+**✅ CORRECT: Pass only IDs**
 
 ```python
 @shared_task
-def create_article(article_data, tenant_id):
-    tenant = Tenant.objects.get(id=tenant_id)
-    with tenant_context(tenant):
-        Article.objects.create(**article_data)  # ✅ Correct schema
+def process(user_id):  # ✅ ID is simple to serialize
+    user = User.objects.get(id=user_id)
+    send_mail(...)
+```
+
+---
+
+**❌ WRONG: Not categorizing errors**
+
+```python
+@shared_task(bind=True, max_retries=5)
+def sync_api(self):
+    response = requests.get(url)  # Retries on ANY error
+    # If API is down, retries forever
+```
+
+**✅ CORRECT: Distinguish transient vs. permanent errors**
+
+```python
+@shared_task(bind=True, max_retries=5)
+def sync_api(self):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.Timeout as exc:
+        # Transient - retry
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+    except ValueError as exc:
+        # Permanent - fail fast
+        return {'error': 'Bad data'}
 ```
 
 ---
@@ -505,32 +533,30 @@ def sync_api(self):
         return {'error': 'Bad data'}
 ```
 
-### 9 Celery Injection Points
+### Celery Injection Points
 
-1. **settings.py** - CELERY_BROKER_URL, retry settings, timeouts
-2. **celery.py** - App configuration, task auto-discovery
-3. **tasks.py** - Task definitions with tenant_id parameter
-4. **models.py** - Signal handlers triggering tasks
-5. **views.py** - Calling `.delay()` on tasks (async trigger)
-6. **consumers.py** - Receiving task updates via Channels
-7. **asgi.py** - Channels ProtocolTypeRouter configuration
-8. **Makefile/docker-compose.yml** - Running Celery worker
-9. **logging** - Task progress and error monitoring
+1. **settings.py** - CELERY_BROKER_URL, task limits, retry configuration
+2. **celery.py** - App configuration, auto-discovery
+3. **tasks.py** - Task definitions with proper error handling
+4. **models.py** - Signal handlers that trigger tasks
+5. **views.py** - Task calls via `.delay()` or `.apply_async()`
+6. **Channels consumers** (optional) - Receiving progress updates via WebSocket
+7. **docker-compose.yml** - Celery worker service configuration
+8. **Makefile** (optional) - Shortcuts for running workers
+9. **Logging** - Task progress and error monitoring
 
-**Verify all 9 locations** when implementing Celery integration.
+**Verify relevant locations** when implementing Celery integration.
 
 ### Testing Celery Tasks
 
 ```python
 # tests/test_tasks.py
 from django.test import TestCase
-from django_tenants.test.cases import TenantTestCase
-from celery.result import EagerResult
+from django.contrib.auth.models import User
 from celery import current_app
-from core.models import Tenant, User
 from auth.tasks import send_welcome_email
 
-class CeleryTaskTestCase(TenantTestCase):
+class CeleryTaskTestCase(TestCase):
     """Test Celery tasks in eager mode (synchronous)."""
     
     @classmethod
@@ -539,10 +565,6 @@ class CeleryTaskTestCase(TenantTestCase):
         # Run tasks immediately (no queue)
         current_app.conf.task_always_eager = True
     
-    def setUp(self):
-        self.tenant = Tenant.objects.create(name='Test Org')
-        self.set_tenant(self.tenant)
-    
     def test_send_welcome_email(self):
         """Test welcome email task."""
         user = User.objects.create_user(
@@ -550,10 +572,7 @@ class CeleryTaskTestCase(TenantTestCase):
             password='testpass'
         )
         
-        result = send_welcome_email.delay(
-            user_id=user.id,
-            tenant_id=self.tenant.id
-        )
+        result = send_welcome_email.delay(user_id=user.id)
         
         # In eager mode, result is available immediately
         self.assertEqual(result.status, 'SUCCESS')
@@ -562,30 +581,30 @@ class CeleryTaskTestCase(TenantTestCase):
 
 ## Why It's Generic
 
-- **Celery**: Industry-standard task queue (not Teisutis-specific)
-- **Multi-tenant support**: Works with any schema-per-tenant setup
+- **Celery**: Industry-standard task queue for Django
 - **Signal patterns**: Django's built-in mechanism for decoupling
-- **Channels integration**: Real-time feedback for long-running tasks
-- **Retry strategies**: Apply to any external API/service integration
-- **Production-ready**: Used in Teisutis for email, reports, AI processing
+- **Error handling**: Applies to any external API/service integration
+- **Retry strategies**: Exponential backoff, error categorization work universally
+- **Channels integration** (optional): Real-time progress updates
+- **Single-tenant focus**: Works for any single-tenant Django application
 
 ## Example Use Cases
 
-- **Teisutis**: Process KB articles, generate AI responses, send notifications
-- **SaaS apps**: Email verification, invoice generation, data exports
-- **E-commerce**: Order confirmation emails, inventory syncs, payment processing
-- **Analytics**: Report generation, data aggregation, cleanup tasks
-- **Real-time systems**: Task progress tracking via WebSocket
+- **Email systems**: Welcome emails, password resets, notifications
+- **Data processing**: Report generation, file processing, data exports
+- **External integrations**: API syncs, payment processing, webhook handlers
+- **Scheduled jobs**: Cleanup tasks, maintenance, periodic reports
+- **Real-time feedback**: Task progress tracking via WebSocket (with Channels)
 
 ## Related Skills
 
 - [`SKILL_django-architecture.md`](../skills/SKILL_django-architecture.md) - Core Django patterns (required foundation)
-- [`SKILL_django-multi-tenant.md`](../skills/SKILL_django-multi-tenant.md) - Multi-tenant context in tasks
-- [`SKILL_django-async-websocket.md`](../skills/SKILL_django-async-websocket.md) - Channels for real-time updates
+- [`SKILL_django-celery-multitenant.md`](./SKILL_django-celery-multitenant.md) - For multi-tenant applications, how to propagate organization context in tasks
+- [`SKILL_django-async-websocket.md`](./SKILL_django-async-websocket.md) - Real-time updates via WebSocket
 
 ## Related Rules
 
-- [`RULE_celery-context-safety.md`](../rules/RULE_celery-context-safety.md) - Tenant context critical guardrails (TBD)
+- [`RULE_celery-safety.md`](../rules/RULE_celery-safety.md) - Task context and error handling guardrails (TBD)
 
 ## References
 
