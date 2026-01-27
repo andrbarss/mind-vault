@@ -1,4 +1,9 @@
-# SKILL_django-architecture
+---
+name: django-architecture
+description: Core Django project architecture patterns including BaseModel abstractions, DRF conventions, ASGI setup, and common DRY patterns for organizing models, views, and middleware.
+license: MIT
+compatibility: opencode
+---
 
 ## Overview
 
@@ -130,7 +135,7 @@ services:
       - ./web:/app              # ← Mount web/ to /app
 ```
 
-**Note**: The `project/` directory name should match your actual project name (e.g., `teisutis/`, `myapp/`). Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
+**Note**: The `project/` directory name should match your actual project name. Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
 
 **Why this structure**:
 - Each app is self-contained (models, views, serializers, permissions)
@@ -145,7 +150,7 @@ services:
 
 ```python
 # apps/core/models.py
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 class BaseModel(models.Model):
@@ -163,13 +168,24 @@ class BaseModel(models.Model):
 
     def soft_delete(self):
         """Mark as deleted instead of removing."""
-        self.is_deleted = True
-        self.save(update_fields=['is_deleted', 'updated_at'])
+        with transaction.atomic():
+            # Use select_for_update to prevent race conditions
+            obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+            if obj.is_deleted:
+                return False  # Already deleted
+            obj.is_deleted = True
+            obj.save(update_fields=['is_deleted', 'updated_at'])
+            return True
 
     def restore(self):
         """Restore soft-deleted record."""
-        self.is_deleted = False
-        self.save(update_fields=['is_deleted', 'updated_at'])
+        with transaction.atomic():
+            obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+            if not obj.is_deleted:
+                return False  # Not deleted
+            obj.is_deleted = False
+            obj.save(update_fields=['is_deleted', 'updated_at'])
+            return True
 ```
 
 **Use in your models**:
@@ -214,6 +230,13 @@ DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Database
+def get_int_env(key, default):
+    """Safely convert environment variable to int."""
+    try:
+        return int(os.getenv(key, str(default)))
+    except (ValueError, TypeError):
+        return default
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -222,7 +245,7 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+        'CONN_MAX_AGE': get_int_env('DB_CONN_MAX_AGE', 600),
     }
 }
 
@@ -231,9 +254,9 @@ FEATURE_ENABLE_ELASTICSEARCH = os.getenv('FEATURE_ENABLE_ELASTICSEARCH', 'false'
 FEATURE_ENABLE_CACHING = os.getenv('FEATURE_ENABLE_CACHING', 'true').lower() == 'true'
 
 # Sensible defaults with overrides
-SEARCH_TIMEOUT = int(os.getenv('SEARCH_TIMEOUT', '3'))  # seconds
-API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))       # seconds
-BATCH_SIZE = int(os.getenv('BATCH_SIZE', '1000'))       # for bulk operations
+SEARCH_TIMEOUT = get_int_env('SEARCH_TIMEOUT', 3)  # seconds
+API_TIMEOUT = get_int_env('API_TIMEOUT', 30)       # seconds
+BATCH_SIZE = get_int_env('BATCH_SIZE', 1000)       # for bulk operations
 ```
 
 **Why this pattern**:
@@ -398,12 +421,14 @@ class IsResourceOwner(BasePermission):
 
 class HasRequiredRole(BasePermission):
     """Check if user has required role."""
-    required_role = None
-
+    required_role = None  # Must be set by subclass
+    
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        return request.user.role == self.required_role
+        if self.required_role is None:
+            raise ValueError("required_role must be set")
+        return getattr(request.user, 'role', None) == self.required_role
 ```
 
 **Use permissions in viewsets**:
@@ -421,15 +446,22 @@ class ArticleViewSet(BaseViewSet):
 
 ```python
 # apps/core/middleware.py
+from django.utils import timezone
+
 class RequestContextMiddleware:
     """Add context to request for downstream use."""
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        # Store user info on request
+        # Store user info on request (handle AnonymousUser safely)
+        try:
+            user_id = request.user.id if request.user.is_authenticated else None
+        except AttributeError:
+            user_id = None  # AnonymousUser doesn't have .id
+        
         request.user_context = {
-            'user_id': request.user.id if request.user.is_authenticated else None,
+            'user_id': user_id,
             'timestamp': timezone.now(),
         }
 
@@ -563,19 +595,16 @@ async def application(scope, receive, send):
 ```yaml
 version: '3.8'
 services:
+  # HTTP + WebSocket on same server (Daphne)
   web:
     build: .
     command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
-    # where 'project' matches your actual project directory name
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=false
-      - ALLOWED_HOSTS=localhost,0.0.0.0
     depends_on:
-      - db
+      - postgres
 
-  db:
+  postgres:
     image: postgres:15-alpine
     environment:
       - POSTGRES_DB=project_db
@@ -712,7 +741,28 @@ class ArticleViewSet(BaseViewSet):
         return super().list(request, *args, **kwargs)
 ```
 
-## Why It's Generic
+## When NOT to Use These Patterns
+
+### BaseModel Soft Deletes
+- **Don't use for audit logs** (never delete, keep all history)
+- **Don't use for temporary data** (should hard delete)
+- **Don't use with complex FK cascades** without careful planning
+- **Don't use if you need referential integrity** (soft deletes break FK constraints)
+
+### Modular Views Pattern
+- **Don't split if total views < 5 per app** (over-engineering)
+- **Don't use for simple CRUD** (Django admin might suffice)
+- **Don't split if you're the only developer** (increases complexity)
+
+### ASGI with Daphne
+- **Don't use if no WebSocket/async needs** (Gunicorn is more mature)
+- **Don't use for high-traffic HTTP-only APIs** (performance overhead)
+- **Don't use in constrained environments** (Daphne uses more memory)
+
+### Performance Monitoring
+- **Don't add to every method** (only critical paths)
+- **Don't use in development** (affects debugging)
+- **Don't rely on logging alone** (need alerting system)
 
 - **BaseModel pattern**: Used across any Django project needing soft deletes and timestamps
 - **Settings management**: Environment-based config standard for production apps
@@ -726,17 +776,17 @@ These patterns **don't require multi-tenancy, Celery, or async** - they're core 
 
 ## Example Use Cases
 
-- **Teisutis**: Knowledge base + AI features, uses all patterns
-- **Django REST API**: Any REST API project uses ViewSet + permission patterns
+- **REST APIs**: Any REST API project uses ViewSet + permission patterns
 - **Content management**: Soft deletes, timestamps, performance monitoring
-- **SaaS application**: BaseModel abstraction, middleware, query optimization
-- **Dashboard application**: DRF + permissions for role-based access
+- **SaaS applications**: BaseModel abstraction, middleware, query optimization
+- **Dashboard applications**: DRF + permissions for role-based access
+- **Knowledge bases**: Complex data models, soft deletes, query optimization
 
 ## Related Skills
 
-- [`SKILL_django-multi-tenant.md`](../skills/SKILL_django-multi-tenant.md) - If using multi-tenancy, extends BaseModel
-- [`SKILL_django-celery.md`](../skills/SKILL_django-celery.md) - If using background tasks
-- [`SKILL_django-async-websocket.md`](../skills/SKILL_django-async-websocket.md) - If using real-time features
+- [`SKILL_django-multi-tenant.md`](../django-multi-tenant/SKILL.md) - If using multi-tenancy, extends BaseModel
+- [`SKILL_django-celery.md`](../django-celery/SKILL.md) - If using background tasks
+- [`SKILL_django-async-websocket.md`](../django-async-websocket/SKILL.md) - If using real-time features
 
 ## References
 
