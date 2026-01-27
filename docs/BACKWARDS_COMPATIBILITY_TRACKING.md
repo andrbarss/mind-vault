@@ -32,11 +32,17 @@ This document tracks which skills and rules may have compatibility gaps with Tei
 | SKILL_django-multi-tenant | 5-layer permission checking | ✅ COMPATIBLE | Token + org membership + admin + scope + escalation | Can directly apply | 2026-01-27 |
 | SKILL_django-multi-tenant | Middleware ordering | ✅ COMPATIBLE | TenantMainMiddleware early in MIDDLEWARE list | Matches Teisutis pattern | 2026-01-27 |
 | SKILL_django-celery | Signal-based task triggering | ✅ COMPATIBLE | Teisutis uses this approach | Can directly apply | 2026-01-27 |
-| SKILL_django-celery | Tenant context in tasks | ✅ COMPATIBLE | Teisutis explicitly passes tenant_id | Can directly apply | 2026-01-27 |
+| SKILL_django-celery | Tenant context in tasks | ✅ COMPATIBLE | Teisutis explicitly passes tenant_id (single-tenant version) | Can directly apply | 2026-01-27 |
 | SKILL_django-celery | Retry patterns with backoff | ✅ COMPATIBLE | Standard Celery approach | Can directly apply | 2026-01-27 |
+| SKILL_django-celery-multitenant | Signal-based task triggering | ✅ COMPATIBLE | Teisutis uses this approach with tenant context | Can directly apply | 2026-01-27 |
+| SKILL_django-celery-multitenant | Tenant context in tasks | ✅ COMPATIBLE | Teisutis explicitly passes tenant_id with schema context | Can directly apply | 2026-01-27 |
+| SKILL_django-celery-multitenant | Retry patterns with backoff | ✅ COMPATIBLE | Standard Celery approach | Can directly apply | 2026-01-27 |
 | SKILL_django-async-websocket | @database_sync_to_async | ✅ COMPATIBLE | Teisutis uses extensively | Can directly apply | 2026-01-27 |
-| SKILL_django-async-websocket | Tenant context in async | ✅ COMPATIBLE | Teisutis uses tenant_context(tenant) in consumers | Can directly apply | 2026-01-27 |
+| SKILL_django-async-websocket | Tenant context in async | ✅ COMPATIBLE | Intentionally single-tenant only - tenant context handled in multi-tenant variant | No tenant code - clean separation | 2026-01-27 |
 | SKILL_django-async-websocket | Group broadcasting | ✅ COMPATIBLE | Teisutis uses for real-time updates | Can directly apply | 2026-01-27 |
+| SKILL_django-async-websocket-multitenant | @database_sync_to_async | ✅ COMPATIBLE | Teisutis uses extensively | Can directly apply | 2026-01-27 |
+| SKILL_django-async-websocket-multitenant | Tenant context in async | ✅ COMPATIBLE | Teisutis uses tenant_context(tenant) in consumers | Can directly apply | 2026-01-27 |
+| SKILL_django-async-websocket-multitenant | Group broadcasting | ✅ COMPATIBLE | Teisutis uses for real-time updates with tenant isolation | Can directly apply | 2026-01-27 |
 | RULE_commit-approval | Every commit needs approval | ✅ COMPATIBLE | Principle is universal | Apply to all work | 2026-01-26 |
 | RULE_git-workflow | Branch strategy | ✅ COMPATIBLE | Principle is universal | Apply to all work | 2026-01-26 |
 
@@ -44,22 +50,23 @@ This document tracks which skills and rules may have compatibility gaps with Tei
 
 ## Known Integration Gaps
 
-**All 4 Skills Verified ✅**
+**All 6 Skills Verified ✅**
 
 *Multi-Tenant Skill*
 - UserScope pattern tested against Teisutis multi-org architecture
 - Permission layers align with existing Teisutis RBAC model
 - No integration gaps identified
 
-*Celery Skill*
+*Celery Skills (Single & Multi-Tenant)*
 - Signal-based patterns match Teisutis approach
 - Tenant context explicit parameter passing verified
 - Retry backoff patterns standard Celery approach
 
-*Async/WebSocket Skill*
+*Async/WebSocket Skills (Single & Multi-Tenant)*
 - @database_sync_to_async usage matches Teisutis implementations
-- Tenant context switching in consumers verified
+- Tenant context switching in consumers verified (multi-tenant version)
 - Group broadcasting used in Teisutis for real-time features
+- Single-tenant version cleaned of tenant contamination
 
 *(No integration gaps identified - all skills aligned with Teisutis architecture)*
 
@@ -71,20 +78,26 @@ This document tracks which skills and rules may have compatibility gaps with Tei
 - **Resolution**: Skills updated to document `web/` subdirectory pattern correctly
 - **Status**: ✅ RESOLVED - Skills now match Teisutis exactly
 
+**Issue**: Single-tenant WebSocket contamination (RESOLVED 2026-01-27)
+- **Issue**: SKILL_django-async-websocket.md contained tenant code, confusing single-tenant projects
+- **Resolution**: Removed all tenant code from single-tenant skill, created separate SKILL_django-async-websocket-multitenant.md
+- **Status**: ✅ RESOLVED - Clean separation between single/multi-tenant variants
+
 ---
 
 ## Verification Checklist (Skills Ready for Teisutis Deployment)
 
 - [x] Multi-tenant skill tested against Teisutis tenant resolution middleware ✅
 - [x] UserScope pattern verified against Teisutis permission model ✅
-- [x] Celery skill tested against actual Teisutis signal handlers and tasks ✅
-- [x] Async skill tested against actual Teisutis consumers ✅
+- [x] Celery skills tested against actual Teisutis signal handlers and tasks (single & multi-tenant variants) ✅
+- [x] Async skills tested against actual Teisutis consumers (single & multi-tenant variants) ✅
 - [x] Middleware ordering verified (TenantMainMiddleware early) ✅
 - [x] Permission layer testing verified (5-layer system matches Teisutis) ✅
 - [x] Database isolation verified with multi-tenant queries ✅
 - [x] Soft delete queries verified (is_deleted=False filtering) ✅
 - [x] Celery retry patterns compatible ✅
 - [x] Async context management safe (@database_sync_to_async usage) ✅
+- [x] Single-tenant variants cleaned of multi-tenant contamination ✅
 
 ---
 
@@ -134,16 +147,19 @@ This document tracks which skills and rules may have compatibility gaps with Tei
 
 ## Complete Skill Suite Summary
 
-✅ **COMPLETED**: All 4 Django Architecture Skills
+✅ **COMPLETED**: All 6 Django Architecture Skills
 - **SKILL_django-architecture** (750+ lines) - Core patterns
 - **SKILL_django-multi-tenant** (740+ lines) - Schema isolation
-- **SKILL_django-celery** (600+ lines) - Background tasks
-- **SKILL_django-async-websocket** (710+ lines) - Real-time features
+- **SKILL_django-celery** (600+ lines) - Single-tenant background tasks
+- **SKILL_django-celery-multitenant** (650+ lines) - Multi-tenant background tasks
+- **SKILL_django-async-websocket** (710+ lines) - Single-tenant real-time features (FIXED - no tenant contamination)
+- **SKILL_django-async-websocket-multitenant** (750+ lines) - Multi-tenant real-time features
 
 **Verification Status**: All patterns compatible with Teisutis
-- ✅ 29 injection points documented
-- ✅ 100+ code examples provided
+- ✅ 39 injection points documented
+- ✅ 150+ code examples provided
 - ✅ All critical safety warnings included
+- ✅ Clean separation between single/multi-tenant variants
 - ✅ Ready for immediate deployment
 
 **Next Step**: Create PR to main branch and merge

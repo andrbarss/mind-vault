@@ -19,7 +19,7 @@ Extract Django architecture from Teisutis analysis into 4 focused skills:
 
 ## Skills to Create
 
-### ✅ SKILL_django-architecture.md - Core Django
+### ✅ SKILL_django-architecture.md - Core Django (Single-Tenant)
 
 **Content**:
 - [x] Django project structure - flat app layout (Django convention)
@@ -61,7 +61,7 @@ Extract Django architecture from Teisutis analysis into 4 focused skills:
 
 ---
 
-### ✅ SKILL_django-celery.md - Celery Specific
+### ✅ SKILL_django-celery.md - Celery Specific (Single-Tenant)
 
 **Content**:
 - [x] Signal handlers triggering Celery tasks
@@ -77,19 +77,51 @@ Extract Django architecture from Teisutis analysis into 4 focused skills:
 
 ---
 
-### ✅ SKILL_django-async-websocket.md - WebSocket/Async Specific
+### ✅ SKILL_django-celery-multitenant.md - Celery Multi-Tenant Specific
+
+**Content**:
+- [x] Multi-tenant signal handlers with tenant context
+- [x] Task patterns with tenant_id parameter and schema context
+- [x] Celery + Channels bridge for real-time updates across tenants
+- [x] Background task context management with tenant isolation
+- [x] Retry patterns and backoff (tenant-aware)
+- [x] All 9 Celery injection points adapted for multi-tenancy
+- [x] Critical rule: Never assume tenant context in tasks
+- [x] Examples from Teisutis multi-tenant setup
+
+**Status**: ✅ Complete - File: `skills/SKILL_django-celery-multitenant.md` (~650 lines)
+
+---
+
+### ✅ SKILL_django-async-websocket.md - WebSocket/Async Specific (Single-Tenant)
 
 **Content**:
 - [x] AsyncWebsocketConsumer patterns
 - [x] @database_sync_to_async decorator usage
-- [x] Tenant context in async code
+- [x] Tenant context in async code (REMOVED - single-tenant only)
 - [x] Error handling and categorization in async
 - [x] Group broadcasting for multi-user features
 - [x] All 10 async/WebSocket injection points identified
 - [x] Connection lifecycle (connect → verify → group_add → accept)
-- [x] Examples from Teisutis
+- [x] Examples from Teisutis (single-tenant adapted)
 
-**Status**: ✅ Complete - File: `skills/SKILL_django-async-websocket.md` (~710 lines)
+**Status**: ✅ Complete - File: `skills/SKILL_django-async-websocket.md` (~710 lines) - FIXED: Removed tenant contamination
+
+---
+
+### ✅ SKILL_django-async-websocket-multitenant.md - WebSocket/Async Multi-Tenant Specific
+
+**Content**:
+- [x] AsyncWebsocketConsumer patterns with tenant verification
+- [x] @database_sync_to_async decorator usage
+- [x] Tenant context in async code with tenant_context()
+- [x] Error handling and categorization in async
+- [x] Group broadcasting for multi-user features with tenant isolation
+- [x] All 10 async/WebSocket injection points adapted for multi-tenancy
+- [x] Connection lifecycle with tenant validation
+- [x] Examples from Teisutis multi-tenant WebSocket setup
+
+**Status**: ✅ Complete - File: `skills/SKILL_django-async-websocket-multitenant.md` (~750 lines)
 
 ---
 
@@ -110,25 +142,34 @@ Extract Django architecture from Teisutis analysis into 4 focused skills:
 - [x] Commit to same branch
 - **Status**: ✅ Complete (Commits: 5fb30cc, c35bfea)
 
-### Phase 3: Create Celery Skill
-- [x] Create SKILL_django-celery.md
-- [x] Document all 9 injection points
+### Phase 3: Create Celery Skills (Split Single/Multi-Tenant)
+- [x] Create SKILL_django-celery.md (single-tenant)
+- [x] Create SKILL_django-celery-multitenant.md (multi-tenant)
+- [x] Document all 9 injection points in both variants
 - [x] Include critical safety warnings
-- [x] Commit to same branch
-- **Status**: ✅ Complete (Commit: 33e24ed)
+- [x] Commit to feature/django-multi-tenant branch
+- **Status**: ✅ Complete (Commit: 33e24ed, and additional commits)
 
-### Phase 4: Create Async/WebSocket Skill
-- [x] Create SKILL_django-async-websocket.md
-- [x] Document all 10 injection points
+### Phase 4: Create Async/WebSocket Skills (Split Single/Multi-Tenant)
+- [x] Create SKILL_django-async-websocket.md (single-tenant)
+- [x] Create SKILL_django-async-websocket-multitenant.md (multi-tenant)
+- [x] Document all 10 injection points in both variants
 - [x] Include critical safety warnings
-- [x] Commit to same branch
-- **Status**: ✅ Complete (Commit: 18d0fff)
+- [x] Commit to feature/django-multi-tenant branch
+- **Status**: ✅ Complete (Commit: 18d0fff, and additional commits)
 
 ### Phase 5: Review and PR
 - [ ] Create PR to main
-- [ ] Curator review all 4 skills
+- [ ] Curator review all 6 skills
 - [ ] Verify cross-references
 - [ ] Merge when approved
+
+### Phase 6: Address User Pains and Setup (Completed 2026-01-27)
+- [x] Fix single-tenant WebSocket contamination (remove tenant code from SKILL_django-async-websocket.md)
+- [x] Centralize TBD rule tracking (remove (TBD) from all skills, track in this document)
+- [x] Commit fixes to feature/django-multi-tenant branch (Commit: d47ba69)
+- [x] Set up OpenCode symlinks for rules (RULE_commit-approval.md, RULE_git-workflow.md, RULE_merge-approval.md)
+- **Status**: ✅ Complete - Ready for PR
 
 ---
 
@@ -199,15 +240,16 @@ After all skills created:
 - All 10 injection points with working examples
 
 ### Total Skills Created
-- **4 comprehensive skills** (2,800+ lines)
-- **29 injection points documented** (10 + 9 + 10)
-- **100+ code examples** from Teisutis
+- **6 comprehensive skills** (3,200+ lines)
+- **39 injection points documented** (10 multi-tenant + 9 Celery single + 9 Celery multi + 10 async single + 10 async multi)
+- **150+ code examples** from Teisutis
 - **All patterns tested conceptually** against Teisutis architecture
 - **Full compatibility verified** (see BACKWARDS_COMPATIBILITY_TRACKING.md)
-- Group broadcasting and Celery task feedback
+- **Single-tenant variants cleaned** of multi-tenant contamination
+- **TBD rule tracking centralized** in this document
 
 **Phase 5 ⏳**: Review and PR
-- All 4 skills ready for curator review
+- All 6 skills ready for curator review
 - Cross-references verified
 - Ready for PR to main branch
 
@@ -224,7 +266,7 @@ After all skills created:
 - [ ] `RULE_celery-multitenant-safety.md` - Critical guardrails for tenant context in tasks
 - [ ] `RULE_async-multitenant-safety.md` - Critical guardrails for tenant context in async
 
-**Status**: Listed in Related Rules sections of skills as "(TBD)" - DO NOT create until:
+**Status**: (TBD) references REMOVED from all 6 skills as of 2026-01-27 commit d47ba69. Centralized tracking here only. DO NOT create until:
 1. Skills are finalized and in production use
 2. Actual safety issues/patterns emerge from usage
 3. We know what guardrails are actually needed (vs. theoretical)
