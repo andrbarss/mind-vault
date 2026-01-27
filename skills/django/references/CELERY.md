@@ -243,18 +243,22 @@ countdown = min(60 * (2 ** self.request.retries), 3600)
 
 ## Task Monitoring & Logging
 
+**Add observability to tasks**:
+
 ```python
+# tasks.py
 import logging
+from celery import shared_task
 import time
 
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True)
 def analyze_data(self, dataset_id):
-    """Analyze with timing and logging."""
+    """Analyze dataset with timing and logging."""
     start_time = time.time()
     task_id = self.request.id
-
+    
     logger.info(
         f'Task {task_id} started',
         extra={
@@ -262,10 +266,11 @@ def analyze_data(self, dataset_id):
             'dataset_id': dataset_id,
         }
     )
-
+    
     try:
+        # Actual work...
         result = compute_analysis(dataset_id)
-
+        
         duration = time.time() - start_time
         logger.info(
             f'Task {task_id} completed',
@@ -275,9 +280,9 @@ def analyze_data(self, dataset_id):
                 'result_size': len(result),
             }
         )
-
+        
         return result
-
+    
     except Exception as exc:
         duration = time.time() - start_time
         logger.error(
@@ -289,7 +294,7 @@ def analyze_data(self, dataset_id):
                 'retries': self.request.retries,
             }
         )
-
+        
         retry_delay = 60 * (2 ** self.request.retries)
         raise self.retry(exc=exc, countdown=retry_delay)
 ```

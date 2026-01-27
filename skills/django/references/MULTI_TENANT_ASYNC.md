@@ -246,6 +246,70 @@ async def connect(self):
     await self.accept()  # ✅ Verified
 ```
 
+## Middleware Context: How scope['tenant'] Gets Set
+
+**ASGI middleware must set `scope['tenant']` before WebSocket consumers run**. WebSocket connections bypass HTTP middleware, so tenant resolution happens in ASGI middleware stack.
+
+```python
+# asgi.py - ASGI application with tenant middleware
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
+from django.core.asgi import get_asgi_application
+from django_tenants.middleware import TenantMainMiddleware
+
+# Custom ASGI middleware to set scope['tenant']
+class TenantASGIMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        # For WebSocket connections, resolve tenant from headers/domain
+        if scope['type'] == 'websocket':
+            # Try X-Tenant-ID header (API WebSocket connections)
+            headers = dict(scope.get('headers', []))
+            tenant_id_header = headers.get(b'x-tenant-id')
+            if tenant_id_header:
+                try:
+                    from django_tenants.utils import get_tenant_model
+                    Tenant = get_tenant_model()
+                    tenant = Tenant.objects.get(id=int(tenant_id_header.decode()))
+                    scope['tenant'] = tenant
+                except (ValueError, Tenant.DoesNotExist):
+                    pass  # Will be rejected in consumer
+            else:
+                # Try domain resolution (web WebSocket connections)
+                host = None
+                for header_name, header_value in headers:
+                    if header_name == b'host':
+                        host = header_value.decode().split(':')[0]
+                        break
+                
+                if host:
+                    try:
+                        from django_tenants.models import Domain
+                        domain = Domain.objects.get(domain=host)
+                        scope['tenant'] = domain.tenant
+                    except Domain.DoesNotExist:
+                        pass  # Will be rejected in consumer
+        
+        return await self.app(scope, receive, send)
+
+application = ProtocolTypeRouter({
+    'http': get_asgi_application(),
+    'websocket': AllowedHostsOriginValidator(
+        TenantASGIMiddleware(  # ← Sets scope['tenant']
+            URLRouter(
+                websocket_urlpatterns
+            )
+        ),
+    ),
+})
+```
+
+**Why middleware is needed**: WebSocket connections don't go through Django's HTTP middleware stack, so `TenantMainMiddleware` doesn't run. ASGI middleware fills this gap by resolving tenant from headers or domain and setting `scope['tenant']` before the consumer runs.
+
+**Critical**: Tenant resolution must happen in ASGI middleware, not in the consumer. Consumers should only verify `scope['tenant']` exists and is valid.
+
 ## Injection Points
 
 1. **settings.py** - ASGI, CHANNEL_LAYERS (same as single-tenant)

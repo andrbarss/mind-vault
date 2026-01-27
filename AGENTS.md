@@ -58,12 +58,13 @@ skills/                          # Reusable agent skills
   │   │   └── MULTI_TENANT_CELERY.md
   │   ├── scripts/               # Automation helpers
   │   └── assets/                # Templates and diagrams
-  ├── django-architecture/       # DEPRECATED (use django/)
-  ├── django-celery/             # DEPRECATED (use django/)
-  ├── django-async-websocket/    # DEPRECATED (use django/)
-  ├── django-multi-tenant/       # DEPRECATED (use django/)
-  ├── django-celery-multitenant/ # DEPRECATED (use django/)
-  └── django-async-websocket-multitenant/ # DEPRECATED (use django/)
+  ├── _archived/                 # Archived skills (old versions)
+  │   ├── django-architecture/
+  │   ├── django-async-websocket/
+  │   ├── django-celery/
+  │   ├── django-multi-tenant/
+  │   ├── django-celery-multitenant/
+  │   └── django-async-websocket-multitenant/
 agents/          # AGENT.md files - agent specializations
 rules/           # RULE.md files - behavioral guidelines
 docs/            # Documentation, analysis, patterns
