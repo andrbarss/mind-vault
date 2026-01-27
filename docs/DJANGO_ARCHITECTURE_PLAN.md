@@ -22,23 +22,25 @@ Extract Django architecture from Teisutis analysis into 4 focused skills:
 ### ✅ SKILL_django-architecture.md - Core Django
 
 **Content**:
-- [x] Django project structure - standard layout, app organization
+- [x] Django project structure - flat app layout (Django convention)
 - [x] Model patterns - BaseModel abstraction, created_at/updated_at, soft deletes
 - [x] Settings & configuration - environment-based, feature gates, sensible defaults
 - [x] DRF patterns - ViewSet structure, permission patterns, serializers
 - [x] Middleware - request context handling (generic middleware concept)
+- [x] Per-app static/templates/locale - Django auto-discovery, collectstatic, Nginx serving
+- [x] Modular views/tests organization - split by purpose (api.py, web.py, invitations.py)
+- [x] Consolidation facade pattern - safe refactoring via __init__.py
 - [x] ASGI configuration - Daphne setup, protocol routing
 - [x] Common abstractions - mixins, base classes, DRY patterns
 - [x] Database optimization - N+1 prevention, batch operations, timeouts
 - [x] Performance monitoring - decorator-based observability
-- [x] Common mistakes - soft deletes affecting queries, context handling
 
 **Explicitly Separate** (don't include):
 - ❌ Multi-tenant context/middleware
 - ❌ Celery patterns
 - ❌ WebSocket/async patterns
 
-**Status**: ✅ Complete - File: `skills/SKILL_django-architecture.md` (478 lines)
+**Status**: ✅ Complete - File: `skills/SKILL_django-architecture.md` (~750 lines)
 
 ---
 
