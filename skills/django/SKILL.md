@@ -9,14 +9,14 @@ license: MIT
 compatibility: opencode
 metadata:
   author: mind-vault
-  version: "3.0"
+  version: "4.0"
   replaces:
-    - django-architecture
-    - django-async-websocket
-    - django-celery
-    - django-multi-tenant
-    - django-celery-multitenant
-    - django-async-websocket-multitenant
+     - django-architecture
+     - django-async-websocket
+     - django-celery
+     - django-multi-tenant
+     - django-celery-multitenant
+     - django-async-websocket-multitenant
 ---
 
 ## Overview
@@ -26,24 +26,28 @@ serializers, and middleware. Covers BaseModel abstractions, DRF conventions,
 ASGI setup, database optimization, testing strategies, and development workflows.
 
 **This skill covers**:
-- Project structure and organization
-- BaseModel abstractions (soft deletes, timestamps, BigAutoField)
-- Settings & environment configuration
-- DRF ViewSets, permissions, serializers
-- Mixins for reusable view functionality
-- Middleware patterns
-- ASGI configuration (basic)
-- Database optimization (N+1 prevention, batch operations, queryset patterns)
-- Performance monitoring
-- Testing patterns and best practices
-- Development workflow and environment management
+ - Project structure and organization
+ - BaseModel abstractions (soft deletes, timestamps, BigAutoField)
+ - Settings & environment configuration
+ - DRF ViewSets, permissions, serializers
+ - Mixins for reusable view functionality
+ - Middleware patterns
+ - ASGI configuration (basic)
+ - Database optimization (N+1 prevention, batch operations, queryset patterns)
+ - Performance monitoring
+ - Logging configuration and audit trails
+ - Translation workflows and locale handling
+ - Testing patterns and best practices
+ - Development workflow and environment management
 
 **Optional Extensions** (load on-demand):
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
-- [Celery Background Tasks](references/CELERY.md) - Async job processing
-- [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
+ - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
+ - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
+ - [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
+ - [Internationalization](references/I18N.md) - Translation workflows and locale handling
+ - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
+ - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
 
 **Combined Patterns**:
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
@@ -460,11 +464,13 @@ class ArticleViewSet(BaseViewSet):
 ## Related References
 
 **Core Extensions**:
-- [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
-- [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
-- [Celery Background Tasks](references/CELERY.md) - Async job processing
-- [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
-- [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
+ - [Multi-Tenant Architecture](references/MULTI_TENANT.md) - Schema-per-tenant isolation
+ - [Async WebSocket](references/ASYNC_WEBSOCKET.md) - Real-time communication
+ - [Celery Background Tasks](references/CELERY.md) - Async job processing
+ - [Logging Patterns](references/LOGGING.md) - Structured logging and monitoring
+ - [Internationalization](references/I18N.md) - Translation workflows and locale handling
+ - [Testing Patterns](references/TESTING.md) - Comprehensive testing strategies
+ - [Development Workflow](references/DEVELOPMENT_WORKFLOW.md) - Environment config and processes
 
 **Combined Patterns**:
 - [Multi-Tenant + Async](references/MULTI_TENANT_ASYNC.md) - WebSocket with tenants
@@ -499,5 +505,5 @@ class ArticleViewSet(BaseViewSet):
 ---
 
 **Last Updated**: 2026-01-28
-**Version**: 3.0
+**Version**: 4.0
 **Replaces**: django-architecture, django-async-websocket, django-celery, django-multi-tenant, django-celery-multitenant, django-async-websocket-multitenant
