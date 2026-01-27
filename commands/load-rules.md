@@ -1,4 +1,4 @@
-# COMMAND_load-rules
+# load-rules
 
 ## Purpose
 Load all mind-vault rules into current session context to enforce behavioral guardrails during session compaction.
