@@ -276,7 +276,7 @@ Before finishing work on skills/rules/documentation:
 - [ ] Links are relative paths or full URLs
 - [ ] No credentials, API keys, or secrets included
 - [ ] Clear explanation of why this pattern matters
-- [ ] All sections follow template structure
+- [ ] **Rule Enforcement**: Run `/load-rules` command at session start and after compaction to enforce active rules
 
 ## Agent Roles
 
