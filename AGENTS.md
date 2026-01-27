@@ -303,4 +303,4 @@ For agents extending this repository:
 
 **Last Updated**: 2026-01-26  
 **Repository**: https://github.com/infohata/mind-vault  
-**Symlinks**: `~/.claude/skills`, `~/.config/opencode/skills`
+**Symlinks**: `~/.claude/skills`, `~/.config/opencode/skills`, `~/.config/opencode/commands`
