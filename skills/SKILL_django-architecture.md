@@ -18,85 +18,96 @@ Core Django project architecture patterns for organizing models, views, serializ
 
 ### Project Structure
 
-**Standard Django layout** (using `project` as placeholder for actual project name):
+**Standard Django layout with infrastructure separation**:
+
 ```
-project_root/
-├── manage.py
-├── requirements.txt
-├── docker-compose.yml
+git_repo_root/
+├── docker-compose.yml              # Infrastructure
 ├── Dockerfile
-├── .env.example
-├── project/                         # Project settings directory (same name as root)
-│   ├── __init__.py
-│   ├── settings.py                  # Main settings
-│   ├── asgi.py                      # Async Server Gateway Interface
-│   ├── wsgi.py                      # (if using traditional deployment)
-│   └── urls.py                      # Root URL configuration
-├── core/                            # Shared utilities, abstract models
-│   ├── models.py                    # BaseModel, abstract classes
-│   ├── mixins.py                    # QuerySet and ViewSet mixins
-│   ├── permissions.py               # Custom permission classes
-│   ├── serializers.py               # Base serializers
-│   ├── decorators.py                # Reusable decorators
-│   └── middleware.py
-├── auth/                            # Authentication app
-│   ├── models.py
-│   ├── serializers.py
-│   ├── urls.py
-│   ├── mixins.py                    # Reusable view mixins
-│   ├── views/                       # Modular views (split by purpose, not single views.py)
-│   │   ├── __init__.py              # Consolidation facade
-│   │   ├── api.py                   # REST API ViewSets
-│   │   ├── web.py                   # Web class-based views
-│   │   ├── invitations.py           # Invitation workflow views
-│   │   └── utils.py                 # Helper functions
-│   ├── tests/                       # Tests mirror views structure
-│   │   ├── __init__.py
-│   │   ├── test_api.py              # API tests
-│   │   ├── test_web.py              # Web view tests
-│   │   ├── test_invitations.py      # Invitation tests
-│   │   └── test_permissions.py      # Permission/security tests
-│   ├── locale/                      # User-facing translations (gettext)
-│   ├── templates/auth/              # App-specific templates
-│   └── static/auth/                 # App-specific static files (CSS, JS, images)
-├── api/                             # Main API endpoints
-│   ├── models.py
-│   ├── views.py
-│   ├── serializers.py
-│   ├── urls.py
-│   ├── locale/
-│   ├── templates/api/
-│   ├── static/api/
-│   └── tests/
-├── [feature]/                       # Feature-specific apps (same structure as auth/api)
-│   ├── models.py
-│   ├── views.py
-│   ├── serializers.py
-│   ├── urls.py
-│   ├── permissions.py
-│   ├── locale/
-│   ├── templates/[feature]/
-│   ├── static/[feature]/
-│   └── tests/
-├── static/                          # Collected static files (production only)
-│   ├── admin/                       # Django admin static files
-│   ├── auth/                        # App static files copied here
-│   ├── api/
-│   └── [feature]/
-├── locale/                          # Compiled translations (production)
-└── logs/                            # Application logs
+├── nginx/
+├── docs/
+├── tools/
+│
+└── web/                            # ← All Django code here
+    ├── manage.py
+    ├── requirements.txt
+    ├── .env.example
+    ├── project/                    # Project settings (same name as repo)
+    │   ├── __init__.py
+    │   ├── settings.py             # Main settings
+    │   ├── asgi.py                 # Async Server Gateway Interface
+    │   ├── wsgi.py                 # (if using traditional deployment)
+    │   └── urls.py                 # Root URL configuration
+    ├── core/                       # Shared utilities, abstract models
+    │   ├── models.py               # BaseModel, abstract classes
+    │   ├── mixins.py               # QuerySet and ViewSet mixins
+    │   ├── permissions.py          # Custom permission classes
+    │   ├── serializers.py          # Base serializers
+    │   ├── decorators.py           # Reusable decorators
+    │   └── middleware.py
+    ├── auth/                       # Authentication app
+    │   ├── models.py
+    │   ├── serializers.py
+    │   ├── urls.py
+    │   ├── mixins.py
+    │   ├── views/                  # Modular views (split by purpose)
+    │   │   ├── __init__.py         # Consolidation facade
+    │   │   ├── api.py              # REST API ViewSets
+    │   │   ├── web.py              # Web class-based views
+    │   │   ├── invitations.py      # Invitation workflow views
+    │   │   └── utils.py            # Helper functions
+    │   ├── tests/                  # Tests mirror views structure
+    │   │   ├── __init__.py
+    │   │   ├── test_api.py
+    │   │   ├── test_web.py
+    │   │   ├── test_invitations.py
+    │   │   └── test_permissions.py
+    │   ├── locale/                 # User-facing translations (gettext)
+    │   ├── templates/auth/         # App-specific templates
+    │   └── static/auth/            # App-specific static files
+    ├── api/                        # Main API endpoints
+    │   ├── models.py
+    │   ├── views.py
+    │   ├── serializers.py
+    │   ├── urls.py
+    │   ├── locale/
+    │   ├── templates/api/
+    │   ├── static/api/
+    │   └── tests/
+    ├── [feature]/                  # Feature-specific apps
+    │   ├── models.py
+    │   ├── views.py
+    │   ├── serializers.py
+    │   ├── urls.py
+    │   ├── permissions.py
+    │   ├── locale/
+    │   ├── templates/[feature]/
+    │   ├── static/[feature]/
+    │   └── tests/
+    ├── static/                     # Collected static files (production)
+    │   ├── admin/
+    │   ├── auth/
+    │   ├── api/
+    │   └── [feature]/
+    ├── locale/                     # Compiled translations (production)
+    └── logs/                       # Application logs
 ```
 
-**Per-app structure (flat, Django convention)**:
-- Apps live at root level (not in subdirectory) - standard Django convention
+**Why `web/` subdirectory**:
+- Clean separation: Infrastructure (docker-compose, nginx, docs, tools) at repo root
+- Docker-friendly: `web/` service mounts to `/app` in container
+- Django code self-contained: `web/` has everything Django needs
+- Easy to find: All Django apps at one level (not scattered)
+
+**Within `web/`, apps use flat structure (Django convention)**:
 - Django auto-discovers `templates/` and `static/` within each app
-- `locale/` contains source translations (gettext .po files) that get compiled
-- Run `python manage.py collectstatic` in production to gather all app static files to root `static/`
+- `locale/` contains source translations (gettext .po files)
+- Run `python manage.py collectstatic` to gather app static files to root `static/`
 - Nginx serves compiled static files directly (not through Django)
-- Django handles template app discovery automatically
 
 **In settings.py, register apps by their module name**:
 ```python
+# web/project/settings.py
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -106,6 +117,17 @@ INSTALLED_APPS = [
     'api',           # Not 'apps.api'
     '[feature]',
 ]
+```
+
+**Docker Compose mounts `web/` to container**:
+```yaml
+services:
+  web:
+    build: .
+    working_dir: /app           # Maps to web/ directory
+    command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
+    volumes:
+      - ./web:/app              # ← Mount web/ to /app
 ```
 
 **Note**: The `project/` directory name should match your actual project name (e.g., `teisutis/`, `myapp/`). Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
