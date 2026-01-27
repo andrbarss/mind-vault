@@ -604,7 +604,7 @@ class CeleryTaskTestCase(TestCase):
 
 ## Related Rules
 
-- [`RULE_celery-safety.md`](../rules/RULE_celery-safety.md) - Task context and error handling guardrails (TBD)
+- [`RULE_celery-safety.md`](../rules/RULE_celery-safety.md) - Task context and error handling guardrails
 
 ## References
 

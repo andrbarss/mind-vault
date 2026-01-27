@@ -741,7 +741,7 @@ class TenantIsolationTestCase(TenantTestCase):
 
 ## Related Rules
 
-- [`RULE_multi-tenant-safety.md`](../rules/RULE_multi-tenant-safety.md) - Tenant context critical guardrails (TBD)
+- [`RULE_multi-tenant-safety.md`](../rules/RULE_multi-tenant-safety.md) - Tenant context critical guardrails
 
 ## References
 

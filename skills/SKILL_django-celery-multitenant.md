@@ -313,7 +313,7 @@ def bulk_operation(self, data, org_id):
 
 ## Related Rules
 
-- [`RULE_celery-multitenant-safety.md`](../rules/RULE_celery-multitenant-safety.md) - Critical guardrails for tenant context in tasks (TBD)
+- [`RULE_celery-multitenant-safety.md`](../rules/RULE_celery-multitenant-safety.md) - Critical guardrails for tenant context in tasks
 
 ## References
 

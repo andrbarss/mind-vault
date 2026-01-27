@@ -353,7 +353,7 @@ async def connect(self):
 
 ## Related Rules
 
-- [`RULE_async-multitenant-safety.md`](../rules/RULE_async-multitenant-safety.md) - Critical guardrails for tenant context in async (TBD)
+- [`RULE_async-multitenant-safety.md`](../rules/RULE_async-multitenant-safety.md) - Critical guardrails for tenant context in async
 
 ## References
 
