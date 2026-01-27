@@ -1,8 +1,9 @@
 ---
 description: Analyze projects, extract generic patterns, identify what should be documented
 mode: subagent
-model: anthropic/claude-sonnet-4-20250514
+model: anthropic/claude-sonnet-4-5
 temperature: 0.3
+extended_thinking: true
 tools:
   write: true
   edit: true

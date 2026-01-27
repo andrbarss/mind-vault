@@ -1,8 +1,8 @@
 ---
 description: Design patterns, validate applicability, ensure production-readiness
 mode: subagent
-model: anthropic/claude-sonnet-4-20250514
-temperature: 0.2
+model: anthropic/claude-opus-4-5
+temperature: 0.3
 tools:
   write: true
   edit: true

@@ -1,8 +1,8 @@
 ---
 description: Frontend/UX patterns, UI components, client-side architecture
 mode: subagent
-model: anthropic/claude-sonnet-4-20250514
-temperature: 0.3
+model: anthropic/claude-sonnet-4-5
+temperature: 0.5
 tools:
   write: true
   edit: true

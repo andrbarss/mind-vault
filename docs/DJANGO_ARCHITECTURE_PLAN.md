@@ -7,6 +7,33 @@
 
 ---
 
+## Historical Context - Session State 2026-01-26
+
+**Initial Goal**: Extract generic patterns from Teisutis into reusable mind-vault skills
+
+**Initial Status** (2026-01-26):
+- ✅ mind-vault project created and initialized (~/projects/mind-vault)
+- ✅ Symlinked to both ~/.claude/skills and ~/.config/opencode/skills
+- ✅ GitHub remote set up (infohata/mind-vault)
+- ✅ Scanned Teisutis codebase for AI/rules/config
+- ✅ Filtered scan to generic patterns only (removed Teisutis-specific items)
+- ✅ Created TEISUTIS_SCAN.md documenting 9 generic patterns
+
+**Initial 9 Generic Patterns Identified**:
+1. `django-async-patterns` - WebSocket + Channels async/sync mixing
+2. `django-tenants-patterns` - Multi-tenant context management  
+3. `error-handling-async` - Error categorization in async code
+4. `performance-monitoring` - Observability and monitoring
+5. `streaming-response-pattern` - Real-time response handling
+6. `tool-dependency-rules` - Sequential execution, prevent race conditions
+7. `dev-shortcuts` - `/rr` (restart + collect static), etc.
+8. Database query optimization
+9. Django settings patterns
+
+**Evolution**: These 9 patterns evolved into the current 6 focused skills + 5 safety rules, with clear separation between single-tenant and multi-tenant variants.
+
+---
+
 ## Overview
 
 Extract Django architecture from Teisutis analysis into 4 focused skills:
