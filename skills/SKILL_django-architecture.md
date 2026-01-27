@@ -18,7 +18,7 @@ Core Django project architecture patterns for organizing models, views, serializ
 
 ### Project Structure
 
-**Standard Django layout**:
+**Standard Django layout** (using `project` as placeholder for actual project name):
 ```
 project_root/
 ├── manage.py
@@ -26,37 +26,89 @@ project_root/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── .env.example
-├── config/                          # Project settings
+├── project/                         # Project settings directory (same name as root)
 │   ├── __init__.py
 │   ├── settings.py                  # Main settings
 │   ├── asgi.py                      # Async Server Gateway Interface
 │   ├── wsgi.py                      # (if using traditional deployment)
 │   └── urls.py                      # Root URL configuration
-├── apps/                            # Django apps directory
-│   ├── core/                        # Shared utilities, abstract models
-│   │   ├── models.py                # BaseModel, abstract classes
-│   │   ├── mixins.py                # QuerySet and ViewSet mixins
-│   │   ├── permissions.py           # Custom permission classes
-│   │   ├── serializers.py           # Base serializers
-│   │   └── decorators.py            # Reusable decorators
-│   ├── auth/                        # Authentication app
-│   ├── api/                         # Main API endpoints
-│   └── [feature]/                   # Feature-specific apps
-│       ├── models.py
-│       ├── views.py
-│       ├── serializers.py
-│       ├── permissions.py
-│       ├── urls.py
-│       └── tests/
-├── static/                          # Static files (CSS, JS, images)
-│   ├── css/
-│   ├── js/
-│   └── images/
-├── templates/                       # Django templates
-│   ├── base.html
-│   └── [app]/
+├── core/                            # Shared utilities, abstract models
+│   ├── models.py                    # BaseModel, abstract classes
+│   ├── mixins.py                    # QuerySet and ViewSet mixins
+│   ├── permissions.py               # Custom permission classes
+│   ├── serializers.py               # Base serializers
+│   ├── decorators.py                # Reusable decorators
+│   └── middleware.py
+├── auth/                            # Authentication app
+│   ├── models.py
+│   ├── serializers.py
+│   ├── urls.py
+│   ├── mixins.py                    # Reusable view mixins
+│   ├── views/                       # Modular views (split by purpose, not single views.py)
+│   │   ├── __init__.py              # Consolidation facade
+│   │   ├── api.py                   # REST API ViewSets
+│   │   ├── web.py                   # Web class-based views
+│   │   ├── invitations.py           # Invitation workflow views
+│   │   └── utils.py                 # Helper functions
+│   ├── tests/                       # Tests mirror views structure
+│   │   ├── __init__.py
+│   │   ├── test_api.py              # API tests
+│   │   ├── test_web.py              # Web view tests
+│   │   ├── test_invitations.py      # Invitation tests
+│   │   └── test_permissions.py      # Permission/security tests
+│   ├── locale/                      # User-facing translations (gettext)
+│   ├── templates/auth/              # App-specific templates
+│   └── static/auth/                 # App-specific static files (CSS, JS, images)
+├── api/                             # Main API endpoints
+│   ├── models.py
+│   ├── views.py
+│   ├── serializers.py
+│   ├── urls.py
+│   ├── locale/
+│   ├── templates/api/
+│   ├── static/api/
+│   └── tests/
+├── [feature]/                       # Feature-specific apps (same structure as auth/api)
+│   ├── models.py
+│   ├── views.py
+│   ├── serializers.py
+│   ├── urls.py
+│   ├── permissions.py
+│   ├── locale/
+│   ├── templates/[feature]/
+│   ├── static/[feature]/
+│   └── tests/
+├── static/                          # Collected static files (production only)
+│   ├── admin/                       # Django admin static files
+│   ├── auth/                        # App static files copied here
+│   ├── api/
+│   └── [feature]/
+├── locale/                          # Compiled translations (production)
 └── logs/                            # Application logs
 ```
+
+**Per-app structure (flat, Django convention)**:
+- Apps live at root level (not in subdirectory) - standard Django convention
+- Django auto-discovers `templates/` and `static/` within each app
+- `locale/` contains source translations (gettext .po files) that get compiled
+- Run `python manage.py collectstatic` in production to gather all app static files to root `static/`
+- Nginx serves compiled static files directly (not through Django)
+- Django handles template app discovery automatically
+
+**In settings.py, register apps by their module name**:
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'rest_framework',
+    'core',          # Not 'apps.core'
+    'auth',          # Not 'apps.auth'
+    'api',           # Not 'apps.api'
+    '[feature]',
+]
+```
+
+**Note**: The `project/` directory name should match your actual project name (e.g., `teisutis/`, `myapp/`). Using the same name for both root and settings directory is Django convention and avoids confusion with `app.config`.
 
 **Why this structure**:
 - Each app is self-contained (models, views, serializers, permissions)
@@ -128,7 +180,7 @@ Article.objects.all()  # ❌ Includes deleted records
 **Organize settings with environment variables**:
 
 ```python
-# config/settings.py
+# project/settings.py (where 'project' is your actual project name)
 import os
 from pathlib import Path
 
@@ -167,6 +219,121 @@ BATCH_SIZE = int(os.getenv('BATCH_SIZE', '1000'))       # for bulk operations
 - Same codebase works dev/staging/production
 - Defaults work for development
 - Feature gates allow A/B testing without deployment
+
+### Modular Views & Tests (Split by Purpose)
+
+**Don't use monolithic `views.py`** - Split into submodules by purpose/domain:
+
+```python
+# auth/views/__init__.py - Consolidation facade
+from .api import UserViewSet, OrgViewSet, InvitationViewSet
+from .web import UserListView, UserDetailView, SettingsView
+from .invitations import InvitationAcceptView, InvitationRejectView
+
+__all__ = [
+    'UserViewSet', 'OrgViewSet', 'InvitationViewSet',
+    'UserListView', 'UserDetailView', 'SettingsView',
+    'InvitationAcceptView', 'InvitationRejectView',
+]
+```
+
+```python
+# auth/views/api.py - REST API endpoints only
+from rest_framework import viewsets
+from ..models import User, Org
+from ..serializers import UserSerializer, OrgSerializer
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+class OrgViewSet(viewsets.ModelViewSet):
+    queryset = Org.objects.all()
+    serializer_class = OrgSerializer
+    # ...
+```
+
+```python
+# auth/views/web.py - Web class-based views
+from django.views.generic import ListView, DetailView
+from ..models import User
+from ..mixins import UserOwnershipMixin
+
+class UserListView(ListView):
+    model = User
+    template_name = 'auth/user_list.html'
+    context_object_name = 'users'
+    paginate_by = 50
+
+class UserDetailView(UserOwnershipMixin, DetailView):
+    model = User
+    template_name = 'auth/user_detail.html'
+```
+
+```python
+# auth/views/invitations.py - Complex invitation workflow
+from django.views import View
+from ..models import Invitation
+from ..serializers import InvitationSerializer
+
+class InvitationAcceptView(View):
+    """Handle invitation acceptance with security checks."""
+    def post(self, request, token):
+        try:
+            invitation = Invitation.objects.get(token=token)
+            invitation.accept(user=request.user)
+            return JsonResponse({'status': 'accepted'})
+        except Invitation.DoesNotExist:
+            return JsonResponse({'error': 'Invalid token'}, status=400)
+
+class InvitationRejectView(View):
+    # Similar pattern...
+```
+
+**Mirror test structure to match views**:
+
+```python
+# auth/tests/test_api.py - API tests
+from rest_framework.test import APITestCase
+from ..models import User
+
+class UserViewSetTestCase(APITestCase):
+    def test_create_user(self):
+        response = self.client.post('/api/users/', {...})
+        self.assertEqual(response.status_code, 201)
+
+# auth/tests/test_web.py - Web view tests
+from django.test import TestCase, Client
+from ..models import User
+
+class UserListViewTestCase(TestCase):
+    def test_list_displays_users(self):
+        response = self.client.get('/users/')
+        self.assertEqual(response.status_code, 200)
+
+# auth/tests/test_invitations.py - Complex workflow tests
+class InvitationWorkflowTestCase(TestCase):
+    def test_invitation_accept_creates_user(self):
+        # ...
+```
+
+**Why split views and tests**:
+- ✅ Keep files under 1000 LOC (manageable, readable)
+- ✅ Agent context stays focused (fewer imports per file)
+- ✅ Easy to find related code (api.py = all API views)
+- ✅ Tests mirror structure (test_api.py = tests for api.py)
+- ✅ Reduce merge conflicts (different developers can work on api.py vs web.py)
+- ✅ Clear separation of concerns (REST vs web vs workflows)
+
+**Consolidation pattern** (safe refactoring):
+- `__init__.py` imports and exports all views
+- Code outside the app imports from consolidation facade: `from auth.views import UserViewSet`
+- Internal refactoring (move view to different file) doesn't break external imports
+- Single source of truth for what's exported
 
 ### DRF Patterns
 
@@ -262,17 +429,100 @@ MIDDLEWARE = [
 
 **Critical**: Middleware order matters! Context-setting middleware should run early.
 
+### Static Files & Templates (Per-App)
+
+**Django auto-discovers app-level static and templates**:
+
+```python
+# apps/auth/static/auth/css/auth.css - App-specific CSS
+body.auth-page {
+    background: #f0f0f0;
+}
+```
+
+```python
+# apps/auth/templates/auth/login.html - App-specific template
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="login-container">
+    <img src="{% static 'auth/images/logo.png' %}" />
+    <!-- ... -->
+</div>
+{% endblock %}
+```
+
+**Internationalization (i18n) workflow**:
+
+```bash
+# In each app directory, create locale structure for translations
+python manage.py makemessages -l es  # Extract strings for Spanish
+
+# apps/auth/locale/es/LC_MESSAGES/django.po
+msgid "Welcome"
+msgstr "Bienvenido"
+
+# Compile translations
+python manage.py compilemessages
+```
+
+**Production static file handling**:
+
+```bash
+# Collect all app static files to root static/ directory
+python manage.py collectstatic --noinput
+
+# Result: root static/ now contains all app static files
+# static/
+#   ├── admin/
+#   ├── auth/css/auth.css
+#   ├── api/js/api.js
+#   └── [feature]/...
+```
+
+**Nginx configuration** (serves static directly, not through Django):
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+
+    # Serve static files directly (fast, no Django overhead)
+    location /static/ {
+        alias /path/to/project/static/;
+    }
+
+    # Serve media uploads
+    location /media/ {
+        alias /path/to/project/media/;
+    }
+
+    # Everything else goes to Django
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+    }
+}
+```
+
+**Why per-app structure**:
+- Django auto-discovers templates and static within apps (no configuration needed)
+- Each app is truly self-contained (templates, CSS, JS live together)
+- Easier to move/delete/test apps in isolation
+- `collectstatic` handles the heavy lifting for production
+- Nginx serves compiled static files (not Django)
+
 ### ASGI Configuration (Daphne)
 
 **Pragmatic single-server setup with Daphne**:
 
 ```python
-# config/asgi.py
+# project/asgi.py (where 'project' is your actual project name)
 import os
 from django.core.asgi import get_asgi_application
 from django.urls import path
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project.settings')
 
 # Initialize Django ASGI application
 django_asgi_app = get_asgi_application()
@@ -293,7 +543,8 @@ version: '3.8'
 services:
   web:
     build: .
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    command: daphne -b 0.0.0.0 -p 8000 project.asgi:application
+    # where 'project' matches your actual project directory name
     ports:
       - "8000:8000"
     environment:
