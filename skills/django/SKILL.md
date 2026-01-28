@@ -485,17 +485,7 @@ class ArticleViewSet(BaseViewSet):
 ## Scripts & Tools
 
 **Automation helpers** (in `scripts/`):
-- `setup_tenant.py` - Create new tenant (multi-tenant projects)
-- `create_consumer.py` - Generate WebSocket consumer boilerplate
-- `create_task.py` - Generate Celery task boilerplate
-- `test_celery.py` - Verify Celery configuration
-- `run_tests.sh` - Comprehensive test execution script
-
-**Templates** (in `assets/templates/`):
-- `consumer_template.py` - WebSocket consumer template
-- `task_template.py` - Celery task template
-- `viewset_template.py` - DRF ViewSet template
-- `test_template.py` - Test case template
+- `run_tests.sh` - Comprehensive test execution with coverage reports
 
 ## External References
 
