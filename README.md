@@ -69,6 +69,11 @@ Skills available include:
 - **django-async-websocket** - Real-time WebSocket communication
 - And more in the `skills/` directory
 
+## For Developers
+
+Creating new skills? See the comprehensive guide:
+- **[Skill Development Guide](docs/SKILL_SPECIFICATION.md)** - OpenCode skill specifications, validation, and best practices
+
 ## Version Control
 
 Commit all non-sensitive configuration to git.

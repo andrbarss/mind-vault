@@ -1,7 +1,6 @@
 ---
 description: Validate patterns work, identify edge cases, stress-test concepts
 mode: subagent
-model: anthropic/claude-opus-4-5
 temperature: 0.1
 extended_thinking: true
 tools:

@@ -1,7 +1,6 @@
 ---
 description: Documentation quality across all roles - clarity refinement and consistency
 mode: subagent
-model: anthropic/claude-sonnet-4-5
 temperature: 0.4
 tools:
   write: true
