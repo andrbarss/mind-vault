@@ -76,17 +76,23 @@ validate_skill() {
     fi
 
     # Check description exists
-    if ! grep -q "^description: " "$SKILL_FILE"; then
+    if ! grep -q "^description:" "$SKILL_FILE"; then
         echo -e "${RED}❌ Missing 'description' in frontmatter${NC}"
         HAS_ERRORS=1
     else
-        # Check description length - handle multiline descriptions
-        local desc_line=$(grep -n "^description:" "$SKILL_FILE" | head -n1 | cut -d: -f1)
-        local next_separator=$(grep -n "^---$" "$SKILL_FILE" | sed -n '2p' | cut -d: -f1)
+        # Handle both single-line and multiline descriptions
+        local desc_start=$(grep -n "^description:" "$SKILL_FILE" | head -n1 | cut -d: -f1)
+        local next_field=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*:" "$SKILL_FILE" | awk -F: -v start="$desc_start" '$1 > start {print $1; exit}')
+        local desc_end=$((next_field - 1))
         
-        if [ -n "$desc_line" ] && [ -n "$next_separator" ]; then
-            # Extract description content (from description line to next ---)
-            DESCRIPTION=$(sed -n "${desc_line},${next_separator}p" "$SKILL_FILE" | sed '1d; $d' | sed '/^$/d')
+        if [ -z "$next_field" ]; then
+            # Last field in frontmatter
+            desc_end=$(grep -n "^---$" "$SKILL_FILE" | sed -n '2p' | cut -d: -f1)
+            desc_end=$((desc_end - 1))
+        fi
+        
+        if [ $desc_end -ge $desc_start ]; then
+            DESCRIPTION=$(sed -n "${desc_start},${desc_end}p" "$SKILL_FILE" | sed '1s/^description: //' | sed '/^$/d')
             DESC_LENGTH=$(echo -n "$DESCRIPTION" | wc -c)
             
             if [ $DESC_LENGTH -lt 1 ]; then
