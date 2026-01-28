@@ -282,5 +282,4 @@ OpenCode skills require **strict formatting** but provide **excellent scalabilit
 - [ ] Name format: lowercase + single hyphens
 - [ ] Frontmatter: `name` and `description` fields
 - [ ] Validation: passes `./tools/validate-skills.sh`
-- [ ] Content: clear, actionable, generic patterns</content>
-<parameter name="filePath">docs/SKILL_SPECIFICATION.md
+- [ ] Content: clear, actionable, generic patterns
