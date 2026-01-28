@@ -15,19 +15,15 @@ This is **not** a typical application - there are no tests, build steps, or runt
 ## Commands & Workflow
 
 ### Git Workflow
-```bash
-# Check status before any changes
-git status
 
-# View recent commits to understand patterns
-git log --oneline -10
+**CRITICAL**: All git operations follow `rules/RULE_git-safety.md`
 
-# Commit changes (follow existing message style)
-git add <files>
-git commit -m "Describe what was added/changed and why"
+Key requirements:
+- Work on feature branches only (never commit to main)
+- Show diff and ask approval BEFORE every commit
+- Never merge (user merges on GitHub)
 
-# DO NOT push to main - user handles that
-```
+See [`rules/RULE_git-safety.md`](rules/RULE_git-safety.md) for full details.
 
 ### No Build/Test/Lint Steps
 - This project has no Makefile, pytest, linting, or build pipeline
@@ -229,8 +225,14 @@ Include metadata at top:
 
 ## Guardrails & Critical Rules
 
-### Git Safety
-- ✅ DO: Make focused commits with clear messages
+### Git Safety (RULE_git-safety.md)
+
+**The 3 Hard Rules:**
+1. ⛔ NEVER COMMIT TO MAIN - Work on feature branches only
+2. ⛔ NEVER COMMIT WITHOUT APPROVAL - Show diff, ask "Should I commit?", wait for "yes" in THIS response
+3. ⛔ NEVER MERGE - User merges on GitHub, agent never runs `git merge`
+
+**Additional:**
 - ❌ DON'T: Commit credentials, API keys, or .env files
 - ❌ DON'T: Force push to main
 - ❌ DON'T: Rewrite history on shared branches
@@ -247,6 +249,19 @@ Include metadata at top:
 - ✅ DO: Keep files focused (split if >500 lines)
 - ❌ DON'T: Leave TODO comments in final files
 - ❌ DON'T: Include incomplete patterns
+
+### Context Compaction Handling
+
+**When context compaction occurs:**
+1. PAUSE immediately after compaction completes
+2. State what you were working on before compaction
+3. Confirm critical rules are still active (especially git safety)
+4. Ask user if you should continue or if they want to adjust approach
+
+**Why this matters:**
+- Compaction can dilute rule awareness
+- User needs opportunity to intervene before you continue
+- Prevents rule violations that happen mid-task
 
 ## File Operations
 
