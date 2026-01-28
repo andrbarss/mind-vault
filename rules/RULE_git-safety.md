@@ -55,7 +55,14 @@ gh pr create --title "..." --body "..."
 
 # 7. User merges on GitHub
 
-# 8. Clean up local branch
+# 8. After merge - safe cleanup
+# IMPORTANT: If Docker containers are running, STOP
+# Never checkout stale branches when containers are active
+docker compose ps  # Check if containers running
+# If running → docker compose down first
+# Then:
+git checkout main
+git pull
 git branch -d feature/my-feature
 ```
 
