@@ -82,8 +82,16 @@ execute_command() {
 
 # Check if services are already running
 SERVICES_RUNNING=false
-if execute_command "$DOCKER_COMPOSE ps 2>/dev/null | grep -q 'Up\|running' && echo 'true' || echo 'false'" "Checking service status" | grep -q "true"; then
-    SERVICES_RUNNING=true
+if [ -n "$REMOTE_HOST" ]; then
+    # For remote, check directly without execute_command wrapper
+    if ssh "$REMOTE_HOST" "cd '$REMOTE_DIR' && $DOCKER_COMPOSE ps 2>/dev/null | grep -q 'Up\|running'"; then
+        SERVICES_RUNNING=true
+    fi
+else
+    # For local, check directly
+    if $DOCKER_COMPOSE ps 2>/dev/null | grep -q 'Up\|running'; then
+        SERVICES_RUNNING=true
+    fi
 fi
 
 # Determine deployment type

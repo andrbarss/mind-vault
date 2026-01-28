@@ -119,22 +119,24 @@ sleep 30
 # Run initial migrations (customize for your framework)
 echo "🗄️  Running database migrations..."
 # Example for Django:
-$DOCKER_COMPOSE exec -T web python manage.py migrate || {
+$DOCKER_COMPOSE exec -T web python manage.py migrate && {
+    echo "✅ Migrations completed"
+    echo ""
+} || {
     echo "⚠️  Warning: Migrations failed, continuing..."
+    echo ""
 }
-
-echo "✅ Migrations completed"
-echo ""
 
 # Collect static files (customize for your framework)
 echo "📦 Collecting static files..."
 # Example for Django:
-$DOCKER_COMPOSE exec -T web python manage.py collectstatic --noinput || {
+$DOCKER_COMPOSE exec -T web python manage.py collectstatic --noinput && {
+    echo "✅ Static files collected"
+    echo ""
+} || {
     echo "⚠️  Warning: Static files collection failed, continuing..."
+    echo ""
 }
-
-echo "✅ Static files collected"
-echo ""
 
 # Initialize external services (customize for your project)
 echo "📦 Initializing external services..."

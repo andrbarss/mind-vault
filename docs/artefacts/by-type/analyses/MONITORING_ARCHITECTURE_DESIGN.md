@@ -1,1 +1,1 @@
-../by-agent/architect/analyses/MONITORING_ARCHITECTURE_DESIGN.md
+../../by-agent/architect/analyses/MONITORING_ARCHITECTURE_DESIGN.md

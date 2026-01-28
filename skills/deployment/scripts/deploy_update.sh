@@ -6,6 +6,9 @@
 
 set -e
 
+# Get script directory (for finding other scripts)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # Parse command line arguments (for direct remote execution)
 REMOTE_HOST=""
 REMOTE_DIR=""

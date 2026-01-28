@@ -26,6 +26,16 @@ fi
 # Source .env file
 export $(grep -v '^#' .env | grep -v '^$' | xargs)
 
+# Use docker compose or docker-compose
+if command -v docker compose &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "❌ Error: Docker Compose is not installed"
+    exit 1
+fi
+
 # Database configuration (customize these variable names)
 DB_NAME="${DB_NAME:-myapp_db}"
 DB_USER="${DB_USER:-myapp_user}"
@@ -49,9 +59,9 @@ echo "Host: $DB_HOST:$DB_PORT"
 echo "User: $DB_USER"
 
 # Check if Docker container is running
-if ! docker compose ps db | grep -q "Up\|running"; then
+if ! $DOCKER_COMPOSE ps db | grep -q "Up\|running"; then
     echo "Error: Database container is not running"
-    echo "Start it with: docker compose up -d db"
+    echo "Start it with: $DOCKER_COMPOSE up -d db"
     exit 1
 fi
 
@@ -60,7 +70,7 @@ case "$DB_TYPE" in
     postgresql)
         echo "Creating PostgreSQL backup..."
         TEMP_SQL="/tmp/db_backup_${TIMESTAMP}.sql"
-        docker compose exec -T db pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists > "$TEMP_SQL"
+        $DOCKER_COMPOSE exec -T db pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists > "$TEMP_SQL"
         tar czf "$BACKUP_FILE" -C /tmp "db_backup_${TIMESTAMP}.sql"
         rm -f "$TEMP_SQL"
         ;;
@@ -68,7 +78,7 @@ case "$DB_TYPE" in
     mysql)
         echo "Creating MySQL backup..."
         TEMP_SQL="/tmp/db_backup_${TIMESTAMP}.sql"
-        docker compose exec -T db mysqldump -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" --add-drop-database --add-drop-table > "$TEMP_SQL"
+        $DOCKER_COMPOSE exec -T db mysqldump -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" --add-drop-database --add-drop-table > "$TEMP_SQL"
         tar czf "$BACKUP_FILE" -C /tmp "db_backup_${TIMESTAMP}.sql"
         rm -f "$TEMP_SQL"
         ;;
@@ -76,7 +86,7 @@ case "$DB_TYPE" in
     sqlite)
         echo "Creating SQLite backup..."
         # For SQLite, just copy the file (assuming it's in a volume)
-        docker compose exec -T db cp "/app/db.sqlite3" "/tmp/db_backup_${TIMESTAMP}.sqlite3" 2>/dev/null || \
+        $DOCKER_COMPOSE exec -T db cp "/app/db.sqlite3" "/tmp/db_backup_${TIMESTAMP}.sqlite3" 2>/dev/null || \
         cp "db/db.sqlite3" "/tmp/db_backup_${TIMESTAMP}.sqlite3" 2>/dev/null || \
         echo "Warning: Could not find SQLite file. Customize the path in backup_db.sh"
         if [ -f "/tmp/db_backup_${TIMESTAMP}.sqlite3" ]; then
