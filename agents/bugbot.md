@@ -16,12 +16,17 @@ description: Automated loop to fetch, fix, and learn from Bugbot PR reviews
 - Execute code changes locally. Validate that the fix strictly adheres to project conventions (e.g., scoping bounds, idempotency, UI latency).
 - **The Parity Sweep**: Check adjacent systems or cloned logic for the exact same latent oversight. A bug is rarely isolated.
 
-## Step 3: Trigger PR Re-Review
+## Step 3: Curator Verification Sweep (The Anti-Regression Check)
+Before committing the bugbot patches, you MUST invoke the `/curator` workflow across the touched files to verify your fixes. 
+- Ensure that the patches do not inadvertently violate project architectural rules (like missing security probes, layout breaks, or DB efficiency regressions).
+- If Curator flags your patches, address its findings comprehensively before moving forward to push the code. This fights false positives and creates a solid, two-way verification bridge.
+
+## Step 4: Trigger PR Re-Review
 - Stage, commit, and push the patch to the remote PR branch.
 // turbo
 - Trigger Bugbot to re-evaluate the branch. Use `make bugbot-run` or manually execute: `git push origin HEAD && gh pr comment -b "bugbot run"`.
 
-## Step 4: The feedback loop (Critical!)
+## Step 5: The Feedback Loop (Critical!)
 A generalized bug caught in PR should **never** be caught by Bugbot a second time. 
 - Open the `curator.md` workflow file (either local override or the global `mind-vault/agents/curator.md`).
 - Synthesize the root structural flaw into a precise new bullet point rule outlining what the developer/agent must manually sweep for *before* committing.
