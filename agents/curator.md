@@ -38,6 +38,8 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 
 ### PASS 3: The Architecture & DRY Pass
 - **Duplication & Parity**: Is the author copy-pasting code? Demand extraction. Is a bugfix applied asymmetrically? If fixing logic in `openModal`, ensure `confirmAction` and `openAttachmentPreview` also got it. Scan for sister-functions.
+- **Template Hierarchy Parity (The Minimal Clone Flaw)**: If injecting critical global context variables, tracking scripts, or theme bypass variables (`window.__FOO__`) into the root `base.html` template, you MUST aggressively check for inherited or sibling base templates (e.g. `base_minimal.html`, `base_embed.html`, `base_auth.html`). Failing to duplicate core Javascript injections into alternative layouts silently corrupts cross-origin functionality and embeds.
+- **Deduplication of Hand-Rolled Parsers**: Are developers manually using `.split(';')` to parse `document.cookie` or manual string manipulation to parse URLs inline within a script? Demand extraction and utilization of existing utility parsing functions. Never allow duplicated raw DOM/Cookie extraction logic.
 - **Fat Models / Thin Views**: Is heavy business logic cluttering the View or API endpoint? Demand it be moved onto the Model or a dedicated service tier.
 - **Date/Time**: Are they using naive `datetime.now()` instead of timezone-aware contexts? 
 
