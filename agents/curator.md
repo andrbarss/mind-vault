@@ -45,6 +45,7 @@ When invoked to review a diff, you must execute these 6 sequential passes:
 - **N+1 Queries**: Are loops hitting `.all()` without `select_related()` or `prefetch_related()`? 
 - **Bulk Operations**: Are iterations calling `.save()` continuously instead of `bulk_create` or `bulk_update`?
 - **Celery Integrity**: Does this background task hold locks for too long? Is it idempotent?
+- **Dead Data Field Phantoms**: If a schema change or squashed migration removes a field (e.g. `org` or `tenant`), you MUST sweep the corresponding ViewSet's `filterset_fields`, `search_fields`, `ordering_fields`, and `select_related`/`prefetch_related` lists to ensure the dead field is purged. Failing to do so triggers a catastrophic `FieldError` or `TypeError: 'Meta.fields' must not contain non-model field names`.
 
 ### PASS 5: The Frontend & UX Pass (HTMX + standard)
 - **Double Submits**: Does a form lack the **Global Single-Submit Locking** convention (`data-sync-submit` / `data-sync-submit-button`)? Do not trust CSS classes alone.
