@@ -360,7 +360,7 @@ docs/artefacts/by-type/plans/
 | Gemini transcripts | `~/.gemini/antigravity/brain/<id>/.system_generated/logs/overview.txt` | Text |
 
 ## References
-- [Agent Artefacts Knowledge Base](../docs/artefacts/README.md)
-- [Multi-dimensional Taxonomy](../docs/artefacts/taxonomy.md)
-- [Django Architecture Skill](../skills/django-architecture/SKILL.md)
-- [Git Workflow Rule](../rules/RULE_git-workflow.md)
+- [Agent Artefacts Knowledge Base](../../docs/artefacts/README.md)
+- [Multi-dimensional Taxonomy](../../docs/artefacts/taxonomy.md)
+- [Django Architecture Skill](../django/SKILL.md)
+- [Git Workflow Rule](../../rules/RULE_git-safety.md)

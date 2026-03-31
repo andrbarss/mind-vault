@@ -38,7 +38,7 @@ Restart Cursor (Cmd+Shift+P → Developer: Reload Window) to rescan.
 | Subagents| `.cursor/agents/`     | `~/.cursor/agents/`   | **Project**: mind-vault has `.cursor/agents` → `agents/`. **User**: symlink → mind-vault for other projects. |
 | Rules    | `.cursor/rules/`      | Cursor Settings       | User Rules are in app; `~/.cursor/rules` is reference only. |
 
-**Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds architect, backend, curator, etc. User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
+**Why subagents didn’t show from project:** Cursor discovers subagents from **project** `.cursor/agents/` first. mind-vault now includes `.cursor/agents` (symlink to `agents/`), so when you open mind-vault, Cursor finds `AGENT_architect`, `AGENT_backend`, `AGENT_curator`, etc. User-level `~/.cursor/agents` is for when you’re in a different project and still want mind-vault subagents.
 
 ## If skills are not discovered (symlink caveat)
 

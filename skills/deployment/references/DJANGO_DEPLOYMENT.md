@@ -1,7 +1,7 @@
 # Django Deployment
 
 ## Overview
-Django-specific deployment patterns extending the generic [deployment skill](../deployment/SKILL.md), focusing on Django ORM migrations, static/media file handling, Django settings management, and integration with Django monitoring tools. Provides production-ready deployment configurations for Django applications with multi-tenant support.
+Django-specific deployment patterns extending the generic [deployment skill](../SKILL.md), focusing on Django ORM migrations, static/media file handling, Django settings management, and integration with Django monitoring tools. Provides production-ready deployment configurations for Django applications with multi-tenant support.
 
 ## When to Use
 Django applications requiring:
@@ -1337,7 +1337,7 @@ These Django deployment patterns build on the generic deployment skill but add D
 - Comprehensive monitoring and alerting setup
 
 ## References
-- [Generic Deployment Patterns](../deployment/SKILL.md) - Core deployment principles
+- [Generic Deployment Patterns](../SKILL.md) - Core deployment principles
 - [Django Deployment Checklist](https://docs.djangoproject.com/en/stable/howto/deployment/checklist/) - Django official deployment guide
 - [Django Settings](https://docs.djangoproject.com/en/stable/topics/settings/) - Django configuration
 - [Django Logging](https://docs.djangoproject.com/en/stable/topics/logging/) - Django logging configuration

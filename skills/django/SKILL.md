@@ -549,10 +549,7 @@ class ArticleViewSet(BaseViewSet):
 - [Multi-Tenant + Celery](references/MULTI_TENANT_CELERY.md) - Tasks with tenants
 
 **Deployment Integration**:
-- [Deployment Skill](../../deployment/SKILL.md) - Production deployment patterns and automation
-
-**Additional Resources**:
-- [Forms & Validation](references/FORMS.md) - Form patterns and validation
+- [Deployment Skill](../deployment/SKILL.md) - Production deployment patterns and automation
 
 ## Scripts & Tools
 
