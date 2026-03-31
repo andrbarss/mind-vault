@@ -351,6 +351,27 @@ def get_user_async(self, user_id):
     return User.objects.get(id=user_id)
 ```
 
+## Public API vs Authenticated Parity (Session-Scoped Ownership)
+
+When building WebSocket features (like chat sessions) exposed to both logged-in users and anonymous public browsers, do not branch your API logic completely.
+Instead, use **Session-Scoped Ownership** (`ws_token`) for the anonymous users to manage state symmetrically:
+
+1. Allow the WebSocket to connect, but require the client to pass their Django `session_key` (e.g. as a query parameter `?ws_token=...`).
+2. Persist this `session_key` on any objects they create (if `request.user.is_anonymous`).
+3. For REST API actions or WebSocket commands, enforce object-level validation by comparing the passed `ws_token` against the record's stored `session_key`.
+
+```python
+# API example for anonymous session parity matching WS consumer
+def get_queryset(self):
+    ws_token = self.request.query_params.get("ws_token")
+    if self.request.user.is_authenticated:
+        return Model.objects.filter(author=self.request.user)
+    elif ws_token:
+        # Prevent crossover by tracking anonymous session ownership perfectly
+        return Model.objects.filter(author__isnull=True, session_key=ws_token)
+    return Model.objects.none()
+```
+
 ---
 
 **❌ Unauthenticated connections**:

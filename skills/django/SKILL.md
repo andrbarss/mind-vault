@@ -286,27 +286,7 @@ When you need to evaluate permission in a non-DRF context, use a "permission pro
 ```python
 # Create a synthetic DRF request to reuse the DRF BasePermission
 drf_request = build_drf_request(request, data=request.POST) 
-has_perm = CanManageArticles().has_permission(drf_request, None)
-```
 
-### Public API vs Authenticated Parity
-
-When building features that are exposed to both logged-in users and anonymous public users (e.g., chat sessions, context managers), do not branch your API logic completely.
-Instead, use **Session-Scoped Ownership** for the anonymous users.
-1. Assign the object a `session_key` upon creation if `request.user.is_anonymous`.
-2. Allow `AllowAny` permissions on the view but implement strict object-level validation inside `get_queryset()` or the action method by forcing the user to pass their Django `session_key` (via a header or query parameter like `ws_token`) and comparing it against the record's stored `session_key`.
-
-```python
-# API example for anonymous parity
-def get_queryset(self):
-    ws_token = self.request.query_params.get("ws_token")
-    if self.request.user.is_authenticated:
-        return Model.objects.filter(author=self.request.user)
-    elif ws_token:
-        # Prevent any crossover by explicitly tracking anonymous session ownership
-        return Model.objects.filter(author__isnull=True, session_key=ws_token)
-    return Model.objects.none()
-```
 
 ### Mixins and Reusable Patterns
 
