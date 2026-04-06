@@ -200,6 +200,19 @@ context_items = ConversationContextItem.objects.filter(
 ).select_related("content_type").prefetch_related("content_object")
 ```
 
+**DRY Mixin Pattern**: Do not redefine `content_type`, `object_id`, and `content_object` fields inline across multiple models. Extract them into a reusable abstract mixin (e.g., `GenericFKMixin`) in your core app.
+
+**Important Indexing Caveat (Django #30214)**: `Meta.indexes` from abstract parents are **not** propagated if a subclass defines its own `Meta` (which is almost always). Consumers of the mixin must manually re-declare the composite index:
+```python
+class PolymorphicChild(GenericFKMixin, models.Model):
+    class Meta:
+        indexes = [
+            # MUST manually mirror the indexing from the mixin
+            models.Index(fields=["content_type", "object_id"]),
+            # ... other indexes
+        ]
+```
+
 ### Gettext Translation Safety (Fuzzy matching)
 
 By default, GNU Gettext's `msgmerge` (invoked by Django's `makemessages`) uses aggressive fuzzy-matching heuristics. If a new string is added, gettext will often guess its translation based on similar older strings, appending a `#, fuzzy` marker.
