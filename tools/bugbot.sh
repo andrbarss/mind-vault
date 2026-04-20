@@ -3,6 +3,11 @@
 # Automatically commits, pushes, and creates PR if needed.
 # Uses AI-generated commit messages and PR descriptions.
 #
+# PR creation uses the GitHub REST API (`gh api repos/.../pulls`) first so we avoid
+# `gh pr create --json` failures caused by GraphQL deprecation around classic Projects
+# (`repository.pullRequest.projectCards`). Falls back to `gh pr create` if REST fails.
+# Optional: BUGBOT_PR_BASE (default: main) — base branch for new PRs.
+#
 # Auto Mode: When run by AI agent (non-interactive) or CURSOR_AI_MODE=1,
 #            automatically generates commit messages and PR descriptions.
 #            For better commit messages, provide COMMIT_MSG env var:
@@ -10,6 +15,13 @@
 # Interactive Mode: When run manually, prompts user for input.
 
 set -e
+
+# Resolve the base branch once at script start so every function + the eventual
+# REST/CLI PR-create call use the same ref. Previously only the PR-create block
+# read BUGBOT_PR_BASE, while generate_pr_title / generate_pr_description / the
+# changes-summary hardcoded `origin/main` — on a non-main base the PR would be
+# opened correctly but its auto-generated metadata would reflect the wrong range.
+BASE_REF="${BUGBOT_PR_BASE:-main}"
 
 # Detect if running in auto mode (AI agent) or interactive mode (human)
 # Auto mode if:
@@ -124,7 +136,7 @@ generate_commit_message() {
 # Helper function to generate PR title
 generate_pr_title() {
     local branch=$(git branch --show-current)
-    local first_commit=$(git log origin/main..HEAD --oneline | head -1 | sed 's/^[a-f0-9]* //')
+    local first_commit=$(git log "origin/$BASE_REF..HEAD" --oneline | head -1 | sed 's/^[a-f0-9]* //')
     
     # Use first commit message as base, or branch name
     if [ -n "$first_commit" ]; then
@@ -136,8 +148,8 @@ generate_pr_title() {
 
 # Helper function to generate PR description
 generate_pr_description() {
-    local commits=$(git log origin/main..HEAD --oneline | head -10)
-    local stats=$(git diff origin/main...HEAD --stat | head -20)
+    local commits=$(git log "origin/$BASE_REF..HEAD" --oneline | head -10)
+    local stats=$(git diff "origin/$BASE_REF...HEAD" --stat | head -20)
     
     cat <<EOF
 ## Summary
@@ -263,10 +275,10 @@ if [ -z "$PR_NUMBER" ]; then
     echo "Branch: $BRANCH"
     echo ""
     echo "Recent commits:"
-    git log origin/main..HEAD --oneline | head -10 | sed 's/^/  /'
+    git log "origin/$BASE_REF..HEAD" --oneline | head -10 | sed 's/^/  /'
     echo ""
     echo "Files changed:"
-    git diff origin/main...HEAD --stat | head -20
+    git diff "origin/$BASE_REF...HEAD" --stat | head -20
     echo ""
     echo "═══════════════════════════════════════════════════════════════"
     echo ""
@@ -325,17 +337,62 @@ if [ -z "$PR_NUMBER" ]; then
         fi
     fi
     
-    # Create draft PR
+    # Create draft PR (REST first — avoids gh pr create GraphQL projectCards issues)
     echo ""
     echo "📋 Creating PR with title: $PR_TITLE"
-    PR_NUMBER=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" --draft --json number -q '.number' 2>/dev/null)
-    
+    # BASE_REF is resolved once near the top of the script (line 20) so all
+    # metadata generators and this PR-create call share the same base.
+    REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)
+    PR_NUMBER=""
+    if [ -n "$REPO_SLUG" ]; then
+        PAYLOAD_TMP=$(mktemp)
+        # `|| true` preserves the REST-to-CLI fallback chain under `set -e`: if
+        # `command -v` finds the tool but then it exits non-zero (corrupt binary,
+        # OOM, locale error, etc.), the surrounding script must not terminate
+        # here — the `-s "$PAYLOAD_TMP"` check below falls through to `gh pr
+        # create` on line 360 when the payload file is empty.
+        if command -v jq >/dev/null 2>&1; then
+            jq -n \
+                --arg title "$PR_TITLE" \
+                --arg head "$BRANCH" \
+                --arg base "$BASE_REF" \
+                --arg body "$PR_BODY" \
+                '{title: $title, head: $head, base: $base, body: $body, draft: true}' >"$PAYLOAD_TMP" || true
+        elif command -v python3 >/dev/null 2>&1; then
+            env PR_TITLE="$PR_TITLE" BRANCH="$BRANCH" PR_BODY="$PR_BODY" BUGBOT_PR_BASE="$BASE_REF" python3 -c \
+                'import json, os; print(json.dumps({"title": os.environ["PR_TITLE"], "head": os.environ["BRANCH"], "base": os.environ.get("BUGBOT_PR_BASE", "main"), "body": os.environ["PR_BODY"], "draft": True}))' \
+                >"$PAYLOAD_TMP" || true
+        fi
+        if [ -s "$PAYLOAD_TMP" ]; then
+            PR_NUMBER=$(gh api "repos/${REPO_SLUG}/pulls" --method POST --input "$PAYLOAD_TMP" --jq '.number' 2>/dev/null || true)
+        fi
+        rm -f "$PAYLOAD_TMP"
+        # `gh api` bypasses `--jq` and prints raw error JSON to stdout on non-2xx
+        # responses (422 for duplicate head, 401/403, etc.). Without this guard
+        # the JSON body would pass the `-z` empty check below, silently skip the
+        # CLI fallback, and propagate as `✅ Created PR #{"message":"..."}` + a
+        # crash at the next `gh pr comment`. Require purely numeric output.
+        if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            PR_NUMBER=""
+        fi
+    fi
+    if [ -z "$PR_NUMBER" ]; then
+        echo "⚠️  REST PR create failed or no jq/python3; falling back to gh pr create..."
+        PR_NUMBER=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" --draft --base "$BASE_REF" --json number -q '.number' 2>/dev/null || true)
+        # Same numeric-guard discipline for parity — cheap, and protects against
+        # any future CLI wrapper that might print non-numeric output on edge cases.
+        if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            PR_NUMBER=""
+        fi
+    fi
+
     if [ -z "$PR_NUMBER" ]; then
         echo "❌ Failed to create PR. Please create manually:"
-        echo "   gh pr create --title '$PR_TITLE' --body '$PR_BODY'"
+        echo "   gh api repos/<owner>/<repo>/pulls --method POST (JSON body)   # or"
+        echo "   gh pr create --base '$BASE_REF' --draft --title '...' --body '...'"
         exit 1
     fi
-    
+
     echo "✅ Created PR #$PR_NUMBER"
 fi
 
