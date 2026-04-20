@@ -80,6 +80,22 @@ When the loop ends (all IDEAs processed, or batch aborted mid-way):
 
 3. Do **not** delete worktrees. Do **not** teardown docker stacks. Leave everything for the human. Teardown belongs in a separate skill / manual cleanup — mixing it into the autopilot risks erasing diagnostics.
 
+4. **Per-IDEA post-merge reminders.** The batch summary's closing section must list `/wrap NNN` for each merged IDEA so the morning reviewer runs the post-merge documentation + cleanup sweep (flip frontmatter, update index, append devlog entry, **teardown the worktree stack**, scan downstream docs). This is the one step that can't be automated — sprint-auto stops at PR creation, but `/wrap` has to run after merge, which is the HITL gate. Without it, auto-sprint batches ship code and leave the paper trail stale *and* leave N worktree docker stacks burning CPU / holding ports:
+
+   ```markdown
+   ## Next steps (post-merge)
+
+   For each IDEA whose PR you merge, run `/wrap NNN` — it flips the frontmatter,
+   updates the devlog + index, tears down the worktree docker stack, and sweeps
+   downstream docs. Then run `/compound` for any per-sprint learnings.
+
+   - `/wrap 050` → merges + wraps IDEA-050 (worktree `../<project>-auto-sync-retry-backoff`)
+   - `/wrap 051` → merges + wraps IDEA-051 (worktree `../<project>-auto-modal-dismiss-focus`)
+   - `/compound`  → route learnings (see per-IDEA auto-run logs for candidates)
+   ```
+
+   Same block should appear in each per-IDEA auto-run log so the reviewer working one-at-a-time has the `/wrap` reminder (and teardown target) local to the IDEA. The batch summary pairs the worktree dir with the IDEA number so the human doesn't have to cross-reference when they run `/wrap` from within the worktree.
+
 ## Interaction rules
 
 - **Belt-and-suspenders opt-in.** Frontmatter `auto_safe: true` AND explicit arg allowlist. Never scan-mode in v1; curation is the whole point.
@@ -107,6 +123,7 @@ When the loop ends (all IDEAs processed, or batch aborted mid-way):
 - [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — how IDEA files migrate; `/plan` does the move inside the worktree
 - [skills/plan/SKILL.md](../plan/SKILL.md) — stage 2, invoked per IDEA
 - [skills/work/SKILL.md](../work/SKILL.md) — stage 3, invoked per plan
+- [skills/wrap/SKILL.md](../wrap/SKILL.md) — post-merge documentation sweep; sprint-auto reminds the human reviewer to run it per merged IDEA (can't invoke directly because it lives past the HITL gate)
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — the sprint workflow this skill wraps
 
 ---
