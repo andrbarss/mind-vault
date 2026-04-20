@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Turn an IDEA file or rough feature description into a durable technical plan at docs/plans/YYYY-MM-DD-<slug>-plan.md. Interactively explores requirements when input is thin (brainstorm front-end merged in). Invokes AGENT_architect as a reviewer pass. Second stage of the mind-vault sprint workflow; aliased as /brainstorm.
+description: Turn an IDEA file or rough feature description into a durable technical plan emitted into the idea's archive dir at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md. Interactively explores requirements when input is thin (brainstorm front-end merged in). Invokes AGENT_architect as a reviewer pass. Second stage of the mind-vault sprint workflow; aliased as /brainstorm.
 ---
 
 # plan
@@ -9,7 +9,7 @@ Second stage of the five-stage sprint workflow (`idea → brainstorm/plan → wo
 
 This skill merges the brainstorm + plan stages from CE. When input is already specific (a filled-out IDEA file, a bug report with clear repro), the skill skips straight to plan authoring. When input is thin (a one-line description, an IDEA stub), a **thin-input bootstrap** fires — the interactive brainstorm front-end — before the plan is written. Brainstorming is a mode, not a separate skill. `/brainstorm` is an alias for `/plan`.
 
-This skill does not write code, run tests, or modify any project files outside `<project>/docs/plans/`. Execution belongs in `/work` (the next stage).
+This skill does not write code, run tests, or modify project source. It does, however, author the plan artifact and — per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) and step 6 below — trigger the single `git mv` that moves the source IDEA file from `docs/ideas/` into its `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir. The plan artifact itself lands in that same archive dir (emitted by step 7). Execution belongs in `/work` (the next stage).
 
 ## When to use
 
@@ -32,8 +32,8 @@ This skill does not write code, run tests, or modify any project files outside `
 
 Before drafting anything, check for existing work and classify the input.
 
-1. **Check for an existing plan.** If the slug (explicit argument or derived from the input) matches `<project>/docs/plans/*-<slug>-plan.md`, offer to continue: "Found `2026-04-19-sprint-workflow-plan.md`. Resume or start fresh?" Default to resume unless the user says otherwise.
-2. **Resolve the input source.** Accept in order: IDEA file path, IDEA slug (`/plan sprint-workflow` → glob `docs/ideas/IDEA-*-sprint-workflow.md`), plan-file path for deepening, raw description in the command argument, or nothing (ask the user what to plan).
+1. **Check for an existing plan.** Plans live inside the source IDEA's archive dir per step 7 (`docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md`); there is no separate `docs/plans/` tree. If the slug (explicit argument or derived from the input) matches `<project>/docs/archive/*-<slug>/*-<slug>-plan.md`, offer to continue: "Found `2026-04-19-sprint-workflow-plan.md` in `docs/archive/2026-04-idea-042-sprint-workflow/`. Resume or start fresh?" Default to resume unless the user says otherwise. For orphan plans with no source IDEA (per step 7's Special cases) or pre-refactor plans still sitting in a legacy `docs/plans/` tree, also fall back to a repo-wide `*-<slug>-plan.md` glob as a best-effort.
+2. **Resolve the input source.** Accept in order: IDEA file path, IDEA slug (`/plan sprint-workflow` → glob **both locations** `docs/ideas/IDEA-*-sprint-workflow.md` AND `docs/archive/*/IDEA-*-sprint-workflow.md`, since an already-in-progress idea has been moved to its archive dir per step 6 and a deepening pass must still find it), plan-file path for deepening, raw description in the command argument, or nothing (ask the user what to plan).
 3. **Classify scope** early: trivial / small / medium / large. Trivial skips out of the skill entirely. Small gets a compact plan. Medium and large get the full structure. Do not force ceremony onto work that doesn't need it.
 
 ### 2. Thin-input bootstrap (brainstorm front-end)
@@ -90,22 +90,58 @@ The architect's 4-pass workflow (abstraction/genericity sweep → coupling/depen
 
 The reviewer pass is optional for trivial and small plans. Required for medium and large.
 
-### 6. Emit the file
+### 6. Transition the source IDEA — single move, then never again
 
-Write to `<project>/docs/plans/YYYY-MM-DD-<slug>-plan.md` with the stage-handoff frontmatter:
+Per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the act of drafting a plan is the signal that an idea has left the backlog. This triggers the **one and only** filesystem move in the IDEA file's life — and it must run **before** step 7 writes the plan file, because step 7 emits the plan into the dir this step creates:
+
+```bash
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+# + update frontmatter: status: in-progress
+# + update docs/ideas/README.md: move the entry from its priority section
+#   into "🚧 In Progress" (link now points at ../archive/<dir>/)
+```
+
+`YYYY-MM` = current month. Stays fixed across the rest of the idea's life — neither completion nor rejection renames this dir.
+
+After this step's move, step 7 emits the plan file into the same dir. All subsequent artefacts (research notes, session prompts, screenshots, the eventual README) go into this dir too. Future `/work` on completion edits frontmatter to `status: complete` — **no further file movement**.
+
+**Always run this step when `/plan` is invoked**, even for trivial or small scopes. Earlier drafts allowed skipping the move for small scopes; that created a gap where a complete IDEA could end up sitting in `docs/ideas/` (location-status mismatch per `RULE_ideas-location-status` hard rule #2). `/plan` is the primary owner of this transition; if the user bypassed `/plan` entirely and went straight to `/work`, `/work` performs the same move as a fallback.
+
+### 7. Emit the plan file into the idea's archive dir
+
+Plans live **alongside the IDEA file they implement**, inside the same `docs/archive/YYYY-MM-idea-NNN-<slug>/` dir per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). There is no separate `docs/plans/` tree — that was an earlier draft and was dropped in favour of co-location (cross-refs between plan and IDEA file stay local; no cross-tree paths).
+
+Step 6's move has already created the archive dir and moved the IDEA file into it, so this step just writes the plan file alongside:
+
+```text
+docs/archive/YYYY-MM-idea-NNN-<slug>/
+  ├── IDEA-NNN-<slug>.md             # moved here in step 6
+  └── YYYY-MM-DD-<slug>-plan.md      # emitted here in step 7
+```
+
+Stage-handoff frontmatter:
 
 ```yaml
 ---
 stage: plan
 slug: sprint-workflow
 created: 2026-04-19
-source: docs/ideas/IDEA-001-sprint-workflow.md  # path, or null if no IDEA
-status: draft                                    # draft | ready | shipped
-project: mind-vault
+source: ./IDEA-NNN-<slug>.md                # relative to the plan's own dir
+status: draft                                # draft | ready | shipped
+project: <project-name>
 ---
 ```
 
 Print the created path + a one-line summary. Suggest `/work <plan-path>` as the next command.
+
+**Special cases** (skip step 6's move, emit the plan differently):
+
+- The source IDEA file already lives in `docs/archive/<dir>/` — this is a plan revision on work already in-progress or a re-plan after rejection; just emit the new plan into the existing dir. Step 6's move was already done by the original `/plan` run.
+- There is no source IDEA file — the plan is a standalone artefact; emit it to a context-appropriate location (often `docs/plans/` as a fallback, which exists only for orphan plans). Step 6 doesn't apply because there's nothing to move.
+
+Commit message for the combined IDEA-move + plan-emit change: `docs(plan): <slug> — draft plan + move IDEA-NNN to in-progress`.
 
 ## Right-sizing the artifact
 
@@ -137,6 +173,7 @@ The plan's philosophy stays the same at every scope; the depth scales.
 - [assets/plan-template.md](assets/plan-template.md) — the verbatim plan structure the skill emits
 - [references/thin-input-bootstrap.md](references/thin-input-bootstrap.md) — the interactive brainstorm front-end for thin inputs
 - [references/architect-handoff.md](references/architect-handoff.md) — how to invoke AGENT_architect as a reviewer and integrate findings
+- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — the location-by-status contract driving step 6's `idea` → `in-progress` move
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/idea/SKILL.md](../idea/SKILL.md) — previous stage; produces the IDEA file this skill consumes
 - [skills/work/SKILL.md](../work/SKILL.md) — next stage; executes the plan this skill emits
@@ -144,4 +181,4 @@ The plan's philosophy stays the same at every scope; the depth scales.
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (third revision — plans emit INTO the idea's archive dir, not a separate `docs/plans/` tree; step 6 does the single-move-then-never-again move, step 7 emits the plan; curator parity pass corrected step-number drift from the 6↔7 renumbering)

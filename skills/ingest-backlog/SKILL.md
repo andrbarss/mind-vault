@@ -64,11 +64,15 @@ See [`references/legacy-formats.md`](references/legacy-formats.md) for the full 
 
 ### 3. Classify entries
 
-Walk the detected entries and classify:
+Walk the detected entries and classify per [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md). Two dirs, not three:
 
-- **Active** (default destination: per-idea file). `status: idea | in-progress`. Entry body preserved verbatim; frontmatter derived from parsed fields.
-- **Completed** (default destination: index footer line only, no file). `status: complete`. Keep the entry's title + IDEA id + optional completion date; do not migrate prose.
-- **Superseded** (default destination: per-idea file with `status: superseded`, `superseded_by: <id>` if determinable). If the supersession link is unclear, fall back to Active and surface a warning.
+- **`status: idea`** → file lands in `docs/ideas/IDEA-NNN-<slug>.md`.
+- **`status: in-progress`** → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. `YYYY-MM` = month execution started (inferred from the brownfield source or current month when undated). The IDEA lives inside the archive dir from the moment it left backlog; artefacts (plans, research, screenshots) get co-located there as work proceeds.
+- **`status: superseded`** (with determinable pointer) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. If the supersession link is unclear, fall back to `status: idea` and surface a warning.
+- **`status: rejected`** (from a `## ❌ Rejected` section or equivalent) → file lands in `docs/archive/YYYY-MM-idea-NNN-<slug>/`. Entries without an IDEA-NNN number stay as footer-only lines in the index (no file).
+- **`status: complete`** → footer-line only in the index. **Forward-only**: no file created. Already-complete entries have an existing execution archive dir as their canonical home; a new stub file is pure data migration with no gain.
+
+A brownfield source will typically have `🔄 Partially done` / `✅ Implemented` markers on entries whose H4 body is stale — the entry is actually complete. Per the stale-H4 heuristic in [`references/legacy-formats.md`](references/legacy-formats.md), reclassify to `complete` and drop the H4 body.
 
 ### 4. Dry-run preview (default mode)
 
@@ -86,12 +90,25 @@ Print to stdout, exit cleanly. The user reviews, then re-invokes with `--write`.
 Only when explicitly passed `--write`:
 
 1. Require clean git working tree (`git status --porcelain` empty). Refuse with error otherwise.
-2. `mkdir -p <project>/docs/ideas/`.
-3. For each Active and Superseded entry:
-   - Emit `<project>/docs/ideas/IDEA-NNN-<slug>.md` using [`assets/idea-template.md`](assets/idea-template.md).
-   - Frontmatter derived from parsed fields; body transplanted from the source entry with minor normalisation (strip legacy emoji status prefixes, keep prose).
-4. Write `<project>/docs/ideas/README.md` with the standard skeleton — one line per Active/Superseded idea grouped by priority, Completed entries as footer lines.
+2. `mkdir -p <project>/docs/ideas/`. Archive dirs are created on demand per entry.
+3. For each entry, route to its destination per step 3's classification and [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md):
+   - `status: idea` → `<project>/docs/ideas/IDEA-NNN-<slug>.md`.
+   - `status: in-progress | superseded | rejected` → `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md`. Create the archive dir. `YYYY-MM` = best-effort from the source's dates (execution start for in-progress, supersession/rejection date otherwise), falling back to the current month when undated.
+   - `status: complete` → no file. Footer-line only in the index.
+   - Each emitted file uses [`assets/idea-template.md`](assets/idea-template.md). Frontmatter derived from parsed fields; body transplanted from the source entry with minor normalisation (strip legacy emoji status prefixes, strip the bold-label fields now living in YAML, keep prose).
+4. Write `<project>/docs/ideas/README.md` as the single index regardless of where individual files live. Skeleton per `RULE_ideas-location-status` — one In-Progress section (links into `../archive/<dir>/`), three priority sections (ideas in-place), a Superseded/Rejected section (archive files), a footer-only Rejected section (entries without IDEA-NNN), and a References — Implemented section preserving the legacy completed footer lines.
 5. Rewrite the source monolithic file as a short stub pointing at `docs/ideas/README.md`. **The stub's relative links must be computed from the source file's directory to `<project>/docs/ideas/`, not hardcoded.** Step 1 supports source files at the repo root (`IDEAS.md`), under `docs/` (`docs/IDEAS.md`), or deeper (`docs/execution/IDEAS.md`, `docs/planning/IDEAS.md`); a hardcoded `../ideas/` path would break in most of those locations.
+
+### 5a. Retire `docs/execution/` during the same write
+
+If the source file was in `docs/execution/` AND that's the only remaining content in the dir (typical — `DEVELOPMENT_LOG.md` and any lingering agent-workflow docs are also retired during brownfield takeover per `RULE_ideas-location-status`), include the cleanup in the same write:
+
+- Move `docs/execution/DEVELOPMENT_LOG.md` → `docs/archive/YYYY-MM-DEVELOPMENT_LOG.md` (current month) via `git mv`. Subsequent log entries get written directly to the archive file.
+- Move any other pre-sprint-workflow workflow docs (e.g. `agent_delegation_architecture.md`) to an appropriately-dated archive subdir — they're superseded by the sprint workflow adoption.
+- Delete the stub created in step 5 if it was in `docs/execution/` — the entire dir is about to go — OR keep the stub as a breadcrumb for external bookmarks. Ask the user which.
+- `rmdir docs/execution/` when empty.
+
+Surface the cleanup plan in the dry-run so the user can approve before `--write`.
 
    Derivation rule (applied per-invocation):
 
@@ -131,6 +148,8 @@ Completed entries never get migrated into per-idea files, even if they have subs
 
 If the user disagrees on a specific entry, they can hand-create the file post-ingest. Don't expand this skill's scope to handle it.
 
+**Note**: superseded and rejected entries DO get files (in the archive tree), because they lack an existing archive dir. The forward-only carve-out is only for `status: complete`.
+
 ### 7. Slug derivation
 
 - Lowercase the title, strip `IDEA-NNN:` prefix.
@@ -141,13 +160,18 @@ If the user disagrees on a specific entry, they can hand-create the file post-in
 
 ### 8. Idempotency on re-run
 
-If `<project>/docs/ideas/IDEA-NNN-<slug>.md` already exists (e.g. re-running after a partial previous ingest), the skill:
+A re-run after a partial previous ingest must check **both destination trees**, since step 5 can route an entry into either `docs/ideas/` (backlog) or `docs/archive/YYYY-MM-idea-NNN-<slug>/` (in-progress / superseded / rejected) per the classification in step 3. Checking only `docs/ideas/` would miss already-written archive-tree files and risk duplicate creation for non-backlog entries on the second pass.
 
-- Compares the existing file's frontmatter against the proposed one.
-- **If identical or existing is a superset:** skip the file, report "already present" in the summary.
-- **If divergent:** refuse to overwrite, report the conflict, and route the user to resolve manually. Do not silently stomp.
+For each proposed entry:
 
-This makes re-runs safe when the legacy file has been edited since a prior ingest.
+1. Glob both `<project>/docs/ideas/IDEA-NNN-<slug>.md` and `<project>/docs/archive/*/IDEA-NNN-<slug>.md`. Expect at most one hit if the prior run completed partially.
+2. If a file is found:
+   - Compare the existing file's frontmatter against the proposed one.
+   - **If identical or existing is a superset:** skip the file, report "already present (at `<found-path>`)" in the summary.
+   - **If divergent:** refuse to overwrite, report the conflict including the found path, and route the user to resolve manually. Do not silently stomp.
+3. If no file is found, proceed with the normal step 5 write.
+
+This makes re-runs safe when the legacy file has been edited since a prior ingest, and prevents duplicate-file creation for entries already promoted into the archive tree.
 
 ## Invocation
 
@@ -180,10 +204,11 @@ Teisutis IDEA-112 is the first real consumer. Validation gate for this skill's v
 
 - [assets/idea-template.md](assets/idea-template.md) — per-idea file template; same schema as `skills/idea/assets/idea-template.md`
 - [references/legacy-formats.md](references/legacy-formats.md) — format recognition rules, variant handling, field inference heuristics
+- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status routing contract honoured by step 3 and step 5
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — authoritative IDEA frontmatter schema
 - [skills/idea/SKILL.md](../idea/SKILL.md) — the skill that consumes the per-idea format this one produces
-- Origin: teisutis IDEA-112 (Split `docs/execution/IDEAS.md` into per-idea files). This skill is the execution vehicle for that idea.
+- Origin: teisutis IDEA-112 (Split `docs/execution/IDEAS.md` into per-idea files). This skill is the execution vehicle for that idea. First end-to-end brownfield ingest validated the three-location split — see teisutis PR TBD.
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (second revision — two-destination routing per revised RULE_ideas-location-status; `docs/execution/` retired during brownfield takeover in step 5a)

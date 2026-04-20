@@ -1,6 +1,6 @@
 ---
 name: work
-description: Execute a plan produced by /plan — reads docs/plans/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
+description: Execute a plan produced by /plan — reads the plan at docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md, enforces RULE_parallel-worktree-docker and RULE_git-safety, dispatches to AGENT_backend/frontend/devops/test-engineer, checks off plan items as commits land. Third stage of the mind-vault sprint workflow.
 ---
 
 # work
@@ -15,7 +15,7 @@ This skill is intentionally thin. It does not re-decide anything the plan alread
 
 - user says "work the plan", "execute the plan", "implement plan X", "start working on Y", "ship the plan at <path>"
 - a `/plan` invocation just completed and the natural next step is execution
-- a plan file exists at `<project>/docs/plans/*-plan.md` with `status: ready` and the user wants to proceed
+- a plan file exists at `<project>/docs/archive/*-<slug>/*-<slug>-plan.md` with `status: ready` and the user wants to proceed
 
 **SKIP when:**
 
@@ -90,6 +90,57 @@ If verification fails:
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
 
+### 6. Flip status on merge — frontmatter only (with `/plan`-bypass fallback)
+
+Per the revised [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md), the IDEA file normally already lives in its permanent home (`docs/archive/YYYY-MM-idea-NNN-<slug>/`, placed there by `/plan` step 6 when the user went through `/plan` first). On merge, **no file moves** in that case. Just frontmatter edits:
+
+```yaml
+# docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+status: complete
+completed: 2026-04-22
+```
+
+```yaml
+# docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md
+status: shipped
+```
+
+Plus `docs/ideas/README.md`:
+
+- Remove the In-Progress entry.
+- Add a footer line under "References — Implemented" pointing at `../archive/<dir>/` (the dir itself, not the IDEA file — the dir's README is the canonical landing for a completed idea's full story).
+
+That's it. No `git mv` cascade, no archive-dir creation (it already exists), no cross-tree routing. The single filesystem move per idea happened at `/plan` time.
+
+**Fallback: idea bypassed `/plan` entirely.** If the user went straight from `/idea` to `/work` without a `/plan` invocation (small scope, simple fix), the source file is still in `docs/ideas/` at merge time. `/work` is the fallback owner of the `idea → archive` move per `RULE_ideas-location-status`. Before the frontmatter flip above, run the same move `/plan` step 6 would have done:
+
+```bash
+mkdir -p <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/
+git mv <project>/docs/ideas/IDEA-NNN-<slug>.md \
+       <project>/docs/archive/YYYY-MM-idea-NNN-<slug>/IDEA-NNN-<slug>.md
+# + update docs/ideas/README.md: remove from priority section,
+#   add footer line under "References — Implemented"
+```
+
+`YYYY-MM` = merge month (since work happened without a separate plan-time stamp). Then apply the frontmatter flip above — on the now-archive path.
+
+Detection: glob `<project>/docs/ideas/IDEA-*-<slug>.md` before the frontmatter flip. If a match exists, run the fallback move first. If not, the file is already in archive and the frontmatter flip is all that's needed.
+
+Commit message: `docs(archive): IDEA-NNN <slug> — mark complete (merged in PR #xxx)`. If the fallback move ran, the commit combines both the move and the frontmatter flip; commit message prefix becomes `feat(archive)` instead of `docs(archive)` to signal the filesystem change.
+
+This commit lands on a cleanup branch after the primary PR merges (typically `chore/complete-idea-NNN`) since the status-flip commit references the merged PR number. The human can also roll the completion-flip into the same commit that updates `DEVELOPMENT_LOG` for that merge.
+
+### 6a. Write the completion summary into the archive dir README
+
+Alongside the frontmatter flip, append a short summary to `docs/archive/YYYY-MM-idea-NNN-<slug>/README.md` (create if missing) covering:
+
+- What shipped (one-paragraph)
+- PR number(s)
+- Notable deviations from the plan
+- Follow-up work that got punted to new IDEAs
+
+This is the canonical landing page for anyone discovering the idea via grep/index after completion. Keep it short; details live in the plan doc and the DEVELOPMENT_LOG entry.
+
 ## Interaction rules
 
 - **Don't re-decide what the plan already decided.** If the plan says "use Redis for the queue", use Redis. If the right answer is Postgres instead, that's a plan revision — route back to `/plan`.
@@ -108,6 +159,7 @@ If verification fails:
 ## References
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
+- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — location-by-status contract driving step 6's archive move on merge
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
 - [skills/compound/SKILL.md](../compound/SKILL.md) — final stage; compound what was learned after review clears
@@ -118,4 +170,4 @@ If verification fails:
 
 ---
 
-**Last Updated**: 2026-04-19
+**Last Updated**: 2026-04-20 (second revision — step 6 is now frontmatter-only on merge; the single lifecycle move happened at `/plan` time per revised RULE_ideas-location-status)
