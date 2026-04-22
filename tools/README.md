@@ -128,6 +128,61 @@ sudo ./tools/install-gcloud-cli.sh --with-components gke-gcloud-auth-plugin,clou
 **Interactive menu** (current curated list):
 `atomic` (default), `jandedobbeleer`, `agnoster`, `paradox`, `powerlevel10k_classic`, `powerlevel10k_lean`, `robbyrussell`, `star`, `tokyonight_storm`, `zash`. Any theme name from the [official theme gallery](https://ohmyposh.dev/docs/themes) also works via `--theme NAME`.
 
+### install-mosh-tmux.sh
+**Purpose**: Install and configure `mosh` + `tmux` for resilient SSH sessions on Debian/Ubuntu — survives spotty networks, laptop sleep, cell-tower handoffs, and long-running agentic CLI sessions (Claude Code, bugbot-loop's `ScheduleWakeup` cycles) without losing context.
+
+**Problem Solved**:
+- SSH over unstable links drops → shell + running CLI tool both die → re-login, lose context, re-orient. For long Claude Code sessions (sprint workflows, bugbot loops, plan/work/compound cycles) this happens repeatedly.
+- Manual mosh + tmux setup is three orthogonal pieces (apt install, tmux.conf defaults, bashrc auto-attach snippet, firewall rule) — easy to half-do and end up with no auto-attach or a broken terminal inside tmux.
+- Each piece alone is documented; the integration ("seamless" — drop into SSH, land in the same tmux pane you left yesterday) takes opinionated gluing.
+
+**Usage**:
+```bash
+# Full install + config (needs sudo for apt + ufw)
+sudo ./tools/install-mosh-tmux.sh
+
+# Report current state — no writes (exit 1 if incomplete)
+sudo ./tools/install-mosh-tmux.sh --check
+
+# Custom session name (default: "main")
+sudo ./tools/install-mosh-tmux.sh --session-name teisutis
+
+# Skip pieces you handle differently
+sudo ./tools/install-mosh-tmux.sh --no-ufw --no-tmux-config
+```
+
+**Features**:
+- ✅ Idempotent: all three managed pieces (`~/.tmux.conf`, `~/.bashrc` snippet, ufw rule) use BEGIN/END markers or port-range pinning so re-runs overwrite instead of duplicate; existing unmanaged `~/.tmux.conf` is backed up before the first write.
+- ✅ `--check` flag reports each piece independently (packages installed, tmux.conf managed, bashrc wired, ufw rule present).
+- ✅ Targets the invoking user's home (`$SUDO_USER`), not root's — override with `--target-user`.
+- ✅ Auto-attach is SSH-only (`$SSH_CONNECTION` + `-t 0` guards) so scp/rsync/cron aren't affected; skips if already inside tmux.
+- ✅ UFW rule only fires if ufw is *active*; inactive ufw or missing ufw surfaces a reminder about cloud-provider firewalls instead.
+- ✅ Prints client-side reminder that mosh needs a mosh-client on the laptop too.
+
+**Tmux config defaults** (written inside BEGIN/END markers; your customisations outside the block survive re-runs):
+- `mouse on` + scrollback 50000 lines
+- `default-terminal "tmux-256color"` + truecolor overrides
+- `escape-time 10ms` (default 500ms breaks vim-style navigation)
+- `focus-events on`, pane/window indices from 1
+- `Ctrl-b r` reloads config
+- Minimal status bar: `[session] hostname · YYYY-MM-DD HH:MM`
+
+**Bashrc snippet** (BEGIN/END marker-bounded):
+```bash
+if [ -z "$TMUX" ] && [ -n "$SSH_CONNECTION" ] && [ -t 0 ] && command -v tmux >/dev/null 2>&1; then
+    _mv_session="${TMUX_DEFAULT_SESSION:-main}"
+    tmux attach -t "$_mv_session" 2>/dev/null || tmux new-session -s "$_mv_session"
+fi
+```
+
+**Why this combo (and not just one of them)**:
+- `tmux` alone: survives server-side shell loss when SSH drops, but reconnecting still takes a new SSH handshake + `tmux attach` round-trip; fragile on very spotty links.
+- `mosh` alone: survives connection drops transparently, but doesn't survive the server-side process dying (or explicit logout/reboot). No persistent session state.
+- Both: network drops are invisible (mosh), server-side process keeps running (tmux), laptop sleep reconnects transparently. The bashrc snippet means every fresh login also ends up in the same tmux session — no typing `tmux attach` manually.
+
+**Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later).
+**Not supported**: RHEL / Fedora / Arch (each needs a different package manager — left for a later PR).
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
@@ -218,17 +273,34 @@ Backups saved: *.backup (for cleaned files only)
 4. Include usage examples
 5. Follow naming: `[purpose]-[action].sh`
 
-**Template for new tools**:
+### Conventions for installer scripts (`install-*.sh`)
+
+This class of script has a recurring set of traps that keep leaking into each new installer — bugbot or my own drill has had to re-flag the same issues across PRs #55 / #58 / #59. The canonical catalog lives in [`../skills/deployment/references/SHELL_INSTALLERS.md`](../skills/deployment/references/SHELL_INSTALLERS.md) — read it before authoring a new `install-X.sh`. It covers 15 patterns with bad/good examples and the PR cycle that surfaced each one.
+
+Short summary for contributor muscle-memory (details + examples live in the reference):
+
+1. **Sweep-don't-point-fix** — when you touch a pattern below, grep the whole script for other sites with the same shape.
+2. **`set -eo pipefail`** (never bare `set -e`); mind its interactions with pipeline-in-assignment and `head -N`.
+3. **`chown "user:"`**, not `"user:user"` — group name ≠ username everywhere.
+4. **Arg validation** before consuming `$2`; **idempotency respects all flags**; **opt-out flags need end-to-end gate sweep**.
+5. **Marker blocks** — `grep -qF` + BRE-escaped sed, plus orphan-detection for unclosed-range safety.
+6. **`case` not `grep -E`** for security-sensitive string validation (grep's line-splitting is a newline bypass).
+
+**Worked examples in-repo:** `install-gcloud-cli.sh`, `install-docker.sh`, `install-oh-my-posh.sh`, `install-mosh-tmux.sh`. Copy the closest one and adapt — the pattern coverage comes for free.
+
+**Template for new tools** (see the reference for the fully annotated version):
+
 ```bash
 #!/bin/bash
-# Description: What this tool does
-# Usage: How to run it
-# Author: Who wrote it
-# Date: When it was created
+# Description: What this tool does (one line — shown by --help)
+# Usage: sudo ./tools/install-X.sh [--check] [--flag VALUE]
+#
+# Why: the 2–3 sentence rationale. Skip "author" / "date" — git blame
+# has both and they rot when anyone else edits the file.
 
-set -e  # Exit on error
-
-# Your script here
+set -eo pipefail
+# … flags, target-user, state-check, install, verify. See the reference
+# for the full skeleton with opt-out gating baked in.
 ```
 
 ## Maintenance

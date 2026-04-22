@@ -90,6 +90,19 @@ These are recurring issues that Bugbot correctly catches. Check for them proacti
 6. **Guard condition completeness**: `elif value:` should also check the discriminator (e.g. `elif end_type == 'count' and count:`).
 7. **Early return bypassing parameters**: Functions with `limit`/`cap` params must apply them in all code paths, including early returns.
 8. **Stale references in user-facing strings**: When adding notes/messages that reference method names or API endpoints, verify they actually exist in the schema.
+9. **Shell installer conventions (`tools/install-*.sh`)**: This class of script has a leak-prone pattern set — the same bugs keep re-appearing across installers. Canonical catalog lives in [`skills/deployment/references/SHELL_INSTALLERS.md`](../skills/deployment/references/SHELL_INSTALLERS.md) with bad/good examples and per-pattern provenance. Load that reference before reviewing any `tools/install-*.sh` PR.
+
+   **Drill-side quick index** (use these as mental prompts while reading the diff — details are in the reference):
+   - **Sweep-don't-point-fix**: patterns here tend to appear 2-5 times per file. When bugbot flags one, grep for all.
+   - **`chown "user:"`, not `"user:user"`** — group name ≠ username is not a universal guarantee.
+   - **`set -eo pipefail`** (never bare `set -e`) — plus its two known interactions: pipeline-in-assignment silently aborts; `head -N` causes SIGPIPE.
+   - **Substring traps** — `grep -qi "active"` matches "inactive"; always anchor.
+   - **Marker blocks** — `grep -qF` + BRE-escaped sed; gate sed on BOTH markers; refuse orphan state early.
+   - **`case`, not `grep -E`** for security-sensitive string validation (grep's line-splitting is a newline bypass).
+   - **Opt-out flag consistency** — `--no-X` needs gates at EVERY reference to X across the file.
+   - **Arg validation before `shift 2`**; **idempotency respects all flags**; **HEREDOC comment must agree with tag quoting**.
+
+   Each of those links to a numbered section in `SHELL_INSTALLERS.md` with concrete examples and the PR cycle that surfaced it.
 
 ### PASS 3: The Re-Trigger Loop
 
