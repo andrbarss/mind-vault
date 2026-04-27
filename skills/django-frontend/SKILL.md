@@ -406,6 +406,33 @@ for path in pathlib.Path('.').rglob('*.html'):
 
 CI hook this as a pre-commit lint when the templates surface starts to grow.
 
+### Sibling trap — Django tag literals inside JS `//` comments
+
+A literal `{% tag %}` in a JS `//` comment inside a `<script>` block compiles too — Django parses every `{% ... %}` regardless of surrounding language context. A bare `{% trans %}` (no args) raises `TemplateSyntaxError: 'trans' takes at least one argument` at compile time → the whole template 500s.
+
+```django
+{# ❌ TemplateSyntaxError: 'trans' takes at least one argument #}
+// fallback uses the {% trans %} tag in the template body; no JS key needed.
+
+{# ✅ Plain prose — no literal token #}
+// fallback uses the trans template tag in the template body; no JS key needed.
+
+{# ✅ {% verbatim %} wrap when the literal token must round-trip #}
+{% verbatim %}// uses {% trans %} below{% endverbatim %}
+```
+
+Plain-prose rewrite is the right answer when the comment is documentation. Reach for `{% verbatim %}` only when the comment must literally cite the tag.
+
+Detection: extend the multi-line `{# #}` linter — bare `{% tag %}` inside `<script>` blocks is a strong signal:
+
+```python
+# Same loop as the {# #} hunt; for each match, check whether the offset
+# falls inside a <script>...</script> region.
+re.finditer(r'\{%\s*(trans|blocktrans|url|static)\s*%\}', text)
+```
+
+Both traps are the same family — Django's template engine treats the file as one template; the host language's comment syntax is invisible.
+
 ## Bulma template standards
 
 Compact reference for consistency across projects. Full discussion in [references/ADVANCED_COMPONENTS.md](references/ADVANCED_COMPONENTS.md).
@@ -502,5 +529,5 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Bulma CSS Documentation](https://bulma.io/documentation/)
 - [Django Crispy Forms](https://django-crispy-forms.readthedocs.io/)
 
-**Last Updated**: 2026-04-27 — added "Template comment syntax — `{# inline #}` is single-line only" under Pattern; compounded from teisutis IDEA-124 [PR #375](https://github.com/infohata/teisutis/pull/375) ([fix commit](https://github.com/infohata/teisutis/commit/c68905ab)). The failure mode is a content leak (literal comment text shown to end users), not a template error — no CI signal until someone hits the page. Previous: 2026-04-26.
+**Last Updated**: 2026-04-27 — extended "Template comment syntax" with the sibling trap "Django tag literals inside JS `//` comments" (compile-time `TemplateSyntaxError`). Same root cause as the multi-line `{# #}` case (Django parser ignores host-language comment syntax), different symptom (compile-time error vs render-time content leak). Earlier same day: added "Template comment syntax — `{# inline #}` is single-line only" under Pattern. Previous: 2026-04-26.
 **Version**: 2.2
