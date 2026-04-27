@@ -21,6 +21,10 @@ Drive a Cursor Bugbot review-fix-rerun cycle on the current PR (or specified PR 
 
 ## Phase 0: Worktree environment bootstrap
 
+**Sprint-auto v3.1 mode (new) — short-circuit**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is set in the environment, **skip Phase 0 entirely**. Per-IDEA worktrees under sprint-auto v3.1 are pure code surfaces — no `.env`, no docker compose stack. Bugbot-loop's role in this mode narrows to (a) reading Cursor Bugbot's findings via the GitHub API and (b) committing fixes to the per-IDEA branch. Neither activity needs a runtime in the per-IDEA worktree. When fix-verification runs in Phase 2 / Phase 3, it routes to the integration worktree (see Phase 2 § "v3.1 fix-verification routing"). See [`skills/sprint-auto/references/integration-stage.md`](../skills/sprint-auto/references/integration-stage.md) for the full env-var contract.
+
+**Standalone mode (default)**: if `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset, fall through to the existing worktree-bootstrap logic below.
+
 If `git rev-parse --git-common-dir` differs from `.git` (i.e. running inside a worktree):
 
 1. If `.env` already exists → skip to step 3 (containers only).
@@ -87,10 +91,73 @@ This is the **only** authorised place to create `.env` — see exception clause 
 For each Tier 1 finding (no prompt) and each Tier 2 finding (after explicit `yes` from user):
 
 1. Apply the edit.
-2. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only.
+2. Run targeted test (`make test-fresh ARGS="app.tests.ClassName"` or project equivalent) — class scope only. **Verification routing — see § "v3.1 fix-verification routing" below for the env-var-driven mode.**
 3. If test fails: revert edit, log to scratch file, move to next finding (do not retry-fix in the same cycle).
 
 Tier 3 findings: skip the fix, log to the scratch file, and continue processing other findings in this cycle. List all Tier 3 escalations in the final hand-back for human decision. This is a *per-finding* escalation, not a whole-loop abort.
+
+### v3.1 fix-verification routing
+
+Under sprint-auto v3.1 (`SPRINT_AUTO_INTEGRATION_WORKTREE` is set), step 2's targeted test does NOT run in the per-IDEA worktree (which is code-surface only with no `.env` or docker stack). Only the **test command's location** changes — the edit-then-test contract per finding is unchanged, and Phase 3's "one commit per bugbot-run cycle" batching still applies (the v3.1 routing affects WHERE the test runs, NOT WHEN the commit happens).
+
+```bash
+if [[ -n "${SPRINT_AUTO_INTEGRATION_WORKTREE:-}" ]]; then
+    integration_wt="$SPRINT_AUTO_INTEGRATION_WORKTREE"
+    feature_branch=$(git branch --show-current)  # e.g. auto/<slug>
+
+    # The edit was already applied in the per-IDEA worktree by Phase 2 step 1.
+    # Push the per-IDEA branch's tip so the integration worktree can fetch it
+    # — but DO NOT commit yet (Phase 3 will batch all of this cycle's fixes
+    # into one commit; the push here is to make the in-progress edit visible
+    # to the integration worktree's checkout, not to publish it for review).
+    #
+    # Approach in v3.1: keep the edits unstaged in the per-IDEA worktree;
+    # use `git stash create` + `git fetch` of the stash blob to expose the
+    # working-tree state to the integration worktree without committing,
+    # OR (simpler) commit-then-revert if the edit needs to be restorable
+    # mid-cycle. The cleanest contract for v1 of v3.1: just bind-mount or
+    # rsync the per-IDEA worktree's source into the integration worktree's
+    # web container — most projects already do this via docker compose's
+    # volume mount, so `cd $integration_wt && git fetch origin <branch> &&
+    # git checkout --detach origin/<branch>` (NOT plain `git checkout
+    # <branch>` — that errors with "already checked out" because the
+    # per-IDEA worktree claims the branch ref) after any commits in Phase 3
+    # is sufficient for the post-Phase-3 retest.
+    #
+    # Until Phase 3 commits, run the targeted test using the per-IDEA
+    # worktree's source by bind-mounting it into the integration worktree's
+    # web container — depends on project compose setup. Fallback: skip
+    # mid-cycle test verification under v3.1; rely on Phase 3's bugbot
+    # retrigger to surface failures via the next review cycle.
+
+    # Mid-cycle targeted test against the integration stack:
+    pushd "$integration_wt" >/dev/null
+    # Sync the per-IDEA worktree's source into the integration worktree
+    # (project-specific; rsync-with-exclude is one option, but the simplest
+    # contract is "Phase 3 commits + Phase 3 push, then this checkout sees
+    # the new state"). For mid-cycle test BEFORE Phase 3 commit, projects
+    # may need a project-local hook in tools/sprint-auto-hooks.sh.
+    docker compose exec -T web pytest <targeted path>  # against current state
+    test_exit=$?
+    popd >/dev/null
+
+    if (( test_exit != 0 )); then
+        # Test failed: revert the EDIT (in the per-IDEA worktree's working
+        # tree, NOT a commit since none was made yet for this finding).
+        # Use `git checkout -- <files>` to restore from index; or `git stash`
+        # the bad edit and pop it later for forensics.
+        git checkout -- <files-that-were-edited>
+    fi
+fi
+```
+
+DB state on the integration worktree is preserved across fix-cycle iterations within an IDEA's bugbot session — sprint-auto only resets between IDEAs (S1.5), not between bugbot commits. Fix commits typically don't migrate, so the DB state at this-IDEA's-baseline is consistent for the duration of the session.
+
+**Phase 3 is unchanged in v3.1**: at the end of each bugbot-run cycle, all successfully-applied fixes from Phase 2 still get batched into ONE commit (`fix(scope): address bugbot review N (PR #M)`), pushed once, and the bugbot retrigger fires once. The v3.1 routing only changes the test-execution location; the commit cadence is identical to standalone mode.
+
+**Implementation gap acknowledged**: the snippet above describes the contract; the exact mechanism for "expose per-IDEA worktree's edits to the integration worktree's containers without committing yet" is project-specific and may need a project-local hook (e.g. `tools/sprint-auto-hooks.sh` could expose a `sync_per_idea_to_integration <branch>` function). For v3.1 first ship, projects that can't satisfy mid-cycle test routing should fall back to: apply the edit in the per-IDEA worktree, defer the targeted test to Phase 3's post-commit retrigger (bugbot's next review will catch any regression), then either ship the failing fix as Tier 3 escalation or revert and try a different angle on next cycle.
+
+When `SPRINT_AUTO_INTEGRATION_WORKTREE` is unset (standalone bugbot-loop), step 2 runs the targeted test against the current worktree's stack as before — no behaviour change.
 
 ## Phase 3: Commit + push + re-trigger
 
@@ -127,3 +194,5 @@ Always end with:
 4. PR URL.
 
 Do not merge. Do not push to main. The loop hands the PR back to the user for final review and merge.
+
+Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself (the orchestrator), which uses the Tier-3 list to drive its escalation cycle (S4 deliverables / S7 docs / S11.10 integration / S11.12 re-bugbot). The hand-back semantics are unchanged — bugbot-loop produces the same Tier-3 hand-back regardless of caller.
