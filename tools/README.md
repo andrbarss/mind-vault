@@ -186,6 +186,38 @@ fi
 **Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later).
 **Not supported**: RHEL / Fedora / Arch (each needs a different package manager — left for a later PR).
 
+### install-cursor.sh
+**Purpose**: Install [Cursor IDE](https://cursor.com) (apt) **and** [Cursor Agent CLI](https://cursor.com/install) (user-scope) on Debian/Ubuntu in one go.
+
+**Problem Solved**:
+- Cursor ships **two** different products with two different install shapes:
+  - **IDE** → official apt repo at `downloads.cursor.com/aptrepo`, signed by `downloads.cursor.com/keys/anysphere.asc` (system-wide, sudo, `apt upgrade` keeps it current)
+  - **Agent CLI** → vendor curl-bash installer at `cursor.com/install` (user-scope, no sudo, symlinks `agent` and `cursor-agent` into `~/.local/bin`)
+- Vendor docs cover each separately; bundling them into one idempotent script means a single `sudo ./install-cursor.sh` ends with both pieces wired up correctly — IDE registered as an apt source, CLI in the invoking user's home (NOT `/root`'s).
+- Re-running is safe: each piece independently idempotency-checks before writing.
+
+**Usage**:
+```bash
+sudo ./tools/install-cursor.sh             # IDE + CLI (default)
+sudo ./tools/install-cursor.sh --no-cli    # IDE only
+sudo ./tools/install-cursor.sh --check     # report current state for both, no writes
+```
+
+**Features**:
+- ✅ Idempotent for both pieces: skips IDE if `cursor --version` reports a version; skips CLI if `~/.local/bin/agent` exists for the target user
+- ✅ `--check` reports install state for both with exit code (0 = everything required is installed, 1 = anything missing)
+- ✅ `--no-cli` opts out of the user-scope CLI step (system administrators with no desktop user)
+- ✅ IDE: dearmored keyring under `/etc/apt/keyrings/cursor.gpg` + `signed-by=` — no deprecated `apt-key`. Repo pinned to `arch=amd64,arm64` so multi-arch hosts don't try foreign arches every `apt update`
+- ✅ CLI: drops privileges to `$SUDO_USER` (the user who invoked sudo) so the user-scope install lands in the right home — refuses to install user-scope CLI as root with a clear hint
+- ✅ Auto-detects Debian/Ubuntu derivatives via `ID_LIKE` (Mint, Pop!_OS, Zorin, Kali)
+- ✅ System-wide IDE install auto-upgrades via `apt upgrade`; CLI re-runs the vendor installer (idempotent)
+- ✅ Pipefail-safe `cursor --version` / `agent --version` capture (parameter expansion + `\|\| true`); `head -1` SIGPIPE pitfall avoided per the project guideline
+
+**Caveat**: Cursor Agent CLI's vendor installer hard-codes its tarball version internally. We delegate to it (rather than mirror its tarball-resolution) because Cursor re-publishes the `cursor.com/install` URL on each release — a version pin in this script would just go stale. Re-run `curl https://cursor.com/install -fsS | bash` (as your regular user) to upgrade the CLI later.
+
+**Supported**: Debian 11+ (bullseye, bookworm, trixie), Ubuntu 20.04+ (focal, jammy, noble, later); amd64 + arm64.
+**Not supported**: RHEL / Fedora / Arch (Cursor publishes a `.rpm` separately; left for a later PR).
+
 ### cleanup-contamination.sh
 **Purpose**: Detect and remove grok-code-fast-1 tool response contamination from files
 
