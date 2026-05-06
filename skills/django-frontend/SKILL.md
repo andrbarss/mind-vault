@@ -34,6 +34,7 @@ Compatibility: Django 4.2+ (tested through 5.2 LTS), any database.
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
 - [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes
 - [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
+- [Cotton Components](references/COTTON.md) — django-cotton component primitives: file layout, settings, call-site syntax (`:prop` vs `prop`), render-and-assert tests, cotton-vs-`{% include %}` decision table, and the `:prop`-coercion hazard with its JSON-seed fix
 
 ## When to use
 
@@ -98,136 +99,127 @@ HTMX requests to the same URL return only the partial; HTMX swaps it into `#arti
 ✅ DO: One URL, two templates, dispatched on `HX-Request`.
 ❌ DON'T: Separate `/articles/` and `/articles/partial/` endpoints — duplicates the queryset and permission logic.
 
-### Cotton components for prop-shaped UI
+### Cotton components — see [references/COTTON.md](references/COTTON.md)
 
-Use **[django-cotton](https://github.com/wrabit/django-cotton)** as the component framework when an element has a clear prop shape (object + literal attrs) or multiple call sites. Coexists with `{% include %}` — opportunistic migration only, no big-bang rewrite. `{% include %}` stays fine for single-call-site scaffolding.
+**TRIGGER:** editing a `<c-*>` component or its slots; registering a new cotton component under `templates/cotton/`; passing `:prop` (Python expression) vs `prop` (literal string) attributes; configuring django-cotton in `TEMPLATES` settings; bootstrapping client state via `data-initial-*` from a cotton root.
 
-**File layout per app:**
+Two pitfalls sharp enough to flag in primary context:
 
+1. **`:prop` coercion is opaque** — cotton coerces `:prop` values through Django's template engine, so booleans become `"True"` / `"False"` strings, integers become decimal strings, `None` becomes `"None"`. For multi-field client-state seeding, prefer a single `<script type="application/json">` seed over per-field `:prop` attributes; the cotton root carries only the boolean that drives mount-state visual. Full walkthrough in the reference.
+
+2. **Multi-line `{# … #}` comments inside cotton component templates** crash the engine the same way they leak in regular templates — Django's tokeniser doesn't recognise multi-line `{# … #}`, and a literal `{% include %}` (or any tag) inside the prose 500s. Use `{% comment %}…{% endcomment %}` for prose blocks (same trap as *Template comment syntax* below — applies inside cotton component templates too).
+
+The reference covers: file layout (`templates/cotton/`); settings (loader + builtins, why `SimpleAppConfig`); call-site syntax (`:prop` vs `prop`); render-and-assert test pattern using `engines['django'].from_string` with the cotton-builtins workaround; the cotton-vs-`{% include %}` decision table; the `:prop`-coercion bug walked end-to-end with the JSON-seed fix and a single-attribute-on-root test contract.
+
+### App-shell layout — fixed viewport + per-pane scroll containers
+
+Single-page-feel app shells (Slack/Discord/Gmail-style: top nav + workspace pane + centre + preview pane) want **the document never to scroll** — every scroll happens inside one of the named panes. The layout primitives that make this work:
+
+```scss
+// Scope the html-overflow override under a class so legacy non-shell pages
+// (still on the document-scroll layout) are unaffected.
+html.shell-html {
+    height: 100vh;
+    height: 100dvh;       // 100dvh adapts to mobile address-bar collapse
+    overflow: hidden;     // defeats Bulma's default html { overflow-y: scroll }
+}
+
+.shell-body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;     // body never scrolls either
+}
+
+.shell-main {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-height: 0;        // load-bearing — see "unstable child" below
+}
+
+.shell-center,
+.shell-drawer__body {
+    flex: 1 1 auto;
+    min-height: 0;        // see "unstable child" below
+    overflow-y: auto;     // pane is the scroll container
+}
 ```
-<app>/
-├── templates/
-│   ├── <app>/                    # plain Django templates
-│   │   └── partials/
-│   │       └── _scaffolding.html  # single-call-site, fine as-is
-│   └── cotton/                    # cotton components
-│       └── event_row_header.html  # called as <c-event-row-header />
-```
-
-Cotton resolves `<c-foo-bar />` to `<app>/templates/cotton/foo_bar.html` in any `INSTALLED_APPS` entry. Shared primitives (drawer, toast, modal, copy-button, collapsible) live in a dedicated UI-app's `templates/cotton/`; app-specific components live in that app's `templates/cotton/`.
-
-**Settings (one-time setup):**
-
-```python
-SHARED_APPS = [  # or INSTALLED_APPS for non-multi-tenant
-    # ...
-    'django_cotton.apps.SimpleAppConfig',  # NOT 'django_cotton' — avoids
-    # double-config when you want explicit loaders + builtins below.
-]
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # APP_DIRS=True is mutually exclusive with explicit loaders;
-        # cotton requires its loader to wrap app_directories.Loader.
-        'OPTIONS': {
-            'loaders': [(
-                'django.template.loaders.cached.Loader',  # under DEBUG=False;
-                # Django bypasses cached.Loader automatically under DEBUG=True.
-                [
-                    'django_cotton.cotton_loader.Loader',
-                    'django.template.loaders.filesystem.Loader',
-                    'django.template.loaders.app_directories.Loader',
-                ],
-            )],
-            'builtins': [
-                'django_cotton.templatetags.cotton',
-                # Lets <c-…> work without per-template {% load cotton %}.
-            ],
-        },
-    },
-]
-```
-
-**Call-site syntax:**
 
 ```django
-{# Old: silent on missing kwargs, no slot semantics. #}
-{% include 'kb/partials/_event_row_header.html' with event=event %}
-
-{# New: cotton, with explicit prop binding. #}
-<c-event-row-header :event="event" />
-
-{# Literal string vs Python expression — the colon prefix matters: #}
-<c-button label="Save" />              {# label = "Save" (string) #}
-<c-event-card :event="event" />        {# event = the Python object #}
+{# Add the class hook on <html>; legacy base.html omits it #}
+<html lang="..." class="h-full shell-html">
+<body class="h-full shell-body">
+    <c-nav-bar ... />
+    <main class="shell-main">
+        <c-drawer name="workspace" edge="left" ...>...</c-drawer>
+        <section class="shell-center">{% block center %}{% endblock %}</section>
+        <c-drawer name="preview" edge="right" ...>...</c-drawer>
+    </main>
+    {% include 'app_ui/_toast_container.html' %}  {# position:fixed, viewport-anchored #}
+    <c-confirm-modal />                            {# position:fixed, viewport-anchored #}
+</body>
 ```
 
-**Component template — props arrive as context variables:**
+**The "unstable child" rule (load-bearing)** — in a flex column or row, child elements default to `min-height: auto` (intrinsic content size). When you put `overflow-y: auto` on a flex child whose intrinsic size exceeds the parent, the child *grows the parent* instead of scrolling. Setting `min-height: 0` forces the child to honor the parent's height and scroll inside it. Apply at every flex chain link whose descendant has `overflow-y: auto`.
 
-```django
-{# templates/cotton/event_row_header.html #}
-{% load i18n %}
-<div class="event-row-header">
-    <span>{{ event.date|date:"DATE_FORMAT" }}</span>
-    {% if event.time %}<span>{{ event.time|time:"TIME_FORMAT" }}</span>{% endif %}
-</div>
+**Where elements live**:
+
+- **Top nav, toasts, modals**: siblings of `.shell-main`, NOT inside any pane. `position: fixed` for toasts/modals stays viewport-anchored regardless of pane scrolling.
+- **Sticky-within-pane** (drawer headers, table-row sticky headers, future "save bar" patterns): `position: sticky; top: 0` against the pane's scroll container — automatic once the pane has its own `overflow-y`.
+- **Bottom-anchored elements** (chat composer, save bar): pane internals use a flex-column where the scroll-region is `flex: 1 1 auto; overflow-y: auto; min-height: 0` and the bottom anchor is `flex: 0 0 auto`. The composer never scrolls with the messages.
+- **Scroll-anchor surfaces** (cursor-mode load-more, virtual-list patterns): the `[data-scroll-anchor]` element MUST be a real scroll container — declared `overflow-y: auto` AND content overflows. Under this layout that's automatic for any anchor child of `.shell-center` / `.shell-drawer__body`. Math is unchanged from window-scroll setups.
+
+**Shared scroll-container helper** — when client code (preview-stack push/pop snapshot, scroll-anchor walk-up, virtual-list math) needs to find the closest scrolling ancestor, share one walk-up implementation:
+
+```javascript
+// scroll-utils.js — loaded blocking before any consumer.
+(function () {
+    'use strict';
+    function findScrollContainer(el) {
+        if (!el) return document.scrollingElement || document.documentElement;
+        let node = el;
+        while (node && node !== document.documentElement) {
+            const style = window.getComputedStyle(node);
+            const overflowY = style.overflowY;
+            if ((overflowY === 'auto' || overflowY === 'scroll')
+                && node.scrollHeight > node.clientHeight) {
+                return node;
+            }
+            node = node.parentElement;
+        }
+        return document.scrollingElement || document.documentElement;
+    }
+    window.uiScrollUtils = window.uiScrollUtils || {};
+    window.uiScrollUtils.findScrollContainer = findScrollContainer;
+})();
 ```
 
-**Render-and-assert test pattern:**
+The `scrollHeight > clientHeight` check matters: an ancestor declared `overflow-y: auto` but not currently overflowing returns scrollTop=0 silently, which is the "scroll restore is a no-op" symptom. Filter to elements that ACTUALLY scroll right now.
+
+**Acknowledged regressions when migrating from document-scroll**:
+
+- **Window-scroll readers go quiescent on shell pages**. Any module reading `window.scrollY` (e.g. mobile nav-hide-on-scroll-down feature, popover positioning that adds `window.scrollY` to absolute coordinates) sees `0` forever because the document doesn't scroll. Annotate in-source and route the trigger to the active pane's scroll or a gesture in a follow-up. Legacy non-shell pages keep working.
+- **Modal scroll-position snapshots become no-ops**. The classic `scrollY = window.scrollY; modal.show(); ...; window.scrollTo(0, scrollY)` pattern saves 0, restores 0 — benign but worth annotating for debuggability.
+
+**Test contract — render-and-assert smokes the class hooks; manual eval / browser-driver tests verify behavior**:
 
 ```python
-# tests/test_components.py
-import re
-from django.template import engines
-from django.test import TestCase
-from django.utils.translation import activate
+def test_html_carries_shell_html_class_for_overflow_scope(self):
+    response = self.client.get('/some/shell/surface/')
+    self.assertIn('shell-html', response.content.decode('utf-8'))
 
-# Captured ONCE during the migration commit by rendering the legacy
-# include against the same fixture — paste the output verbatim here.
-EXPECTED_EVENT_ROW_HEADER_HTML = """
-<div class="event-row-header"><span>Jun 15, 2099</span><span>09:00</span></div>
-""".strip()
-
-
-def _norm(html: str) -> str:
-    """Whitespace-collapse so cotton's stray newlines don't break equality."""
-    return re.sub(r'\s+', ' ', html).strip()
-
-
-class EventRowHeaderCottonComponentTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        activate('en')
-
-    def test_renders_match_expected(self):
-        event = build_fixture_event()
-        cotton_html = engines['django'].from_string(
-            '<c-event-row-header :event="event" />'
-        ).render({'event': event})
-        self.assertEqual(_norm(cotton_html), _norm(EXPECTED_EVENT_ROW_HEADER_HTML))
+def test_scroll_utils_loaded_before_consumer(self):
+    """Order is load-bearing — scroll-utils must parse before consumers."""
+    body = response.content.decode('utf-8')
+    utils_idx = body.find('scroll-utils.js')
+    consumer_idx = body.find('consumer-using-uiScrollUtils.js')
+    self.assertLess(utils_idx, consumer_idx)
 ```
 
-Key points:
-
-- `engines['django'].from_string(...)` does **not** auto-process cotton syntax in the template string (cotton's regex transform only runs inside the loader path). For inline test rendering, install cotton's `templatetags.cotton` as a template `builtins` (above) and the `<c-…>` tag is recognised by the parser. If your test still receives the literal `<c-…>` text, fall back to invoking `CottonCompiler().process(template_string)` explicitly before rendering.
-- Whitespace-normalise both sides — cotton may insert/drop a newline between sibling tags relative to the legacy `{% include %}` output. Asserting on structural equality, not byte-equality, keeps the test stable.
-- Pin time-sensitive fixture data to a fixed future date (e.g. `date(2099, 6, 15)`) so renders that include `is_overdue`-derived markup don't drift as wall-clock advances.
-
-**When to write cotton vs `{% include %}`:**
-
-| Use cotton when... | Use `{% include %}` when... |
-|---|---|
-| Element has a clear prop shape (object + literal attrs) | Single-call-site scaffolding (form action row, page header) |
-| 2+ call sites, especially across apps | One call site, never going to be reused |
-| Slot semantics matter (header / body / footer override) | Linear template inclusion |
-| Test pattern needs prop isolation | Test goes through the parent view |
-
-❌ DON'T: bulk-migrate every `{% include %}` to cotton. Migration is opportunistic — when a surface is touched for other reasons, its partials migrate. The lack of prop validation is mitigated by a doc-comment header at the top of each cotton component listing required props.
-
-❌ DON'T: use multi-line `{# … #}` comments **inside cotton component templates**. `{#` is single-line in Django; multi-line content between `{# … #}` is parsed as raw template content, and a literal `{% include %}` word inside the prose crashes the engine. Use `{% comment %}…{% endcomment %}` for prose blocks (already noted in *Template comment syntax* below — same hazard).
-
-❌ DON'T: import vendor CSS via `@import url(...)` from compiled SCSS. Browser resolves relative URLs against the compiled CSS file's URL at runtime — if the compiled CSS path moves (e.g. an app rename like `teisutis_core` → `teisutis_ui`), the import 404s. Link vendor CSS via a sibling `<link>` in `base.html` instead, and let SCSS only handle theme + component styles. (See *SCSS / static-asset relocation* below if added — same blast radius.)
+Render-and-assert can't probe computed CSS or measure scroll behaviour — that's a manual-eval gate (per-pane scrolls independently, sticky chrome stays anchored, no double-scrollbar at any viewport, etc.) or a browser-driver suite (Playwright / similar) once one is available.
 
 ### Alpine.js global state on `<html>`
 
@@ -272,6 +264,156 @@ When `alpine.min.js` is loaded `<script defer>`, Alpine auto-starts via `queueMi
 ```
 
 The microtask-vs-defer ordering is **not platform-stable across browsers in all edge cases**, but the symptom is reliably reproducible in Chromium-family browsers when the bundle JS is defer'd after alpine. Don't rely on the order; load shell-essential factories blocking.
+
+### Alpine.store coordinators with delayed-registered consumers — `onRegister` callback pattern
+
+When an `Alpine.store('foo')` coordinator needs to drive a per-instance consumer (a registered drawer instance, a registered modal instance, a per-component Alpine factory), the registration is asynchronous-after-store-init: the store exists at `alpine:init`, but each consumer instance registers itself when its `x-data` factory runs during the DOM walk that follows. Code on the store side that needs to "talk to" a registered consumer can't do so synchronously — the consumer might not have registered yet.
+
+The fragile pattern that surfaces this: poll for the registration via `Alpine.effect`:
+
+```javascript
+// Anti-pattern — timing-fragile
+Alpine.effect(function () {
+    const store = Alpine.store('drawerCoordinator');
+    const entry = store.currentByEdge.preview;
+    if (!entry || !entry.instance) return;
+    // Now monkey-patch the instance — runs whenever Alpine.effect re-evaluates,
+    // which is anyone's guess. Survives until something else triggers a re-eval
+    // and double-patches, or the instance is replaced and the patch leaks.
+    const orig = entry.instance.close;
+    entry.instance.close = function () { orig.apply(this); /* extra */ };
+});
+```
+
+Problems: re-evaluation is implicit (Alpine.effect recomputes on any reactive dep change in the function body); monkey-patches stack across re-runs; teardown is unobservable; instance replacement leaks the patch. The bug surfaces as "feature works the first time, breaks after the consumer re-registers" — N hours of debugging timing.
+
+**The fix — explicit register-or-queue API on the coordinator store**:
+
+```javascript
+// Coordinator store: maintain a callback queue per registration name.
+Alpine.store('drawerCoordinator', {
+    currentByEdge: {},
+    _registerCallbacks: {},
+
+    /**
+     * Run `callback(entry)` either immediately if `name` is already
+     * registered, OR enqueue and run on first registration. Idempotent
+     * for the not-yet-registered case (multiple calls queue multiple
+     * callbacks); each callback fires once when register() is called.
+     */
+    onRegister(name, callback) {
+        const entry = this.currentByEdge[name];
+        if (entry && entry.instance) {
+            // Already registered — fire synchronously.
+            callback(entry);
+            return;
+        }
+        const list = this._registerCallbacks[name] || [];
+        list.push(callback);
+        this._registerCallbacks[name] = list;
+    },
+
+    /** Register a consumer instance — fires queued callbacks. */
+    register(name, edge, instance) {
+        this.currentByEdge[name] = { edge, instance };
+        const queued = this._registerCallbacks[name];
+        if (queued && queued.length) {
+            this._registerCallbacks[name] = [];  // drain
+            queued.forEach(cb => {
+                try { cb(this.currentByEdge[name]); }
+                catch (err) { console.error('[coordinator] onRegister callback failed:', err); }
+            });
+        }
+    },
+});
+```
+
+Consumer side:
+
+```javascript
+// Anywhere that needs to react to drawer instance availability:
+const coord = Alpine.store('drawerCoordinator');
+coord.onRegister('preview', function (entry) {
+    // entry.instance is the registered consumer; do binding here ONCE.
+    // No polling, no re-evaluation, no monkey-patch stacking.
+    _bindOpenStateSync(entry.instance);
+});
+```
+
+Why this works:
+
+- **One-shot semantics**: callbacks fire exactly once when registration happens; no double-fire on re-evaluations.
+- **Synchronous-or-deferred is transparent to caller**: the consumer code shape is the same whether registration already happened or hasn't yet. No `if registered { do() } else { ?? }` branches at the call site.
+- **No reactive deps**: the API is plain function-call + queue, not Alpine.effect — so it doesn't depend on the coordinator's internals being reactive in the right way.
+- **Failure-isolated**: a throwing callback doesn't break the others (the `try/catch` per callback). Logged but doesn't take down the registration.
+
+Generalizable to any `Alpine.store(coordinator)` shape where async-registered consumers need callbacks: modal coordinators, drawer coordinators, preview-surface stores, any per-instance factory the store drives. Pair the `register(name, ...)` method with `onRegister(name, callback)` whenever the store has consumers it needs to talk to.
+
+### Active-state tracking — `aria-current="true"` + CSS `:has()` instead of JS class toggling
+
+When a list of links has a "currently selected" item that should style differently, the obvious shape is JS-side `classList.add('--selected')` / `classList.remove('--selected')` driven by an Alpine.effect or a click handler:
+
+```javascript
+// Anti-pattern — JS owns the active-state class
+Alpine.effect(function () {
+    const top = Alpine.store('previewSurface').top;
+    document.querySelectorAll('a[data-preview-link]').forEach(link => {
+        const matches = top
+            && link.getAttribute('data-preview-type') === top.type
+            && link.getAttribute('data-preview-identifier') === String(top.identifier);
+        link.parentElement.classList.toggle('list-row--selected', matches);
+    });
+});
+```
+
+Two sources of truth — `top` in the store, `--selected` class on the row — kept in sync by JS. Bugs surface when the server template renders one source (e.g. server sets `--selected` on the cold-start row) and JS races to set the other; or when a row gets re-mounted by HTMX swap and the JS hasn't re-walked yet.
+
+**The fix — `aria-current="true"` on the link is the single source of truth, CSS `:has()` styles the parent**:
+
+```javascript
+// JS toggles the HTML attribute on the link, not a class on the parent.
+Alpine.effect(function () {
+    const top = Alpine.store('previewSurface').top;
+    document.querySelectorAll('a[data-preview-link]').forEach(link => {
+        const matches = top
+            && link.getAttribute('data-preview-type') === top.type
+            && link.getAttribute('data-preview-identifier') === String(top.identifier);
+        if (matches) link.setAttribute('aria-current', 'true');
+        else link.removeAttribute('aria-current');
+    });
+});
+```
+
+```scss
+// SCSS targets the row via :has() — the CSS owns the visual,
+// the HTML owns the truth. No JS class toggling on the parent.
+.list-row {
+    &:has(a[data-preview-link][aria-current="true"]) {
+        border-color: var(--color-primary);
+        background-color: var(--bg-tertiary);
+    }
+}
+```
+
+Server template emits the attribute on cold-start hits — same attribute name, same value:
+
+```django
+<a href="..." data-preview-link
+   data-preview-type="article" data-preview-identifier="{{ item.id }}"
+   {% if item.id|stringformat:"s" == selected_identifier %}aria-current="true"{% endif %}>
+   {{ item.title }}
+</a>
+```
+
+Why this wins:
+
+- **Single source of truth**: `aria-current="true"` is the active state, period. Server cold-start emits it; JS keeps it in sync; CSS styles off it. No racing two state shapes.
+- **Free a11y**: `aria-current="true"` is the standard ARIA attribute screen readers announce as "current page / current item". You'd want it anyway.
+- **CSS `:has()` is well-supported**: Chrome 105+, Safari 15.4+, Firefox 121+. The browsers a Django+HTMX+Alpine project targets all ship it.
+- **HTMX-swap-friendly**: when HTMX swaps the row, the new DOM carries whatever `aria-current` the server emitted; JS doesn't need to re-walk the DOM after the swap to fix the visual — `:has()` re-evaluates per-paint.
+- **Test contract is mechanical**: `assertIn('aria-current="true"', body)` for the matching row, `assertNotIn` for non-matches. No "is the class on the right element" indirection.
+
+When NOT to use this pattern: when the visual state is genuinely client-only (a hover effect, a temporary "just clicked" pulse) — those don't need round-tripping, so a plain CSS `:hover` / `:active` / Alpine `x-bind:class` is right. The `aria-current` pattern is for state that has SEMANTIC meaning the server might also know about (selected item, current page, current step in a wizard).
 
 ### Toggleable containers — `inert` not `aria-hidden`
 
@@ -759,6 +901,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [HTMX Patterns](references/HTMX_PATTERNS.md) — detailed HTMX implementation patterns
 - [Alpine + HTMX Gotchas](references/ALPINE_HTMX_GOTCHAS.md) — Alpine 3 factory `x-data` auto-init trap, `HX-Trigger` value-wrapping shape, defer-vs-DOMContentLoaded ordering, `hx-on::*` plain-JS scope (not Alpine), `hx-trigger="click once"` doesn't fire on synthetic state changes
 - [HTMX Scroll Preservation](references/HTMX_SCROLL_PRESERVATION.md) — Load-older / inverse-pagination scroll-position primitive; marker-offsetTop diff math (robust to `display: contents` wrappers + concurrent below-marker mutations)
+- [Cotton Components](references/COTTON.md) — django-cotton primitives: file layout, settings, call-site syntax (`:prop` vs `prop`), render-and-assert tests, and the `:prop`-coercion → JSON-seed pattern
 - [Vendoring JS Bundles](references/VENDORING_JS_BUNDLES.md) — vendor pre-built JS to `static/vendor/`, zero Node toolchain in CI/Docker; disposable container build for ESM-only libraries (precedent: EasyMDE; planned: TipTap)
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
