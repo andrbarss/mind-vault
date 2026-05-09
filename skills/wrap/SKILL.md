@@ -237,7 +237,7 @@ Use the last two devlog entries in the same file as style anchors — match pros
 
 Non-destructive container shutdown (`docker compose down` without `-v`) is handled elsewhere — `/sprint-auto`'s S5 teardown step stops containers pre-merge to free CPU/RAM/ports while keeping volumes and the worktree filesystem for reviewer inspection. This step is the rest of the cleanup: volumes removed, worktree removed, branch deleted.
 
-If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down completely. Leaving it live holds disk hostage and invites port collisions when the next sprint starts.
+If the sprint ran in a parallel git worktree with its own docker-compose stack (see [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md)) — the idea-specific `.env`, per-worktree stack with port offset, dedicated compose project — this is the natural moment to tear it down completely. Leaving it live holds disk hostage and invites port collisions when the next sprint starts.
 
 Skip this step when:
 
@@ -416,6 +416,27 @@ fi
 - **Plan-doc-driven** (preferred when available): if the IDEA's plan doc has a "Verification scenarios" or "Manual evaluation" section, copy each scenario as a Step 7 scenario. The plan author's intent transfers cleanly.
 - **Diff-summary-driven** (fallback): emit only the skeleton with mechanical placeholders filled; the integration-PR reviewer (or the IDEA's author at /plan time, retroactively) fills scenarios. Skeleton is still useful — having the file land in the right path with the right framing prompts the human to walk *something*, even if the scenarios are minimal.
 
+**Playwright-coverage pre-fill (Direction-1)** — when the plan doc includes a `playwright_test_coverage` YAML block, use it to pre-fill matching scenario rows in the emitted checklist. Block shape in the plan:
+
+```yaml
+playwright_test_coverage:
+  - scenario: "Modal opens with focus trapped on first input"
+    test: "tests/playwright/test_modal.py::test_focus_trap_first_input"
+  - scenario: "Esc closes modal and restores focus to trigger"
+    test: "tests/playwright/test_modal.py::test_esc_close_focus_restore"
+```
+
+Pre-fill algorithm:
+
+1. Parse the `playwright_test_coverage` block from the plan doc (YAML between `playwright_test_coverage:` and the next top-level key or end-of-file).
+2. **Verify each cited test is collectible** — run `make playwright-test --collect-only -q` (or project equivalent) and capture stdout. Any test in the YAML that's not in the collected listing is a rotted reference (deleted/renamed in a later IDEA).
+3. For each YAML entry, match `scenario:` against the eval-checklist's `### N. <Scenario name>` headings (case-sensitive, whitespace-trimmed, exact match). For each match:
+   - **Test collectible** → flip `**Walked**: [ ]` to `**Walked**: [x] (covered by <test path>)`.
+   - **Test NOT collectible** → keep `**Walked**: [ ]` AND append `  _⚠️ rot: <test path> cited in plan but not collectible — manual walk required_` on the same line. Do NOT flip the box; the human must walk it because the test no longer guards it.
+4. Scenarios in the eval-checklist that have NO matching YAML entry stay un-pre-filled. Scenarios in the YAML that have NO matching eval-checklist heading are logged as `playwright_coverage_orphan` warnings — likely a typo in the plan's `scenario:` text.
+
+**Skip when** the IDEA does not have `requires_playwright: true` in its frontmatter, OR when the `make playwright-test --collect-only` probe fails (Playwright not installed in the integration stack — the `playwright_unavailable` case S2 already logs). In the latter case, leave every scenario un-pre-filled and append a one-line note at the top of the eval-checklist file: `_Note: Playwright probe failed at /wrap time; no rows pre-filled. Manual walk required for all scenarios._`
+
 **Commit it with the rest of the wrap commits** — same branch (pre-merge mode = feature branch, the IDEA's `auto/<slug>` in sprint-auto context). The eval-checklist becomes part of the per-IDEA PR's docs delta; bugbot's docs-pass at S6 reviews it; the integration-PR creator at S11.10 finds it via `find docs/archive/ -name '*-manual-evaluation.md'` glob and links to it (see integration-stage.md § Per-IDEA evaluation checklists).
 
 **No teardown of the artefact post-merge.** The eval-checklist stays in the archive dir as part of the IDEA's history — a record of what the reviewer was asked to walk, what they noted, what follow-ups landed.
@@ -513,8 +534,8 @@ git pull --ff-only origin "$base_branch"
 
 ## References
 
-- [`RULE_ideas-location-status`](../../rules/RULE_ideas-location-status.md) — the frontmatter-only transition this skill relies on.
-- [`RULE_parallel-worktree-docker`](../../rules/RULE_parallel-worktree-docker.md) — the worktree + compose-project contract Step 5 tears down.
+- [`RULE_ideas-location-status`](../idea/references/IDEAS_LOCATION_STATUS.md) — the frontmatter-only transition this skill relies on.
+- [`RULE_parallel-worktree-docker`](../sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md) — the worktree + compose-project contract Step 5 tears down.
 - [`/work`](../work/SKILL.md) — the stage before; its output (a PR on a feature branch, bugbot-cleared deliverables) is `/wrap`'s input.
 - [`/compound`](../compound/SKILL.md) — the stage after; `/wrap` leaves the paper trail `/compound` references.
 - [`/sprint-auto`](../sprint-auto/SKILL.md) — the orchestrator that stitches `idea → plan → work → bugbot-loop(deliverables) → wrap-docs → bugbot-loop(docs) → compound` for the unattended case. Sprint-auto's S5 step handles the non-destructive container shutdown; post-merge destructive teardown in Step 5 here complements it. **Step 8's atomic-merge pattern derives from sprint-auto's integration-stage** — the same principle ("when nothing about the merge target is protected, the orchestrator delivers atomically") applies at single-IDEA scale. Manual `/wrap` and sprint-auto's S11 integration merge are two scales of the same idea.

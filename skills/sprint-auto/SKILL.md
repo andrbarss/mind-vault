@@ -56,6 +56,25 @@ Run once, before any per-IDEA work. If **any** check fails, abort with an action
 
    **Why push at S(-1)** (v3.2 change from v3.1, where push happened at S11.10): per-IDEA `/work` invocations in S2 open PRs with `--base $SPRINT_AUTO_INTEGRATION_BRANCH`. GitHub requires the base ref to exist on `origin` at PR-creation time, so the integration branch must be pushed first. The push is just the branch ref — no PR is opened until S11.10.
 
+9. **Playwright availability probe (non-fatal).** After the integration stack is up, probe whether Playwright is installed in the `web` service. The probe outcome flips the IDEA-level `requires_playwright` gate; it is **never** a batch-level abort.
+   ```bash
+   if docker compose exec -T web playwright --version >/dev/null 2>&1; then
+       export SPRINT_AUTO_PLAYWRIGHT_AVAILABLE=1
+   else
+       export SPRINT_AUTO_PLAYWRIGHT_AVAILABLE=0
+       echo "[preflight] Playwright not installed in integration stack." \
+            "IDEAs with 'requires_playwright: true' will gate to manual-eval-only mode" \
+            "(plan author writes manual-eval-checklist rows; Playwright tests are deferred)." \
+            "Run tools/setup_playwright.sh and rebuild the image to enable." | tee -a "$BATCH_LOG"
+   fi
+   ```
+   Persist `SPRINT_AUTO_PLAYWRIGHT_AVAILABLE` to the batch state file so per-IDEA `/plan` and `/work` invocations read the same value across worktree boundaries (env vars don't survive subshells). The IDEA-level gate (`requires_playwright` frontmatter flag) is described in [`references/safety-gates.md`](references/safety-gates.md) § Playwright-availability gate. Three branches:
+   - **Probe = present, IDEA has `requires_playwright: true`** → plan author writes Playwright tests; eval-checklist pre-fills covered rows from the plan's `playwright_test_coverage` block.
+   - **Probe = absent, IDEA has `requires_playwright: true`** → plan author writes ONLY the manual-eval-checklist rows for Playwright-relevant scenarios; the frontmatter flag stays as a backref so a later "set up Playwright" IDEA can backfill tests.
+   - **IDEA has no `requires_playwright`** → IDEA proceeds independent of probe outcome.
+
+   Bootstrap circularity is solved by manual-eval fallback: the first project-side "set up Playwright" IDEA's `requires_playwright` is `false` (it provisions the gate's "present" state but doesn't depend on it); after it merges, downstream IDEAs' probes flip to "present" and the gate begins authoring tests. No IDEA is ever blocked on infra readiness.
+
 ### 2. Per-IDEA execution loop (S0–S11)
 
 For each IDEA in the list, in argument order, sequentially. The full state machine is in [`references/post-pr-sequence.md`](references/post-pr-sequence.md). Each step heading below tags the state it covers.
@@ -85,6 +104,8 @@ For each IDEA in the list, in argument order, sequentially. The full state machi
 4. **Work the plan (S2).** Invoke the `work` skill against the emitted plan. The work skill detects `SPRINT_AUTO_INTEGRATION_WORKTREE` is set and routes its verification step there — see [`references/integration-stage.md`](references/integration-stage.md) and [`../work/SKILL.md`](../work/SKILL.md). Per `RULE_git-safety`, the per-IDEA worktree is on `auto/<slug>` (not main), so commits flow freely. `/work` dispatches personas, commits per plan item, runs verification on the integration worktree (`git fetch origin auto/<slug>` + `git checkout --detach origin/auto/<slug>` there + `docker compose up -d --force-recreate web celery` + targeted tests; **`--detach` is required** because the per-IDEA worktree already has `auto/<slug>` checked out, and git refuses cross-worktree branch checkouts), and opens the PR on success.
 
    **v3.2 PR base routing**: when `SPRINT_AUTO_INTEGRATION_BRANCH` is set, `/work` passes `--base "$SPRINT_AUTO_INTEGRATION_BRANCH"` to `gh pr create` instead of the parent (`main` / `sprint-*`). The PR's diff is naturally IDEA-isolated against integration (which starts as a copy of `origin/main` at S(-1) and only accumulates merge commits as later IDEAs land). Each per-IDEA PR remains independently reviewable for the morning reviewer. If verification fails or `/work` returns without opening a PR, re-enter at step 9 with `outcome: verification_failed`.
+
+   **Playwright defence-in-depth at S2**: if the IDEA's plan contains a `playwright_test_coverage` block (i.e. the plan author wrote Playwright tests), `/work`'s verification step re-probes `docker compose exec -T web playwright --version` against the integration stack. If the probe now fails (infra was uninstalled between S(-1) and now, or the image was rebuilt without Playwright), S2 logs `playwright_unavailable: true` to the auto-run log, skips the Playwright tests for that IDEA only, and continues with non-Playwright tests. The IDEA still ships; the manual-eval rows the plan would have pre-filled stay un-pre-filled. The integration PR's body surfaces this in S11.10's per-IDEA evaluation summary.
 
 5. **Bugbot-loop the PR — deliverables pass (S3).** Invoke `/bugbot-loop <PR>` on the PR `/work` just opened. With `SPRINT_AUTO_INTEGRATION_WORKTREE` set, bugbot-loop's Phase 0 skips entirely — per-IDEA worktrees never get `.env` or docker. Fix-verification routes to the integration worktree as in step 4 (no DB reset within the bugbot session — fix commits don't typically migrate; reset cost would explode). Three outcomes (per [`references/escalation-policy.md`](references/escalation-policy.md)):
    - **Clean** → step 6.
@@ -264,15 +285,18 @@ No `/compound` reminder here — compound ran in section 4 above.
 - [references/integration-conflict-resolutions.md](references/integration-conflict-resolutions.md) — **NEW** algorithm catalogue for S11.6 conflict resolution (devlog, index, .po, HTML, JS, Python, settings, tests)
 - [references/escalation-policy.md](references/escalation-policy.md) — T2/T3 resolution rules + per-pass attempt caps (20 deliverables / 5 docs / 10 union / 10 full / 20 integration / 5 re-bugbot / 5 mind-vault compound)
 - [assets/auto-run-log-template.md](assets/auto-run-log-template.md) — per-IDEA + batch-summary log shape (now includes Integration check section)
-- [rules/RULE_parallel-worktree-docker.md](../../rules/RULE_parallel-worktree-docker.md) — underlying worktree + docker isolation contract
+- [skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md](references/PARALLEL_WORKTREE_DOCKER.md) — underlying worktree + docker isolation contract
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — the HITL boundary the skill must never cross
-- [rules/RULE_ideas-location-status.md](../../rules/RULE_ideas-location-status.md) — how IDEA files migrate; `/plan` does the move inside the worktree
+- [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — how IDEA files migrate; `/plan` does the move inside the worktree
 - [commands/bugbot-loop.md](../../commands/bugbot-loop.md) — invoked twice per IDEA happy path (deliverables S3, docs S6) + once on the [INTEGRATION] PR (S11.10, the merge gate) + once per mind-vault compound PR; honors `SPRINT_AUTO_INTEGRATION_WORKTREE` and `SPRINT_AUTO_INTEGRATION_BRANCH`
 - [skills/plan/SKILL.md](../plan/SKILL.md) — invoked per IDEA (step 2)
 - [skills/work/SKILL.md](../work/SKILL.md) — invoked per plan (step 4); honors `SPRINT_AUTO_INTEGRATION_WORKTREE` for verification routing
 - [skills/wrap/SKILL.md](../wrap/SKILL.md) — invoked per IDEA at step 6 (`--scope=idea-only` mode); post-merge destructive teardown extended for `--integration <batch-iso>` mode (v3.2: human merges the integration PR; teardown runs from the integration ref, not last-of-batch IDEA)
 - [skills/compound/SKILL.md](../compound/SKILL.md) — invoked at batch end (section 4) for cross-project learnings; each mind-vault PR is itself bugbot-looped
 - [docs/SPRINT_WORKFLOW.md](../../docs/SPRINT_WORKFLOW.md) — the sprint workflow this skill wraps
+- [assets/setup_playwright.sh.template](assets/setup_playwright.sh.template) — bootstrap script projects copy to provision Playwright (the S(-1) probe + per-IDEA `requires_playwright` gate are documented inline above + in `references/safety-gates.md`)
+- [skills/work/references/WATCHER_HYGIENE.md](../work/references/WATCHER_HYGIENE.md) — orchestrator-trash-collection discipline for `run_in_background` watchers across S3/S6/S11.10/S13 bugbot loops
+- [skills/django-frontend/references/VISUAL_BASELINE_BUMPS.md](../django-frontend/references/VISUAL_BASELINE_BUMPS.md) — AI-never-auto-`--update-snapshots` discipline for Direction-1 IDEAs that ship Playwright visual baselines
 
 ---
 
