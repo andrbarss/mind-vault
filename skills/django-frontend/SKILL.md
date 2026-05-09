@@ -116,113 +116,9 @@ The reference covers: file layout (`templates/cotton/`); settings (loader + buil
 
 ### App-shell layout — fixed viewport + per-pane scroll containers
 
-Single-page-feel app shells (Slack/Discord/Gmail-style: top nav + workspace pane + centre + preview pane) want **the document never to scroll** — every scroll happens inside one of the named panes. The layout primitives that make this work:
+**Fires when** building a single-page-feel app shell (Slack/Discord/Gmail-style: top nav + workspace pane + centre + preview pane) where the document never scrolls — every scroll happens inside one of the named panes. The `html.shell-html` class scope keeps legacy document-scroll pages unaffected.
 
-```scss
-// Scope the html-overflow override under a class so legacy non-shell pages
-// (still on the document-scroll layout) are unaffected.
-html.shell-html {
-    height: 100vh;
-    height: 100dvh;       // 100dvh adapts to mobile address-bar collapse
-    overflow: hidden;     // defeats Bulma's default html { overflow-y: scroll }
-}
-
-.shell-body {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;     // body never scrolls either
-}
-
-.shell-main {
-    display: flex;
-    flex-direction: row;
-    flex: 1 1 auto;
-    align-items: stretch;
-    min-height: 0;        // load-bearing — see "unstable child" below
-}
-
-.shell-center,
-.shell-drawer__body {
-    flex: 1 1 auto;
-    min-height: 0;        // see "unstable child" below
-    overflow-y: auto;     // pane is the scroll container
-}
-```
-
-```django
-{# Add the class hook on <html>; legacy base.html omits it #}
-<html lang="..." class="h-full shell-html">
-<body class="h-full shell-body">
-    <c-nav-bar ... />
-    <main class="shell-main">
-        <c-drawer name="workspace" edge="left" ...>...</c-drawer>
-        <section class="shell-center">{% block center %}{% endblock %}</section>
-        <c-drawer name="preview" edge="right" ...>...</c-drawer>
-    </main>
-    {% include 'app_ui/_toast_container.html' %}  {# position:fixed, viewport-anchored #}
-    <c-confirm-modal />                            {# position:fixed, viewport-anchored #}
-</body>
-```
-
-**The "unstable child" rule (load-bearing)** — in a flex column or row, child elements default to `min-height: auto` (intrinsic content size). When you put `overflow-y: auto` on a flex child whose intrinsic size exceeds the parent, the child *grows the parent* instead of scrolling. Setting `min-height: 0` forces the child to honor the parent's height and scroll inside it. Apply at every flex chain link whose descendant has `overflow-y: auto`.
-
-**Where elements live**:
-
-- **Top nav, toasts, modals**: siblings of `.shell-main`, NOT inside any pane. `position: fixed` for toasts/modals stays viewport-anchored regardless of pane scrolling.
-- **Sticky-within-pane** (drawer headers, table-row sticky headers, future "save bar" patterns): `position: sticky; top: 0` against the pane's scroll container — automatic once the pane has its own `overflow-y`.
-- **Bottom-anchored elements** (chat composer, save bar): pane internals use a flex-column where the scroll-region is `flex: 1 1 auto; overflow-y: auto; min-height: 0` and the bottom anchor is `flex: 0 0 auto`. The composer never scrolls with the messages.
-- **Scroll-anchor surfaces** (cursor-mode load-more, virtual-list patterns): the `[data-scroll-anchor]` element MUST be a real scroll container — declared `overflow-y: auto` AND content overflows. Under this layout that's automatic for any anchor child of `.shell-center` / `.shell-drawer__body`. Math is unchanged from window-scroll setups.
-
-**Shared scroll-container helper** — when client code (preview-stack push/pop snapshot, scroll-anchor walk-up, virtual-list math) needs to find the closest scrolling ancestor, share one walk-up implementation:
-
-```javascript
-// scroll-utils.js — loaded blocking before any consumer.
-(function () {
-    'use strict';
-    function findScrollContainer(el) {
-        if (!el) return document.scrollingElement || document.documentElement;
-        let node = el;
-        while (node && node !== document.documentElement) {
-            const style = window.getComputedStyle(node);
-            const overflowY = style.overflowY;
-            if ((overflowY === 'auto' || overflowY === 'scroll')
-                && node.scrollHeight > node.clientHeight) {
-                return node;
-            }
-            node = node.parentElement;
-        }
-        return document.scrollingElement || document.documentElement;
-    }
-    window.uiScrollUtils = window.uiScrollUtils || {};
-    window.uiScrollUtils.findScrollContainer = findScrollContainer;
-})();
-```
-
-The `scrollHeight > clientHeight` check matters: an ancestor declared `overflow-y: auto` but not currently overflowing returns scrollTop=0 silently, which is the "scroll restore is a no-op" symptom. Filter to elements that ACTUALLY scroll right now.
-
-**Acknowledged regressions when migrating from document-scroll**:
-
-- **Window-scroll readers go quiescent on shell pages**. Any module reading `window.scrollY` (e.g. mobile nav-hide-on-scroll-down feature, popover positioning that adds `window.scrollY` to absolute coordinates) sees `0` forever because the document doesn't scroll. Annotate in-source and route the trigger to the active pane's scroll or a gesture in a follow-up. Legacy non-shell pages keep working.
-- **Modal scroll-position snapshots become no-ops**. The classic `scrollY = window.scrollY; modal.show(); ...; window.scrollTo(0, scrollY)` pattern saves 0, restores 0 — benign but worth annotating for debuggability.
-
-**Test contract — render-and-assert smokes the class hooks; manual eval / browser-driver tests verify behavior**:
-
-```python
-def test_html_carries_shell_html_class_for_overflow_scope(self):
-    response = self.client.get('/some/shell/surface/')
-    self.assertIn('shell-html', response.content.decode('utf-8'))
-
-def test_scroll_utils_loaded_before_consumer(self):
-    """Order is load-bearing — scroll-utils must parse before consumers."""
-    body = response.content.decode('utf-8')
-    utils_idx = body.find('scroll-utils.js')
-    consumer_idx = body.find('consumer-using-uiScrollUtils.js')
-    self.assertLess(utils_idx, consumer_idx)
-```
-
-Render-and-assert can't probe computed CSS or measure scroll behaviour — that's a manual-eval gate (per-pane scrolls independently, sticky chrome stays anchored, no double-scrollbar at any viewport, etc.) or a browser-driver suite (Playwright / similar) once one is available.
+Mechanics — `shell-html` / `shell-body` / `shell-main` / `shell-center` SCSS primitives, the load-bearing **"unstable child" rule** (`min-height: 0` at every flex chain link whose descendant has `overflow-y: auto`), where modals/toasts/sticky-within-pane elements live, the shared `scroll-utils.findScrollContainer` walk-up helper, the `scrollHeight > clientHeight` filter, regressions when migrating from document-scroll (window-scroll readers go quiescent, modal scroll-position snapshots become no-ops), and the render-and-assert test contract — are in [`references/APP_SHELL_LAYOUT.md`](references/APP_SHELL_LAYOUT.md). Read that reference when this section fires.
 
 ### Alpine.js global state on `<html>`
 
@@ -270,153 +166,15 @@ The microtask-vs-defer ordering is **not platform-stable across browsers in all 
 
 ### Alpine.store coordinators with delayed-registered consumers — `onRegister` callback pattern
 
-When an `Alpine.store('foo')` coordinator needs to drive a per-instance consumer (a registered drawer instance, a registered modal instance, a per-component Alpine factory), the registration is asynchronous-after-store-init: the store exists at `alpine:init`, but each consumer instance registers itself when its `x-data` factory runs during the DOM walk that follows. Code on the store side that needs to "talk to" a registered consumer can't do so synchronously — the consumer might not have registered yet.
+**Fires when** an `Alpine.store('foo')` coordinator needs to drive a per-instance consumer (a registered drawer instance, a registered modal instance, a per-component Alpine factory) and the consumer registers asynchronously-after-store-init. The store exists at `alpine:init`, but each consumer's `x-data` factory runs during the DOM walk that follows — so the store can't talk to a registered consumer synchronously.
 
-The fragile pattern that surfaces this: poll for the registration via `Alpine.effect`:
-
-```javascript
-// Anti-pattern — timing-fragile
-Alpine.effect(function () {
-    const store = Alpine.store('drawerCoordinator');
-    const entry = store.currentByEdge.preview;
-    if (!entry || !entry.instance) return;
-    // Now monkey-patch the instance — runs whenever Alpine.effect re-evaluates,
-    // which is anyone's guess. Survives until something else triggers a re-eval
-    // and double-patches, or the instance is replaced and the patch leaks.
-    const orig = entry.instance.close;
-    entry.instance.close = function () { orig.apply(this); /* extra */ };
-});
-```
-
-Problems: re-evaluation is implicit (Alpine.effect recomputes on any reactive dep change in the function body); monkey-patches stack across re-runs; teardown is unobservable; instance replacement leaks the patch. The bug surfaces as "feature works the first time, breaks after the consumer re-registers" — N hours of debugging timing.
-
-**The fix — explicit register-or-queue API on the coordinator store**:
-
-```javascript
-// Coordinator store: maintain a callback queue per registration name.
-Alpine.store('drawerCoordinator', {
-    currentByEdge: {},
-    _registerCallbacks: {},
-
-    /**
-     * Run `callback(entry)` either immediately if `name` is already
-     * registered, OR enqueue and run on first registration. Idempotent
-     * for the not-yet-registered case (multiple calls queue multiple
-     * callbacks); each callback fires once when register() is called.
-     */
-    onRegister(name, callback) {
-        const entry = this.currentByEdge[name];
-        if (entry && entry.instance) {
-            // Already registered — fire synchronously.
-            callback(entry);
-            return;
-        }
-        const list = this._registerCallbacks[name] || [];
-        list.push(callback);
-        this._registerCallbacks[name] = list;
-    },
-
-    /** Register a consumer instance — fires queued callbacks. */
-    register(name, edge, instance) {
-        this.currentByEdge[name] = { edge, instance };
-        const queued = this._registerCallbacks[name];
-        if (queued && queued.length) {
-            this._registerCallbacks[name] = [];  // drain
-            queued.forEach(cb => {
-                try { cb(this.currentByEdge[name]); }
-                catch (err) { console.error('[coordinator] onRegister callback failed:', err); }
-            });
-        }
-    },
-});
-```
-
-Consumer side:
-
-```javascript
-// Anywhere that needs to react to drawer instance availability:
-const coord = Alpine.store('drawerCoordinator');
-coord.onRegister('preview', function (entry) {
-    // entry.instance is the registered consumer; do binding here ONCE.
-    // No polling, no re-evaluation, no monkey-patch stacking.
-    _bindOpenStateSync(entry.instance);
-});
-```
-
-Why this works:
-
-- **One-shot semantics**: callbacks fire exactly once when registration happens; no double-fire on re-evaluations.
-- **Synchronous-or-deferred is transparent to caller**: the consumer code shape is the same whether registration already happened or hasn't yet. No `if registered { do() } else { ?? }` branches at the call site.
-- **No reactive deps**: the API is plain function-call + queue, not Alpine.effect — so it doesn't depend on the coordinator's internals being reactive in the right way.
-- **Failure-isolated**: a throwing callback doesn't break the others (the `try/catch` per callback). Logged but doesn't take down the registration.
-
-Generalizable to any `Alpine.store(coordinator)` shape where async-registered consumers need callbacks: modal coordinators, drawer coordinators, preview-surface stores, any per-instance factory the store drives. Pair the `register(name, ...)` method with `onRegister(name, callback)` whenever the store has consumers it needs to talk to.
+The fragile pattern this replaces — `Alpine.effect`-poll-instance — has implicit re-evaluation, stacking monkey-patches across re-runs, unobservable teardown, and instance-replacement leaks. Symptom: "feature works the first time, breaks after the consumer re-registers" — N hours of debugging timing. The fix is an explicit register-or-queue API on the coordinator store: `register(name, ...)` paired with `onRegister(name, callback)`. Mechanics — full coordinator + consumer shapes, why one-shot semantics + sync-or-deferred transparency + no-reactive-deps + failure-isolation matter, generalisation to modal / drawer / preview-surface stores — are in [`references/ALPINE_STORE_COORDINATORS.md`](references/ALPINE_STORE_COORDINATORS.md). Read that reference when this section fires.
 
 ### Active-state tracking — `aria-current="true"` + CSS `:has()` instead of JS class toggling
 
-When a list of links has a "currently selected" item that should style differently, the obvious shape is JS-side `classList.add('--selected')` / `classList.remove('--selected')` driven by an Alpine.effect or a click handler:
+**Fires when** a list of links has a "currently selected" item that should style differently. The obvious shape — JS-side `classList.add('--selected')` driven by `Alpine.effect` or a click handler — creates two sources of truth (store state + DOM class) that JS has to keep in sync, and HTMX swaps race against the JS re-walk.
 
-```javascript
-// Anti-pattern — JS owns the active-state class
-Alpine.effect(function () {
-    const top = Alpine.store('previewSurface').top;
-    document.querySelectorAll('a[data-preview-link]').forEach(link => {
-        const matches = top
-            && link.getAttribute('data-preview-type') === top.type
-            && link.getAttribute('data-preview-identifier') === String(top.identifier);
-        link.parentElement.classList.toggle('list-row--selected', matches);
-    });
-});
-```
-
-Two sources of truth — `top` in the store, `--selected` class on the row — kept in sync by JS. Bugs surface when the server template renders one source (e.g. server sets `--selected` on the cold-start row) and JS races to set the other; or when a row gets re-mounted by HTMX swap and the JS hasn't re-walked yet.
-
-**The fix — `aria-current="true"` on the link is the single source of truth, CSS `:has()` styles the parent**:
-
-```javascript
-// JS toggles the HTML attribute on the link, not a class on the parent.
-Alpine.effect(function () {
-    const top = Alpine.store('previewSurface').top;
-    document.querySelectorAll('a[data-preview-link]').forEach(link => {
-        const matches = top
-            && link.getAttribute('data-preview-type') === top.type
-            && link.getAttribute('data-preview-identifier') === String(top.identifier);
-        if (matches) link.setAttribute('aria-current', 'true');
-        else link.removeAttribute('aria-current');
-    });
-});
-```
-
-```scss
-// SCSS targets the row via :has() — the CSS owns the visual,
-// the HTML owns the truth. No JS class toggling on the parent.
-.list-row {
-    &:has(a[data-preview-link][aria-current="true"]) {
-        border-color: var(--color-primary);
-        background-color: var(--bg-tertiary);
-    }
-}
-```
-
-Server template emits the attribute on cold-start hits — same attribute name, same value:
-
-```django
-<a href="..." data-preview-link
-   data-preview-type="article" data-preview-identifier="{{ item.id }}"
-   {% if item.id|stringformat:"s" == selected_identifier %}aria-current="true"{% endif %}>
-   {{ item.title }}
-</a>
-```
-
-Why this wins:
-
-- **Single source of truth**: `aria-current="true"` is the active state, period. Server cold-start emits it; JS keeps it in sync; CSS styles off it. No racing two state shapes.
-- **Free a11y**: `aria-current="true"` is the standard ARIA attribute screen readers announce as "current page / current item". You'd want it anyway.
-- **CSS `:has()` is well-supported**: Chrome 105+, Safari 15.4+, Firefox 121+. The browsers a Django+HTMX+Alpine project targets all ship it.
-- **HTMX-swap-friendly**: when HTMX swaps the row, the new DOM carries whatever `aria-current` the server emitted; JS doesn't need to re-walk the DOM after the swap to fix the visual — `:has()` re-evaluates per-paint.
-- **Test contract is mechanical**: `assertIn('aria-current="true"', body)` for the matching row, `assertNotIn` for non-matches. No "is the class on the right element" indirection.
-
-When NOT to use this pattern: when the visual state is genuinely client-only (a hover effect, a temporary "just clicked" pulse) — those don't need round-tripping, so a plain CSS `:hover` / `:active` / Alpine `x-bind:class` is right. The `aria-current` pattern is for state that has SEMANTIC meaning the server might also know about (selected item, current page, current step in a wizard).
+The fix is `aria-current="true"` on the link as the single source of truth, with SCSS `:has(a[aria-current="true"])` targeting the parent row for the visual. Server template emits `aria-current` on cold-start; JS keeps it in sync; CSS owns the visual. Free a11y as a side effect — screen readers announce `aria-current` as "current item". Mechanics — full anti-pattern + fix + scss `:has()` browser support + HTMX-swap-friendliness + test contract + when-NOT-to-use (hover effects / client-only states stay client-only) — are in [`references/ACTIVE_STATE_TRACKING.md`](references/ACTIVE_STATE_TRACKING.md). Read that reference when this section fires.
 
 ### Toggleable containers — `inert` not `aria-hidden`
 
@@ -708,46 +466,9 @@ When NOT to apply: one-direction-only renderers (server-only partial, or JS-only
 
 ### Template comment syntax — `{# inline #}` is single-line only
 
-Django has two comment syntaxes and they are not interchangeable:
+**Fires when** writing comments inside Django templates. `{# … #}` is single-line only; multi-line comments must use `{% comment %} … {% endcomment %}`. Mixing them produces a silent **content leak**: a multi-line `{#` opens, hits a newline before `#}`, and Django's tokeniser emits the entire block as plain text on the rendered page. No template error, no test failure — just literal comment text shown to end users.
 
-| Syntax | Multi-line? | Use for |
-| --- | --- | --- |
-| `{# … #}` | **No** — single-line only | A short inline note on one line |
-| `{% comment %} … {% endcomment %}` | Yes | Anything spanning multiple lines |
-
-The failure mode when the wrong one is used: **content leak**. If a `{#` opens and a newline appears before the closing `#}`, Django's tokeniser fails to recognise the construct as a comment and emits the entire block as plain text into the rendered output. No template error, no test failure — just literal "comment" text shown to end users.
-
-```django
-{# This is fine — opens and closes on the same line. #}
-
-{# THIS IS BROKEN — multi-line {# #} renders as visible
-   text on the page because Django's tokeniser only matches
-   {# … #} when both delimiters are on the same line. #}
-
-{% comment %}
-    This works for any number of lines. Use this whenever
-    the comment doesn't fit on a single line, especially
-    documentation comments above template blocks.
-{% endcomment %}
-```
-
-Worked example — teisutis IDEA-124 PR #375 ([fix commit](https://github.com/infohata/teisutis/commit/c68905ab)): a multi-line `{# … #}` block documenting the audio-fallback behavior leaked its contents onto the rendered chat-input area. Visible to every user picking a voice file pre-send. Bugbot didn't catch it because the regression suite tested the partial in isolation and the comment was in chat.html itself, not the partial. Surfaced immediately on first manual browser hit on staging.
-
-**Detection during review**: grep for `{#` followed by a newline before `#}`:
-
-```python
-import re, pathlib
-for path in pathlib.Path('.').rglob('*.html'):
-    text = path.read_text(errors='replace')
-    for m in re.finditer(r'\{#', text):
-        rest = text[m.start():]
-        nl, end = rest.find('\n'), rest.find('#}')
-        if end == -1 or (nl != -1 and nl < end):
-            line_no = text[:m.start()].count('\n') + 1
-            print(f'{path}:{line_no}: multi-line {{# #}} — convert to {{% comment %}}')
-```
-
-CI hook this as a pre-commit lint when the templates surface starts to grow.
+Mechanics — full syntax matrix, leak failure-mode example, teisutis IDEA-124 PR #375 worked example (audio-fallback comment leaked into chat-input UI), and the grep-based detection recipe (`{#` followed by a newline before `#}`) suitable for CI pre-commit lint — are in [`references/TEMPLATE_COMMENT_SYNTAX.md`](references/TEMPLATE_COMMENT_SYNTAX.md). Read that reference when this section fires.
 
 ### Sibling trap — Django tag literals inside JS `//` comments
 
@@ -778,42 +499,9 @@ Both traps are the same family — Django's template engine treats the file as o
 
 ### SCSS vendor-import hazard — `@import url()` is runtime, not compile-time
 
-When a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`, an `@import url('../vendor/bulma.min.css')` inside the SCSS source is **NOT** resolved by Sass at compile time. Sass copies the `@import url(...)` line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime, against the COMPILED CSS file's URL.
+**Fires when** a Django project compiles SCSS to CSS via libsass / dart-sass / `compile_scss` and serves the result through `collectstatic`. The trap: `@import url('../vendor/bulma.min.css')` inside SCSS is NOT resolved by Sass at compile time — Sass copies the line verbatim into the compiled `.css`; the **browser** resolves the relative URL at runtime against the COMPILED CSS file's URL. App relocation, `STATIC_ROOT` change, or sibling-app reorg → `bulma.min.css` 404s; page renders unstyled while Sass compiled cleanly.
 
-Failure mode: the SCSS source lives at a stable repo path (e.g. `myapp/static/myapp/scss/theme.scss`) and the vendor file sits as a sibling (`myapp/static/myapp/vendor/bulma.min.css`), so during dev with the SCSS importer everything looks fine. After `collectstatic` deploys the compiled `theme.css` somewhere else (the destination depends on the app's static config and `STATIC_ROOT`), the `../vendor/bulma.min.css` relative URL points at a different place than where collectstatic put the vendor file. **Sass compiled cleanly**; the **browser logs a 404** for `bulma.min.css`; the page renders unstyled.
-
-The trap recurs whenever:
-- a Django app is renamed (e.g. `app_core` → `app_ui`) and its compiled CSS file's `STATIC_URL` path shifts
-- `STATIC_ROOT` changes between dev and prod
-- `collectstatic --no-default-ignore` flags differ between environments
-- a sibling app's static directory is reorganised
-
-```scss
-// ❌ DON'T — runtime-resolved against compiled CSS path; breaks on relocation.
-@import url('../vendor/bulma.min.css');
-// ... project styles below ...
-
-// ✅ DO — vendor CSS goes in a <link> in base.html (or app-specific base).
-//        SCSS only handles theme + component styles.
-```
-
-```django
-{# base.html — vendor links FIRST so theme CSS can override defaults #}
-<link rel="stylesheet" href="{% static 'myapp/vendor/bulma.min.css' %}">
-<link rel="stylesheet" href="{% static 'myapp/css/theme.css' %}">
-```
-
-Why a `<link>` survives where `@import url()` doesn't: `{% static %}` resolves through Django's staticfiles finders to the correct URL for the current settings, regardless of where collectstatic happens to put the file. The HTML resolution is settings-aware; the CSS resolution is path-relative-to-compiled-output.
-
-Compounded from teisutis IDEA-135 [PR #409](https://github.com/infohata/teisutis/pull/409) where the SCSS lived inside `teisutis_core` originally, the IDEA relocated it to `teisutis_ui` (a new shell app), and the compiled `theme.css`'s URL shifted from `/static/teisutis_core/css/theme.css` to `/static/teisutis_ui/css/theme.css`. The `@import url('../css/bulma.min.css')` line in the SCSS pointed at `../css/bulma.min.css` relative to the compiled CSS — now resolving to `/static/teisutis_ui/css/bulma.min.css`, but `bulma.min.css` was sitting at `/static/teisutis_core/css/bulma.min.css` (didn't move). Browser 404'd; UI rendered unstyled until the `<link>` migration landed.
-
-**Detection during review**: grep SCSS source for `@import url(`:
-
-```bash
-grep -rn '@import url(' --include='*.scss' static/ web/ src/ | grep -v node_modules
-```
-
-Any hit is a candidate for migration to a `<link>` tag. The exception is when the imported file is itself part of the same compiled output (i.e. another SCSS partial bundled by Sass) — in that case it's a Sass-time `@use` / `@import` of a sibling source, not a runtime URL fetch, and the syntax is `@import 'partial';` (no `url()`, no extension). The hazard is specifically `@import url(...)`.
+The fix: vendor CSS goes in a `<link>` tag in base.html (`{% static %}` resolves through Django's staticfiles finders, settings-aware); SCSS only handles theme + component styles. Mechanics — full failure-mode walkthrough, four recurrence triggers, ❌/✅ syntax examples, teisutis IDEA-135 PR #409 worked example (`teisutis_core` → `teisutis_ui` rename broke the compiled-CSS URL), grep-based detection recipe, and the partial-import exception (`@import 'partial';` is Sass-time, not the hazard) — are in [`references/SCSS_VENDOR_IMPORT.md`](references/SCSS_VENDOR_IMPORT.md). Read that reference when this section fires.
 
 ## Bulma template standards
 
@@ -897,6 +585,11 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 
 ## References
 
+- [App-shell layout](references/APP_SHELL_LAYOUT.md) — fixed-viewport + per-pane-scroll layout primitives, "unstable child" `min-height: 0` rule, `scroll-utils.findScrollContainer` helper, document-scroll-migration regressions
+- [Alpine.store coordinators with delayed-registered consumers](references/ALPINE_STORE_COORDINATORS.md) — `onRegister` callback pattern: register-or-queue API, one-shot semantics, sync-or-deferred transparency, replaces fragile `Alpine.effect`-poll-instance idiom
+- [Active-state tracking](references/ACTIVE_STATE_TRACKING.md) — `aria-current="true"` + CSS `:has()` instead of JS class-toggling for "currently selected" list items: single source of truth, free a11y, HTMX-swap-friendly
+- [Template comment syntax](references/TEMPLATE_COMMENT_SYNTAX.md) — `{# inline #}` is single-line only; multi-line uses `{% comment %}`; content-leak failure mode; grep-based detection recipe for CI lint
+- [SCSS vendor-import hazard](references/SCSS_VENDOR_IMPORT.md) — `@import url()` is runtime, not compile-time; vendor CSS belongs in `<link>`; failure-mode + recurrence triggers + detection grep
 - [Base Template + Theme](references/BASE_TEMPLATE.md)
 - [Modal System](references/MODAL_SYSTEM.md)
 - [HTMX Widgets](references/HTMX_WIDGETS.md) — autocomplete, file upload, colour/icon pickers
