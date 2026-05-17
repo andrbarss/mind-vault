@@ -176,7 +176,7 @@ The `.camel` modifier is required because HTMX dispatches the event as `htmx:aft
 </span>
 ```
 
-Pattern C is the right default when the consumer just needs to "show this hidden region after the response lands and let a c-copy-button read its content." No Alpine state needed because the c-copy-button reads `target.textContent` at click time anyway. Reference: teisutis [PR #413 commit `a3344000`](https://github.com/infohata/teisutis/commit/a3344000) replaced an Alpine-bridge attempt with this pattern after the manual smoke caught the buttons doing nothing.
+Pattern C is the right default when the consumer just needs to "show this hidden region after the response lands and let a c-copy-button read its content." No Alpine state needed because the c-copy-button reads `target.textContent` at click time anyway.
 
 ## 5. `hx-trigger="click once"` doesn't fire on synthetic state changes — drive lazy-fetch from a state-watcher
 
@@ -207,8 +207,6 @@ The fix is to drive the side effect from the **state**, not the **input event**.
 `x-effect` re-runs whenever a reactive dep changes; the `open && !loaded` guard ensures exactly one fetch per primitive instance regardless of how `open` flipped — initial `expanded=true`, hash-deeplink, user click, programmatic `Alpine.$data(...).open = true`, all funnel through the same gate.
 
 The general principle: when an effect must fire on a state change rather than on a specific input event, use a state-watcher (`x-effect` in Alpine, `effect()` in Vue, `useEffect` in React, etc.). Click-handlers are for "user explicitly chose to do this," not for "the thing has now opened, regardless of cause."
-
-Reference: teisutis [PR #413 commit `4fcad0a0`](https://github.com/infohata/teisutis/commit/4fcad0a0) rewrote a `c-collapsible` cotton primitive from `hx-trigger="click once"` to `x-effect`-driven lazy-fetch after bugbot caught that hash-deeplink + lazy-fetch combo silently failed.
 
 ## Bringing it together: the safe-by-default boilerplate
 
@@ -429,12 +427,6 @@ The discipline generalises beyond modals — any function whose body has the sha
 - Verify that the side-effect installs are also paired with teardown in a corresponding close/cleanup function — and that the teardown uses the SAME reference the install captured (not the latest mutation of a shared `_state.X` field).
 - If the function is called multiple times for the same component, ensure the first install is idempotent or the function checks `if (already installed) return` before installing.
 
-References:
-
-- The IDEA-138 toast surface (teisutis [PR #412](https://github.com/infohata/teisutis/pull/412)) hit gotchas 1-3 within a single afternoon's work — first two during manual smoke, third caught by bugbot.
-- The IDEA-139 cotton primitives (teisutis [PR #413](https://github.com/infohata/teisutis/pull/413)) hit gotchas 4-5 in the same one-day cycle — gotcha 4 caught by manual smoke (Alpine reactive bridge from `hx-on` doesn't work), gotcha 5 caught by bugbot (lazy-fetch + hash-deeplink combo silently broken).
-- The IDEA-141 modal primitives (teisutis [PR #423](https://github.com/infohata/teisutis/pull/423)) hit gotchas 6 + 7 across THREE bugbot cycles — every i18n finding shared the same root cause (JS clobber), each surface needing one of the three patterns to fix it. Gotcha 7's listener leak in `confirm()` surfaced when the dev-preview demo's spam-click-during-modal-from-modal-refusal scenario was finally exercised; the same PR's `form()` already had the correct ordering.
-
 Each gotcha takes ≥30 minutes to diagnose because the symptoms always look unrelated to the actual cause.
 
 ## 8. Rebind-on-event listener migration is fragile — prefer permanent-bind + active-discriminator
@@ -464,8 +456,6 @@ function bindAllPaneListeners() {
 The active-discriminator is mirrored from reactive state via a single binding — Alpine `:data-active-pane="activePane"`, React `data-active-pane={activePane}`, Vue `:data-active-pane="activePane"`. Subscribers no longer migrate on `paneChanged` events; they self-route from a single source of truth.
 
 Trade: more listeners pinned simultaneously (one per candidate source), but each is cheap and the discriminator short-circuit makes the inactive ones zero-cost. Net win is robustness — no class of "the change event didn't fire because of an upstream early-return" bug.
-
-Surfaced: teisutis IDEA-143 M25 — `navbar-scroll.js` migrated its single scroll listener on `paneChanged`. Close paths whose `goToPane('center')` snap landed on a pane that was already `activePane='center'` short-circuited `paneChanged` (`next === activePane` early-return), so the rebind never fired. Listener stayed attached to the off-screen drawer's scroll container; nav-hide silently broke after every drawer close.
 
 ## 9. Alpine `x-init` / `x-effect` expressions must stay expression-only — `try/catch` and IIFEs both fail
 
@@ -558,6 +548,68 @@ swappedEl.dispatchEvent(new CustomEvent('refresh', { bubbles: true }));
 
 Mirrors HTMX's own dispatch behaviour (HTMX fires on the swapped target). The walker pattern in [`PREVIEW_DRAWER_URL_STACK.md`](PREVIEW_DRAWER_URL_STACK.md) § *Walker rebind contract* embodies this.
 
+## 10. Alpine `:class="cond && 'str'"` short-circuit doesn't remove SSR-applied classes
+
+When an element layers Alpine's `:class` binding **on top of** a server-rendered `class="…"` attribute, the binding's syntax determines whether Alpine can REMOVE classes that the server applied. The short-circuit pattern (`:class="cond && 'foo'"`) only ADDS — it cannot remove. Object syntax (`:class="{ foo: cond }"`) tracks both directions.
+
+### The trap
+
+A nav cotton renders both static + reactive class bindings on the same `<a>`:
+
+```django
+<a class="navbar-item shell-nav__item{% if active_surface == item.slug %} shell-nav__item--active{% endif %}"
+   :class="$store.shellNav.activeSurface === '{{ item.slug }}' && 'shell-nav__item--active'">
+   …
+</a>
+```
+
+The intent: SSR satisfies cold-load no-FOUC; Alpine takes over post-`alpine:init` and keeps the marker in sync across every hot-swap. Looks right at a glance — both sides reference `shell-nav__item--active`.
+
+**The trap**: Alpine's `:class="expr"` directive evaluates `expr`. For `cond && 'foo'`:
+
+- `cond` truthy → expression returns `'foo'` → Alpine adds the class.
+- `cond` falsy → expression returns `false` (or `0`, `''`, `null`) → Alpine treats it as a no-op. **It does NOT remove `'foo'` from the static `class` attribute.**
+
+Alpine only tracks the classes IT has added (via prior reactive evaluations). The server-rendered `shell-nav__item--active` was never added by Alpine — so Alpine has no record of it and won't remove it when the reactive expression flips false.
+
+Symptom: directional asymmetry. The nav item that was active at SSR-time stays highlighted forever (its `--active` class survives every hot-swap because the short-circuit can only add, not remove). The nav item that becomes active later correctly gains the class via Alpine. Hot-swap of an active surface back to its original cold-load state appears to work; hot-swap AWAY from the cold-load active surface leaves the stale marker.
+
+### The fix — object syntax
+
+```django
+<a class="navbar-item shell-nav__item{% if active_surface == item.slug %} shell-nav__item--active{% endif %}"
+   :class="{ 'shell-nav__item--active': $store.shellNav.activeSurface === '{{ item.slug }}' }">
+   …
+</a>
+```
+
+Object syntax `{ 'foo': cond }` is a class-toggle directive Alpine understands as bidirectional. When `cond` flips false, Alpine REMOVES `'foo'` from the element's class list — including when `'foo'` was originally server-applied. The SSR class correctly hands off to Alpine's reactive control on first evaluation.
+
+### Why `:aria-current` doesn't have this problem
+
+The asymmetry is `:class`-specific. Alpine's `:attr` binding (used for any attribute name except `class` / `style`) uses different semantics: a `null` / `undefined` return value REMOVES the attribute, a string return value SETS it.
+
+```django
+{% if active_surface == item.slug %}aria-current="page"{% endif %}
+:aria-current="$store.shellNav.activeSurface === '{{ item.slug }}' ? 'page' : null"
+```
+
+This ternary works correctly even though the same `cond && 'page'` syntax would NOT — `:aria-current` will SET to `'page'` when truthy and REMOVE the attribute when null, regardless of whether the attribute was server-applied. Class binding's add-only short-circuit is the outlier.
+
+### Detection
+
+After landing any dual-bound SSR + Alpine class binding, walk a state transition that should REMOVE the class (e.g. nav-swap from active surface A to active surface B). Visually verify the previously-active marker clears. If it doesn't, the binding is the short-circuit form — convert to object syntax.
+
+A render-and-assert test that ONLY checks the truthy case (active item carries `--active`) won't catch this — both syntaxes pass that assertion. The failing case is the previously-active item AFTER a state change, which static render tests can't reach without a JS execution layer. Manual eval or Playwright is the gate.
+
+### The same lesson generalises to `:style`
+
+Object syntax is also the safe default whenever a static attribute might carry the value the reactive binding is supposed to control. `:style="cond && 'display: none'"` has the same asymmetry as `:class`; `:style="{ display: cond ? 'none' : '' }"` is the bidirectional form.
+
+### When to skip this pattern entirely
+
+The cleanest variant is the [`ACTIVE_STATE_TRACKING.md`](ACTIVE_STATE_TRACKING.md) pattern: drop `:class` entirely, use `aria-current="true"` (or another semantic attribute) as the single source of truth, style via CSS `:has()`. Single attribute, no SSR / reactive sync to manage, no syntax trap to remember. The dual-bound pattern above is for cases where `:has()` styling isn't viable (parent-styling chain too deep, or browser-support constraints).
+
 ---
 
-**Last Updated**: 2026-05-14
+**Last Updated**: 2026-05-16
