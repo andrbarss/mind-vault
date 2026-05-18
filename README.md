@@ -1,6 +1,6 @@
 # mind-vault
 
-**v4 — Multi-engine code review · Open-source release candidate.**
+**v4.0.2 — Multi-engine code review · Open-source release candidate (Windows-host adopter bootstrap added).**
 
 Cross-host configuration library for AI coding agents — skills, commands, subagent personas, and shared rules, authored once and symlinked into every agent-aware tool.
 
@@ -36,7 +36,7 @@ mind-vault/
 ├── commands/      Slash commands invoked as /<name>
 ├── rules/         Always-on behavioural rules (RULE_*.md — auto-loaded every session)
 ├── docs/          Specs, plans, solutions, artefacts
-├── scripts/       Per-host symlink setup + shared helpers
+├── scripts/       Per-host symlink setup + OS bootstrap helpers (e.g. install-wsl.ps1)
 └── tools/         Utilities (review-loop helpers, emoji support, etc.)
 ```
 

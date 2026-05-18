@@ -1,6 +1,6 @@
 # Onboarding — mind-vault in 30 minutes
 
-> **You're reading the v4 onboarding** — multi-engine review + open-source release candidate.
+> **You're reading the v4.0.2 onboarding** — multi-engine review + open-source release candidate. v4.0.2 adds the Windows-host WSL bootstrap (see [§ 2 Windows: switch to WSL first](#windows-switch-to-wsl-first)).
 
 A one-pager for someone landing on mind-vault for the first time and wanting to run a real sprint by the end of the session. Skim top-to-bottom; deep links point at the authoritative docs when you need them.
 
@@ -19,6 +19,18 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
 ## 2. Workspace setup
+
+### Windows: switch to WSL first
+
+Mind-vault is Linux/macOS-native. Windows users should work inside WSL2 (Ubuntu or your distro of choice) — all the symlink scripts assume a POSIX filesystem. A bootstrap helper is included for fresh Windows 10 / 11 installs:
+
+```powershell
+# Elevated PowerShell on the Windows host (one-time):
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\install-wsl.ps1
+```
+
+It checks Windows build + virtualization, enables the WSL + VirtualMachinePlatform optional features, installs the WSL2 kernel where needed, and lets you pick a distro interactively or via `-Distro <name>`. Once WSL is up, run everything below from inside WSL.
 
 ### Claude Code (recommended)
 
