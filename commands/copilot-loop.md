@@ -9,12 +9,14 @@ Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR
 
 > **Engine sibling.** This is the GitHub-Copilot-engine fork of [`/bugbot-loop`](bugbot-loop.md) (Cursor Bugbot). The phase structure, dual-signal enumeration, staleness rules, and hard bounds are identical — only the bot user.login, trigger mechanism, and clean-signal phrase differ. For Cursor Bugbot, use `/bugbot-loop` instead.
 >
-> **First-run calibration.** Three constants in this file are best-guess and need empirical confirmation on your first real Copilot review:
-> - Bot user.login (current guess: `Copilot`).
-> - Whether `gh pr edit --add-reviewer @copilot` re-triggers an already-requested review, or whether remove+add is required.
-> - Whether Copilot posts a "no issues found" review body when the diff is clean, or simply omits the review.
+> **First-run calibration — partially confirmed (2026-05-18 empirical run).**
+> - Bot user.login: ✅ dual identity. `Copilot` (single-token) on `/pulls/<N>/requested_reviewers`; `copilot-pull-request-reviewer[bot]` (bracketed) on `/pulls/<N>/reviews`. Phase 1 filters on both.
+> - Retrigger: ✅ `remove+add IS required`. Bare `gh pr edit --add-reviewer @copilot` against an already-requested reviewer is a no-op — the GET still shows `Copilot` in `requested_reviewers` but the reviewer-processor never re-fires. Use `gh pr edit --remove-reviewer @copilot && sleep 1 && gh pr edit --add-reviewer @copilot`.
+> - Clean-signal phrasing: ⏳ still TBD. The empirical run never observed a Copilot-cleared review body (Copilot either posted inline findings OR the service-error body below).
 >
-> If the loop misbehaves on the first run, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust the constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
+> If the loop misbehaves on the first run, inspect `gh api repos/.../pulls/<N>/reviews --jq '.[].user.login'` to confirm the bot login, and adjust constants in `tools/find_copilot_comments.sh` + `tools/copilot_retrigger.sh` accordingly.
+
+> **Failure mode — service-error reviews (2026-05-18 empirical).** Copilot can post `state: COMMENTED` reviews with body literally `"Copilot encountered an error and was unable to review this pull request. You can try again by re-requesting a review."` and zero inline comments. Detect: 2 consecutive errors → stop retriggering Copilot this cycle (additional remove+add compounds the failure). 3 consecutive errors → durable service issue, **hand back to user** with the offending review ids + SHAs so they can retry from the UI, wait for Copilot to recover, or merge without Copilot's verdict.
 
 **Inputs**: optional PR number. Default: PR for current branch.
 
@@ -27,6 +29,17 @@ Drive a GitHub Copilot review-fix-rerun cycle on the current PR (or specified PR
 - Feature branch only — never main (per `RULE_git-safety`)
 - Batch fixes per Copilot review cycle into one commit, not one-per-finding
 - **Commits**: standard `RULE_git-safety` applies — feature branches are the agent's sandbox, so the loop commits and pushes Tier 1 fixes autonomously. Tier 2 still needs explicit per-finding *fix-direction* approval (that is a content decision, not a commit approval). Protected-branch guardrails remain in force: never main, never merge into a protected branch, never force-push to protected, never `--no-verify`.
+
+## Dual-engine sync rule (combined with `/bugbot-loop`)
+
+When the user invokes both `/copilot-loop` AND `/bugbot-loop` on the same PR, the loops MUST sync each cycle: wait for **the slowest engine**'s verdict on `last_push_sha`, batch findings from both into ONE fix commit, push once, retrigger both. Reason: each push invalidates pending reviews of the prior SHA — without sync, the engines compound waste re-scanning each other's invalidated reviews.
+
+**Authoritative spec — see [`/bugbot-loop` § Dual-engine sync rule](bugbot-loop.md#dual-engine-sync-rule-combined-with-copilot-loop)** for the trade-off table, sync-state scratch-file schema, retrigger discipline, and hand-back report format. The rule is identical from either engine's side; documenting it once avoids drift.
+
+**Copilot-specific notes for the dual-engine mode:**
+
+- Copilot's retrigger is `remove+add` (per § First-run calibration above), NOT a comment post. Both retriggers happen post-push, bugbot first then copilot.
+- Copilot's service-error failure mode (§ Failure mode above) participates in the trade-off table — 2× consecutive errors → stop retriggering Copilot this cycle; 3× → hand back to user.
 
 ## Phase 0: Worktree environment bootstrap
 
@@ -74,7 +87,7 @@ This is the **only** authorised place to create `.env` — see exception clause 
 
 2. **Zero Copilot activity for `last_push_sha`?** Either the PR was opened without `@copilot` as a reviewer, or auto-review isn't enabled for this repo. **Request a Copilot review once, then go to Phase 4** — do NOT fall through to "no findings, hand back":
 
-   - `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded `gh pr edit --add-reviewer @copilot` invocation, pre-approved in settings).
+   - `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred — hard-coded `remove+add` sequence per § First-run calibration, pre-approved in settings). Bare `--add-reviewer` is a no-op against an already-requested reviewer; the script's remove+add is the empirically-confirmed working trigger.
    - Unlike Cursor Bugbot, Copilot trigger is **not** a PR comment — it's a reviewer assignment via the GitHub API. So there's no trigger-comment id to record; instead, advance `last_seen_comment_id` only when actual review/comment activity arrives.
    - Do **not** proceed to Phase 2/3 this cycle — there's nothing to fix yet.
    - **Guardrail**: only request the trigger when zero Copilot activity exists for the current push SHA. From June 1, 2026 Copilot reviews consume GitHub Actions minutes — each requested review is billed.
@@ -196,7 +209,7 @@ If at least one fix was applied:
    - Format: `fix(scope): address Copilot review N (PR #M)`
    - Body lists each finding closed.
 2. `git push origin HEAD`.
-3. `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred) — wraps `gh pr edit <PR> --add-reviewer @copilot` (requires `gh` ≥ 2.88) so the invocation can be pre-approved in `~/.claude/settings.json` without risking arbitrary reviewer additions. Falls back to current-branch PR lookup if no arg given. **Calibration caveat**: whether re-adding an already-requested reviewer actually re-triggers Copilot is empirically TBD — if the first PR test shows it doesn't, the script falls back to remove-then-add (`gh pr edit --remove-reviewer @copilot && gh pr edit --add-reviewer @copilot`).
+3. `./tools/copilot_retrigger.sh [PR_NUMBER]` (preferred) — wraps the empirically-confirmed `gh pr edit <PR> --remove-reviewer @copilot && sleep 1 && gh pr edit <PR> --add-reviewer @copilot` sequence (requires `gh` ≥ 2.88) so the invocation can be pre-approved in `~/.claude/settings.json` without risking arbitrary reviewer additions. Falls back to current-branch PR lookup if no arg given. Bare `--add-reviewer @copilot` against an already-requested reviewer is a no-op — see § First-run calibration above.
 4. Increment session commit counter. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake

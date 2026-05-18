@@ -238,6 +238,89 @@ When promoting from `{% include %}` to cotton across an entity:
 2. Compose them with `<c-edit-button :href="..." />` / `<c-delete-button :href="..." />` from the shared layer.
 3. Build the per-entity composition cotton (`<c-article-actions>`, `<c-event-detail-actions>`) last — it's the layout-decision layer and benefits from having both wings already stable.
 
+## Dict-literal cotton props silently drop context vars
+
+`django-cotton ≥ 2.6` does NOT evaluate template context variables inside dict-literal cotton-attr values. A prop declared as `:link_attrs="{'type': 'event-edit', 'identifier': event.pk}"` looks like it threads two values through — at render time it threads an **empty dict**, and any `{% if link_attrs.type %}` gate inside the cotton emits nothing. No JS error, no template-render error; the surface still LOOKS correct under casual inspection. Static-prop tests pass (literals flow); the bug only surfaces when a context variable is referenced from inside the dict.
+
+Reproducer:
+
+```python
+from django.template import engines
+from django_cotton.compiler_regex import CottonCompiler
+
+tpl = '<c-edit-button :link_attrs="{\'identifier\': my_int}" />'
+rendered = engines['django'].from_string(CottonCompiler().process(tpl)).render({'my_int': 54})
+# `link_attrs` arrives as `{}` — not `{'identifier': 54}`.
+# `{% if link_attrs.identifier %}` evaluates falsy; `<a data-identifier="...">` is NOT emitted.
+```
+
+**Workaround — two explicit props.** The colon-prefixed `:prop="single_var"` form DOES resolve context vars when the value is a single expression (just not a dict literal):
+
+```html
+{# ❌ Silently broken — dict literal swallows the context var #}
+<c-edit-button :link_attrs="{'type': 'event-edit', 'identifier': event.pk}" />
+
+{# ✅ Works — two single-value props #}
+<c-edit-button preview_type="event-edit" :preview_identifier="event.pk" />
+```
+
+**When the cotton genuinely needs a dict shape** (e.g. Alpine `x-data` payload, CSS-style mapping), build it in the view and pass as a single context-var name:
+
+```python
+ctx["event_edit_link_attrs"] = {"type": "event-edit", "identifier": event.pk}
+```
+
+```html
+<c-edit-button :link_attrs="event_edit_link_attrs" />
+```
+
+Regression-lock test (resolve from a context variable, not a literal):
+
+```python
+def test_preview_identifier_resolves_from_context_variable(self) -> None:
+    tpl = '<c-edit-button :preview_identifier="event_pk" />'
+    rendered = _render_cotton(tpl, {'event_pk': 7})
+    self.assertIn('data-preview-identifier="7"', rendered)
+    self.assertNotIn('data-preview-identifier="event_pk"', rendered)
+```
+
+(`_render_cotton` is a per-project test-fixture helper — same shape as the Reproducer above: `engines['django'].from_string(CottonCompiler().process(tpl)).render(ctx)`. Most projects with cotton coverage already define it in `tests/test_components.py` or equivalent; see the line-210 test for the same convention.)
+
+Every cotton with a `:prop` expected to thread a context variable deserves one such test.
+
+## Slot-based composition vs prop-driven enumeration for multi-action cottons
+
+When a composition cotton wraps N child items with per-item visibility gates (per-permission, per-feature-flag, per-entity-state), two shapes are natural:
+
+- **Prop-driven**: the wrapper takes `:actions=['workflow', 'ical', 'ai', 'edit', 'delete']` + a per-action bag (`:edit_href`, `:delete_confirm_url`, `:user_can_edit`, …). The wrapper iterates and conditionally renders each child.
+- **Slot-based**: the wrapper provides `variant="detail|dropdown"` + a default slot. The call site composes children directly and wraps each in `{% if user_can_edit %}…{% endif %}`.
+
+**Default to slot-based** for cluster wrappers. Prop-driven fits **leaf** cottons (single button, ≤4 well-defined props) where the call site naturally writes them out.
+
+The slot-based default holds because:
+
+- **Gates read naturally at the call site.** `{% if user_can_edit %}<c-edit-button ... />{% endif %}` is right next to the data the gate consults. Prop-driven hides the gate inside the wrapper's conditional chain — diff-readable only if you open both files.
+- **API doesn't grow with action count.** Prop-driven wrappers hit 14+ props once a real surface ships (URL + message + permission ≈ 3 props × 5 actions). Adding a sixth action adds 3 wrapper props + touches every call site. Slot-based: just add `<c-new-action ... />` at the call site.
+- **Compound gates work trivially.** `{% if user_can_edit and event.scope %}<c-ai-button ... />{% endif %}` is one line at the call site; prop-driven forces compound gates into the wrapper's API (`:can_show_ai`) or its internals.
+
+Preserve canonical-order discipline (workflow → ical → ai → edit → delete) via call-site convention, documented in the wrapper:
+
+```django
+{% comment %}
+<c-workflow-actions> — slot-based wrapper for the canonical action bar.
+
+CALL SITE CONVENTION — children in this order inside the default slot:
+  1. workflow cluster  2. iCal export  3. AI  4. Edit  5. Delete
+{% endcomment %}
+<div class="workflow-actions buttons are-small gap-2 mb-3">
+    {{ slot }}
+</div>
+```
+
+**When to switch back to prop-driven**: the canonical order is part of the wrapper's contract (sequence the cotton MUST emit even if the caller forgets), OR fewer than 3 actions with ≤10 total props. Breakpoint: ~4 actions / 10 props — past that, slot-based wins on every axis.
+
+**Anti-shape**: a slot-based wrapper whose slot just `{% include %}`s a generic actions partial. That hoists the per-action gates back into the partial and defeats the slot's purpose — drop the wrapper and inline the actions in the parent template.
+
 ## `href` is the FRAGMENT URL on `data-preview-link` anchors
 
 When a cotton primitive wraps an `<a data-preview-link>` (clicked → drawer fetches + opens), `href` must be the **fragment URL the drawer fetches**, not the shorthand URL the drawer pushes to history:
