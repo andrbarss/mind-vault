@@ -140,7 +140,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
    - **Customer-supplied filenames** → drop or replace with `<filename>`.
    - **Local filesystem paths** (`/Users/<name>/...`, `/home/<name>/...`) → drop.
    - **Customer domain hostnames** → drop or replace with `<tenant-host>`.
-   - **PR / IDEA / commit references** → KEEP (these are project provenance, expected in mind-vault per existing convention; matches the "Last Updated" footer style in other mind-vault files).
+   - **PR / IDEA / commit references** → KEEP mind-vault's own (bare `PR #NNN` / `IDEA-NNN` resolve against mind-vault's numbering and are valid provenance). DROP **clearly foreign** refs: full URLs to another repo (`https://github.com/<other-repo>/pull/NNN`), or project-name-tagged refs (`(Teisutis) IDEA-178`, `teisutis PR #475`). When a bare `IDEA-NNN` / `PR #NNN` appears in context that ties it to another project (surrounding prose names the foreign project, or the number doesn't resolve in mind-vault), drop it or qualify it explicitly. Generalise IDEA-tagged narrative ("what IDEA-178 learned") to neutral framing ("what the first-suite stand-up learned"). Commit messages may keep source-project refs (git history is acknowledged-noisy); the **file body** must be clean.
    - **Module / class / function names** (e.g. `AttachmentSerializer`, `_serialize_batch`, `<app>/`) → KEEP (these are public-API names that future readers need; they're already grep-able from the cited PR).
 
    The "would this be safe in a public repo today?" test is the gate. If the answer is "no", scrub before commit.
@@ -152,7 +152,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 ### 5. Cross-link and index
 
-- Every mind-vault promotion also references the project-local source that triggered it. If the learning started as a PR-review finding (from any review engine), the new skill/rule/agent entry cites the PR in its Last Updated / provenance section.
+- Every mind-vault promotion is traceable back to the project-local source that triggered it — but **foreign-project PR links and IDEA numbers go in the commit message only**, never in the skill/rule/agent file body (that's what the scrub gate enforces). In-body provenance is limited to mind-vault's own PR/IDEA refs. The commit's `git log` + body carry the foreign-project trail (review id, source PR URL, etc.).
 - Project-local solution docs reference any mind-vault assets they generalised from, so future `/compound` invocations can detect duplicates.
 - Auto-memory entries include their one-line `MEMORY.md` pointer — that's the index.
 
@@ -179,7 +179,7 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 
 ## Interaction rules
 
-- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (step 5 above) on every mind-vault commit, regardless of the destination (skill / rule / agent / command / tool). The gate is mandatory, not advisory; a leak in a private repo today is a leak in a public repo tomorrow. Identifiers and IDs are out; PR / IDEA / commit references and module names are in.
+- **No project / customer data leaks into mind-vault — ever.** Mind-vault is a cross-project knowledge store and must contain only generic, reusable patterns. Run the customer-data scrub gate (§ Mind-vault promotion, step 5) on every mind-vault commit, regardless of destination (skill / rule / agent / command / tool). The gate is mandatory; a leak in a private repo today is a leak in a public repo tomorrow. Out: customer identifiers, foreign-project IDEA/PR numbers, project-name tags. In: mind-vault's own PR/IDEA refs and module/function names.
 - **Shape-C narrative probe asks three questions max.** If the user's still unsure after three, fall back to the taxonomy quiz rather than asking a fourth.
 - **Never silently promote to mind-vault.** Every mind-vault-destination write is explicit and confirmed.
 - **Never auto-merge the mind-vault PR.** `RULE_git-safety` is not negotiable.
@@ -205,7 +205,3 @@ See [`references/review-finding-ingest.md`](references/review-finding-ingest.md)
 - [rules/RULE_git-safety.md](../../rules/RULE_git-safety.md) — branching and commit contract honoured during mind-vault promotion
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status routing; `/compound` may trigger the `idea`→archive move when post-incident routing classifies an IDEA as superseded or rejected before any execution started
 - [commands/bugbot-loop.md](../../commands/bugbot-loop.md) / [commands/copilot-loop.md](../../commands/copilot-loop.md) — the preceding review stage whose output this skill consumes (engine-specific commands; same output shape)
-
----
-
-**Last Updated**: 2026-04-30

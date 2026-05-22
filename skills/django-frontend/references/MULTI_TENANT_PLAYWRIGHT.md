@@ -24,7 +24,9 @@ Two integration shapes:
 
 ### Option A — `Host`-header injection per browser context
 
-Simplest and recommended. Playwright sends an explicit `Host` header on every request:
+> ⚠️ **May fail on current Chromium / Playwright** — chromium increasingly refuses Host-header overrides via CDP (`net::ERR_INVALID_ARGUMENT`); `extra_http_headers={'Host': ...}` is filtered by the fetch API. Validate against your stack; if it errors, use the **ALLOWED_HOSTS + non-primary `Domain` row** routing pattern documented in [`VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md` § Routing](VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md#5-chromium-refuses-host-header-overrides) instead. Option A below remains documented because it still works in some chromium / Playwright combinations.
+
+Playwright sends an explicit `Host` header on every request:
 
 ```python
 import pytest
@@ -221,7 +223,3 @@ Default to option 1. Add an explicit list of tables that need truncation; `cur.e
 - [`../../django/references/MULTI_TENANT_ASYNC.md`](../../django/references/MULTI_TENANT_ASYNC.md) — async/WebSocket counterparts.
 - [`../../django/references/TENANT_SCOPED_FK_VALIDATION.md`](../../django/references/TENANT_SCOPED_FK_VALIDATION.md) — orthogonal isolation failure (shared-schema rows with `org_id`).
 - [`HTMX_ALPINE_WAITS.md`](HTMX_ALPINE_WAITS.md) — Playwright wait recipes once tenant routing is solved.
-
----
-
-**Last Updated**: 2026-05-09
