@@ -8,17 +8,29 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## Unreleased
 
-_v4.3 in progress (review-surface collapse, IDEA-006) — PR-1 "prepare" below; the `## v4.3` header lands with PR-2's deletions._
+_(none)_
+
+## v4.3 — Review-surface collapse: single `/review-loop` entry
+
+Minor release on the v4 line (IDEA-006). Collapses the review surface to one entry point: deletes the two deprecated thin-wrapper commands (`/bugbot-loop`, `/copilot-loop`, deprecated in v4.2) and the two sub-agent profiles (`AGENT_bugbot`, `AGENT_copilot`) that predated the IDEA-005 shared core — leaving `/review-loop <PR> <engine>` as the sole review entry point. The two **word-for-word identical** Tier-1 catalogues consolidated into one shared `common-review-findings.md` (deduplicated against existing vault homes, not just across engines). `sprint-auto` now dispatches a single multi-engine `/review-loop` call (concurrent sync, N-engine-general) instead of two sequential per-engine loops. Shipped in two PRs per `rename-before-drop`: **#139 prepared** (migrate content + rewire every reference, all files still present), **#140 dropped** (delete the four files). The PR-1 dual-engine review loop itself surfaced two budget-semantics consistency findings (bugbot), both fixed before merge.
 
 ### Added
 
-- `skills/review-loop/references/common-review-findings.md` — the codified Tier-1 review-finding catalogue, consolidated ONCE out of the (word-for-word identical) `AGENT_bugbot.md` + `AGENT_copilot.md` copies and deduplicated against existing homes (#15→SHELL_INSTALLERS, #17/#18→ALPINE_HTMX_GOTCHAS, #19→RULE_self-sweep): a scannable index — one-line + link for patterns with a canonical home, full prose only for the homeless. Both engine adapters reference it. (PR-1 of IDEA-006.)
+- `skills/review-loop/references/common-review-findings.md` — the codified Tier-1 review-finding catalogue, consolidated ONCE out of the (word-for-word identical) `AGENT_bugbot.md` + `AGENT_copilot.md` copies and deduplicated against existing homes (#15→SHELL_INSTALLERS, #17/#18→ALPINE_HTMX_GOTCHAS, #19→RULE_self-sweep): a scannable index — one-line + link for patterns with a canonical home, full prose only for the homeless. Both engine adapters reference it.
 
 ### Changed
 
-- `skills/sprint-auto/SKILL.md` + `references/escalation-policy.md` — review dispatch rewired from two sequential single-engine loops to a **single** `/review-loop <PR> $SPRINT_AUTO_REVIEW_ENGINE` call carrying all configured engines (concurrent multi-engine sync when >1, N-engine-general). Budget shifts from "20 per engine" to the review-loop session cap (shared across engines, findings batched per cycle). (PR-1 of IDEA-006.)
+- `skills/sprint-auto/SKILL.md` + `references/escalation-policy.md` — review dispatch rewired from two sequential single-engine loops to a **single** `/review-loop <PR> $SPRINT_AUTO_REVIEW_ENGINE` call carrying all configured engines (concurrent multi-engine sync when >1, N-engine-general). The per-pass escalation cap (20 deliverables / 5 docs / etc.) is now a single shared budget across engines (was effectively 20-per-engine under sequential loops), kept explicitly distinct from `/review-loop`'s own internal `max_commits_per_session`.
 - `engine-bugbot.md` / `engine-copilot.md` / `engine-adapter-contract.md` / `SKILL.md` (review-loop) — § Common patterns now links the shared catalogue; copilot's "Per AGENT_copilot.md" attributions made adapter-owned; obsolete pointers/notes dropped.
-- Project-wide reference sweep (README, guides, `compound`/`work`/`dependabot-triage`/`deployment` skills, tool-script comments) — every `AGENT_bugbot`/`AGENT_copilot` + `/bugbot-loop`/`/copilot-loop` pointer now targets `/review-loop` / the engine refs. The four files still exist (deleted in PR-2); this is the `rename-before-drop` overlap window. (PR-1 of IDEA-006.)
+- Project-wide reference sweep (README, guides, `compound`/`work`/`dependabot-triage`/`deployment` skills, tool-script comments) — every `AGENT_bugbot`/`AGENT_copilot` + `/bugbot-loop`/`/copilot-loop` pointer retargeted to `/review-loop` / the engine refs.
+- `skills/wrap/SKILL.md` § Self-mode — corrected a stale claim (`/compound` rider, surfaced during this IDEA's own wraps): mind-vault **does** dogfood its own sprint workflow (tracks IDEAs in `docs/ideas/` + `docs/archive/`, has `docs/ideas/README.md`), so a mind-vault wrap that maps to a mind-vault IDEA runs Steps 1–3 normally; the only self-mode specialization is Step 4 (CHANGELOG, not DEVELOPMENT_LOG). Dropped the false "no `docs/ideas/README.md`" detection signature.
+
+### Removed
+
+- `agents/AGENT_bugbot.md` + `agents/AGENT_copilot.md` — sub-agent profiles superseded by the IDEA-005 shared `review-loop` skill + per-engine adapter references + `common-review-findings.md`. Their unique content (Common Patterns catalogue, failure-mode taxonomy, autonomy ladder) was migrated in #139; the autonomy ladder / hard bounds were already canonical in `skills/review-loop/SKILL.md`.
+- `commands/bugbot-loop.md` + `commands/copilot-loop.md` — the deprecated thin wrappers (v4.2 deprecation, removal targeted at v4.3, now done). `/review-loop <PR> bugbot` / `/review-loop <PR> copilot` / `/review-loop <PR> bugbot,copilot` replace them.
+
+(2026-05-25, [#139](https://github.com/infohata/mind-vault/pull/139), [#140](https://github.com/infohata/mind-vault/pull/140))
 
 ## v4.2.2 — Doc-consistency self-sweep (RULE_self-sweep-before-push trigger 5)
 
@@ -102,8 +114,8 @@ Minor release on the v4 line. IDEA-005 extracts the duplicated Phase 0/1/2/3/4 o
 
 - `skills/review-loop/SKILL.md` (193L) — engine-agnostic Phase 0/1/2/3/4 orchestrator with per-engine retrigger spacing, pending-retrigger flush rules, asymmetric-clearance hand-back semantics, anchor-based tool-output parsing, and an explicit guard against the dogfood meta-risk (review-loop's own docs contain literal `"found no new issues"` strings, so the body-text matcher can false-positive on diff content quoted into review bodies).
 - `skills/review-loop/references/engine-adapter-contract.md` (140L) — closed contract for adding new engines: tool-surface contract (`tools/find_<engine>_comments.sh` + `tools/<engine>_retrigger.sh`) + reference-surface section template (Identity, Tool invocations, Clean-signal parsing, Staleness rule, Race caveats, Failure modes, Common patterns, Spacing rule).
-- `skills/review-loop/references/engine-bugbot.md` (~60L) — Cursor Bugbot adapter (defers Common Bugbot Patterns to `agents/AGENT_bugbot.md` §1-8; documents bugbot-specific stall thresholds + line-number drift behaviour).
-- `skills/review-loop/references/engine-copilot.md` (~70L) — GitHub Copilot adapter (dual `user.login` identity confirmed empirically: `Copilot` on `/requested_reviewers` + `copilot-pull-request-reviewer[bot]` on `/reviews`; retrigger via bare `--add-reviewer @copilot` per [AGENT_copilot.md](agents/AGENT_copilot.md)'s self-removal semantics; service-error failure mode pattern: 2× consecutive errors stop retrigger this cycle, 3× hand back; check-run synthesis false-positive caveat documented).
+- `skills/review-loop/references/engine-bugbot.md` (~60L) — Cursor Bugbot adapter (at v4.1 deferred Common Bugbot Patterns to `AGENT_bugbot.md` §1-8 — that catalogue was consolidated into `common-review-findings.md` and the agent file removed in v4.3; documents bugbot-specific stall thresholds + line-number drift behaviour).
+- `skills/review-loop/references/engine-copilot.md` (~70L) — GitHub Copilot adapter (dual `user.login` identity confirmed empirically: `Copilot` on `/requested_reviewers` + `copilot-pull-request-reviewer[bot]` on `/reviews`; retrigger via bare `--add-reviewer @copilot` per the self-removal semantics then documented in `AGENT_copilot.md` — folded into the engine adapters + `common-review-findings.md` and the agent file removed in v4.3; service-error failure mode pattern: 2× consecutive errors stop retrigger this cycle, 3× hand back; check-run synthesis false-positive caveat documented).
 - `skills/review-loop/references/dual-engine-sync.md` (~80L) — multi-engine synchronisation contract: wait-for-slowest with trade-off escape hatches (engine stalled per per-engine threshold, Copilot service-error consecutive counts), per-engine scratch-file schema, deterministic alphabetical engine iteration, asymmetric-clearance hand-back templates. Generalises to N engines without modification.
 - `commands/review-loop.md` (~60L) — direct multi-engine entry point; canonical home for dual-engine sync mode. `/review-loop <PR> bugbot,copilot` is the natural form when both engines are configured.
 - `skills/idea/SKILL.md` § 4 — cross-project IDEA numbering guard: scan ONLY the target project's `docs/ideas/` + `docs/archive/`; never carry a number from another project's stream. The branch name (`compound/...-idea-NNN-...`) references the originating project's IDEA, not the target's next number.
