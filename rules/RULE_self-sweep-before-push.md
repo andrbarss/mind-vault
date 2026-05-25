@@ -1,10 +1,10 @@
 # RULE_self-sweep-before-push
 
-Before `git commit` on any cycle that touches Python or JS source, run a brief self-sweep on every file edited this cycle. The sweep catches the same trivial findings any code-review bot will catch — 1 second locally vs a 3-10 min bot round-trip.
+Before `git commit` on any cycle that touches Python or JS source — **or makes substantial doc/markdown changes** — run a brief self-sweep on every file edited this cycle. The sweep catches the same trivial findings any review bot will catch — 1 second locally vs a 3-10 min (billed) bot round-trip.
 
 Grep recipes, full Why-This-Matters discussion, edge cases, and the Pyflakes Pipe Pattern live in [`../docs/rules/RULE_self-sweep-before-push-rationale.md`](../docs/rules/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
 
-## The Four Sweep Triggers
+## The Five Sweep Triggers
 
 ### 1. Touched-files sweep (every commit)
 
@@ -35,8 +35,13 @@ When you add code that reads a field on an object you didn't author (`if (state.
 
 When `make test` reports pre-existing failures unrelated to your change, fix them in the SAME PR. Do not file as "out-of-scope". Habituation, bisect-poisoning, and reviewer-confusion costs → rationale doc.
 
+### 5. Doc-consistency sweep (doc-heavy commits)
+
+When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention. Grep recipes + detail → rationale doc.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
-- Mandatory before push if a code-review bot is wired up to the PR — saves an entire bot cycle per trivial finding.
+- Every commit that is **doc-heavy** (substantial IDEA / index / plan / devlog markdown), even when it also carries code — trigger 5.
+- Mandatory before push if a review bot (code or doc) is wired up to the PR — saves an entire billed bot cycle per trivial finding.
 - Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger).
