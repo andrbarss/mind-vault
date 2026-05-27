@@ -10,6 +10,41 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.8 — Compound: lazy-load heavy assets on HTMX nav + isolate-to-classify test triage
+
+### Added
+
+- **`skills/django-frontend/references/LAZY_LOAD_HEAVY_ASSETS_ON_HTMX_NAV.md`** (+ SKILL.md pointer) —
+  the load-on-nav pattern for heavy per-surface JS bundles in an HTMX app-shell: one server manifest
+  feeding both the cold-load `<script>` tags and a nav-time `data-*` attribute ("declare once, render
+  twice"; `static()`-resolved at request time because hashed-static can't be hardcoded client-side); a
+  loader with its own `htmx:afterSwap` that reads the fresh node, injects sequentially, in-flight-dedupes,
+  always re-inits; `ready()` must validate the bundle's LAST global (else a partial load sticks
+  half-loaded); injected binders need a `readyState`-safe boot + idempotent container-scoped init (now
+  the shared `HTMX_WIDGET_LIFECYCLE` contract); shell-infra scripts stay eager.
+- **`skills/django-frontend/references/HTMX_WIDGET_LIFECYCLE.md`** (+ SKILL.md pointer) — new canonical
+  reference for the shared HTMX-swapped-widget contract: (re-)init on `htmx:afterSwap` (subscribe on
+  `document`, read the FRESH post-`outerHTML` node), idempotent `Map`-tracked mount that doubles as the
+  `htmx:beforeSwap` teardown roster, container-scoped `initXIn(root)`, `readyState`-safe boot. Extracted
+  because the same lifecycle guidance was duplicated across the always-loaded glue (`VENDORING_JS_BUNDLES`)
+  and the lazy-injected binder (`LAZY_LOAD_…`) — skill-discovery could land on either or both and pay
+  twice for one payload. Both now point here.
+
+### Changed
+
+- **`skills/django/references/TESTING.md`** — added an "isolate-to-classify" triage subsection: re-run a
+  pooled-suite failure under the single-worker/cold-DB runner FIRST to classify it (passes-in-isolation =
+  pooling state-bleed → fix the test's isolation; fails-in-isolation = deterministic-real → fix the
+  code/test) before spending effort on the wrong layer; adding tests shifts the `loadscope` distribution
+  and can surface a latent bleed in a previously-green sibling.
+- **`skills/django-frontend/references/VENDORING_JS_BUNDLES.md`** — integration-glue lifecycle items
+  (discover / mount / teardown / idempotency) collapsed to a `HTMX_WIDGET_LIFECYCLE` pointer, keeping the
+  vendoring-specific deltas (race-safe uploads, form integration); + an app-shell caveat pointing at
+  `LAZY_LOAD_…` (eager `extra_js` `<script>` doesn't re-run on shell-nav). `HTMX_WIDGETS.md`'s re-init
+  note now points at the lifecycle contract too.
+
+(2026-05-27, [#150](https://github.com/infohata/mind-vault/pull/150))
+
 ## v4.3.7 — Compound: AST module-split recipe + xdist message level/tag isolation + forced-atomic rename bridge
 
 ### Added
