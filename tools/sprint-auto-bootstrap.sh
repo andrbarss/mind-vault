@@ -108,6 +108,18 @@ rand_hex() {
     fi
 }
 
+# Portable in-place sed. BSD sed (macOS) parses `sed -i -E 'script'` as "-i with
+# backup suffix '-E'", which drops extended-regex mode — `\1` backrefs then fail
+# with "\1 not defined in the RE". Routing through a temp file behaves identically
+# on GNU and BSD sed (both honour -E and \N in the script form), so the .env
+# sentinel substitutions below work on a dev macOS host as well as a Linux VPS.
+# Args: <file> <sed-script>.
+sed_inplace() {
+    local file="$1" script="$2" tmp
+    tmp="$(mktemp)"
+    sed -E "$script" "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 # ---------------------------------------------------------------------------
 # 0. Preflight — refuse obviously unsafe conditions
 # ---------------------------------------------------------------------------
@@ -139,7 +151,7 @@ cp .env.template .env
 
 # Credential-shaped keys → sentinel.
 # Matches *_KEY, *_SECRET, *_TOKEN, *_PASSWORD, *_PASS, *_PWD, *_CREDENTIAL.
-sed -i -E 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1=test-not-a-real-key/' .env
+sed_inplace .env 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1=test-not-a-real-key/'
 
 # Entropy-sensitive fields → fresh random per worktree.
 # First pattern must precede the generic credential sentinel above when the
@@ -147,12 +159,12 @@ sed -i -E 's/^([A-Z0-9_]*_(KEY|SECRET|TOKEN|PASSWORD|PASS|PWD|CREDENTIAL))=.*/\1
 # those values are currently `test-not-a-real-key` and get overwritten here.
 # Matches SECRET_KEY (bare) and common prefixed variants like DJANGO_SECRET_KEY,
 # APP_SECRET_KEY — anything ending in SECRET_KEY at start of line.
-sed -i -E "s|^([A-Z0-9_]*SECRET_KEY)=.*|\1=test-$(rand_hex)|" .env
-sed -i -E "s#^([A-Z0-9_]*(SALT|HMAC))=.*#\1=test-$(rand_hex)#" .env
+sed_inplace .env "s|^([A-Z0-9_]*SECRET_KEY)=.*|\1=test-$(rand_hex)|"
+sed_inplace .env "s#^([A-Z0-9_]*(SALT|HMAC))=.*#\1=test-$(rand_hex)#"
 
 # *_URL values with embedded user:pass → neutralise.
 # Projects that need inter-service URLs should set them in post_up_init.
-sed -i -E 's|^([A-Z0-9_]+_URL)=([a-z]+)://[^:/]+:[^@]+@.*|\1=\2://test:test-not-a-real-key@localhost/test|' .env
+sed_inplace .env 's|^([A-Z0-9_]+_URL)=([a-z]+)://[^:/]+:[^@]+@.*|\1=\2://test:test-not-a-real-key@localhost/test|'
 
 log ".env generated (credentials sentinel-replaced)"
 
