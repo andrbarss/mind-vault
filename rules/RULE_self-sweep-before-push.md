@@ -147,6 +147,34 @@ This is the noise-floor growth path. The follow-up issue rarely ships because it
 
 The correct response, even when the failures are genuinely unrelated to your work: triage and fix in your PR, attributed to the introducing change in the commit message. The cost is bounded (typically 5-30 minutes per pre-existing failure once the diagnosis is in hand); the benefit compounds.
 
+## Pipeline Exit-Code Discipline
+
+The sweep is only as honest as the script that runs it. A pipeline whose **upstream** stage fails but whose **downstream** stage exits 0 will tell you "success" when the actual sweep / build / test never ran. The canonical bite:
+
+```bash
+./tools/sprint-auto-bootstrap.sh integration-runner 0 --port-offset 30000 \
+    2>&1 | tee -a "$BATCH_LOG"; echo "=== BOOTSTRAP EXIT: $? ==="
+# Prints "BOOTSTRAP EXIT: 0" regardless of the bootstrap's actual exit code,
+# because $? captures `tee`'s exit, not the bootstrap's.
+```
+
+`tee` (and `cat`, `head`, `tail`, `jq` reading a pipe, almost anything downstream of `|`) is essentially-always going to exit 0 — so anything `$?` could tell you about the upstream is gone. **Cost of getting this wrong**: I shipped a "bootstrap green" status to a downstream step that actually failed at the very first `sed`, then watched the next step trip over the absence of the artefacts the bootstrap was supposed to produce. The discovery — `tee` ate the exit code — was a small delay, but it counted as a wasted iteration in a review-loop budget.
+
+Two equally-clean fixes; pick whichever fits the call site:
+
+1. **Drop the pipe** — `./script ... > "$LOG" 2>&1; echo "EXIT: $?"`. The script writes directly to the log; `$?` is now the script's exit. Simplest when you don't need progressive stdout.
+2. **`PIPESTATUS[0]`** — `./script ... 2>&1 | tee -a "$LOG"; echo "EXIT: ${PIPESTATUS[0]}"`. Bash-specific; reads the exit code of the first command in the most recent pipeline. Keep this when you genuinely want `tee` (live progress + retained log).
+
+Either form is one keystroke past the buggy form and removes the lie.
+
+The same shape bites less obviously in:
+
+- `make test 2>&1 | grep -E 'PASS|FAIL'; echo "$?"` — `grep`'s exit (0 = found, 1 = no match), not `make test`'s.
+- `pytest ... | tee artifacts/pytest.log` in CI scripts where the job's pass/fail is keyed off `$?`.
+- `gh api ... | jq '...'` where a 404 from the API gets formatted as `null` and the job continues.
+
+**The discipline**: when a script's purpose is to **gate** a subsequent step (commit, push, retrigger, hand-off), the exit code that gates MUST be the upstream's, not a downstream filter's. Prefer redirection over `tee` unless live progress is genuinely required; when `tee` is required, use `${PIPESTATUS[0]}`. Adding the word "bootstrap" or "test" to the eventual "EXIT: 0" output doesn't make the 0 honest — name the source, not the destination.
+
 ## Scope: Touched Files, Not Just New Edits
 
 When pyflakes flags pre-existing dead imports / unused locals in a file you're editing, **clean them up in the same commit** (or a separate `chore(tests):` commit if the diff would otherwise be confusing). Pre-existing findings in touched files are in scope, not out of scope.
@@ -186,4 +214,4 @@ Don't go deeper than this — full ruff / mypy passes are PR-time / CI-time conc
 
 ---
 
-**Last Updated**: 2026-05-16
+**Last Updated**: 2026-05-28
