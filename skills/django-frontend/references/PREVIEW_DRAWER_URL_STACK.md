@@ -147,7 +147,7 @@ function _rebroadcastSwap(target) {
 }
 ```
 
-Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale.
+Fire on the **swapped element**, not on `document` — events bubble UP. A listener on `document.body` will catch a dispatch on a descendant; a listener on `document.body` will **not** catch a dispatch on `document` (events don't propagate DOWN). Mirrors HTMX's own dispatch behaviour. See [`ALPINE_HTMX_GOTCHAS.md`](ALPINE_HTMX_GOTCHAS.md) § 3 for the bubble-direction rationale. The **binder side** — what widget binders must do to (re-)mount robustly under *either* dispatch shape (this element-dispatch one, or a body-replacer's `document`-dispatch + `detail.elt`), across the event / bind-target / detail-key axes — is [`HTMX_WIDGET_LIFECYCLE.md`](HTMX_WIDGET_LIFECYCLE.md) § 6.
 
 ### Edit-frame guard — short-circuit refreshes when the user has in-flight unsaved input
 

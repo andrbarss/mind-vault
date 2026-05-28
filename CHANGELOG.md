@@ -10,6 +10,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 _(none)_
 
+## v4.3.10 — Compound: HTMX synthetic-swap widget rebind + permission-gate probe + i18n view-toast ownership
+
+Patch release on the v4.3 line. A `/compound` of three reusable learnings from a downstream
+CBV → shell-render-fn/fragment surface migration.
+
+### Added
+- **`skills/django/references/PERMISSION_GATE_PROBE.md`** (new) — when re-implementing a view's authorization in a new place (HTMX fragment / second endpoint / management command / task), replicate the view's **effective** gate (the AND of `permission_classes` + `get_queryset` + `dispatch`/`get_object`), not the coarse declared permission class — copying the class alone silently **widens** the gate. Covers the divergence example (per-object `dispatch` check + cross-tenant `get_queryset` scoping both narrower than the class), the inverse case (a legacy gate authorizing on *historical authorship* — `author == request.user` — is a bug to fix, not copy: re-gate the legacy endpoint too + migrate the tests that pinned it), and the UI-bypass-test mandate (hiding an affordance ≠ authorization). Pointer added to `skills/django/SKILL.md` References.
+
+### Changed
+- **`skills/django-frontend/references/HTMX_WIDGET_LIFECYCLE.md`** — new §6 *Synthetic swap events from a custom body-replacer (drawer / preview surface)*: the **binder-side** rule for (re-)mounting widgets when a body-replacer (drawer / preview surface) swaps the DOM via `innerHTML` and dispatches the lifecycle events itself. A binder must get **three independent axes** right or it dies *silently* in the drawer (works on cold load + real swaps, **latent across surfaces**): (1) listen on an event the replacer actually fires — commonly `htmx:afterSettle`/`htmx:load`, often **not** `afterSwap`; (2) bind on `document`, not `document.body` (a `document`-dispatched event never reaches a `body` listener); (3) read `evt.detail.elt || evt.detail.target` (replacers commonly set `elt`, real swaps set `target`) — or ignore detail and rescan idempotently. Presents the two dispatch shapes in the wild neutrally (`document`-dispatch + `elt`, vs element-dispatch + `bubbles` + both keys per `PREVIEW_DRAWER_URL_STACK.md` / `DRAWER_FORM_STATE_PRESERVATION.md`, now cross-linked) — the binder rule is correct under both. §2 idempotency covers the synthetic-fires-twice case.
+- **`skills/django/references/I18N_WORKFLOW.md`** — added the view-emitted-toast instance to the *Logical-ownership traps* list: a `_()` / `messages.*` toast emitted from a view in app-A *about* an app-B entity extracts to **app-A**'s catalog (the `gettext` call-site app is the authority, not the entity's app); symptom is blank toasts in every non-source locale because the map entry sat in the entity's app.
+
+(2026-05-27, [#151](https://github.com/infohata/mind-vault/pull/151))
+
 ## v4.3.9 — Compound: review-pending race guard generalized to the engine-adapter contract + Bugbot
 
 Patch release on the v4.3 line. A `/compound` of the false-CLEAN failure mode that surfaced live in v4.3.7's own review loop (PR #148): a review engine's check-run flips to `completed` *before* its inline review posts, so a poll in that gap reads DONE + zero findings and the loop declares a false CLEAN. v4.3.7 fixed it in the Copilot adapter only; this generalizes the guard.
