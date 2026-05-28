@@ -6,6 +6,12 @@ Mind-vault is a rolling config library. Entries are grouped by month, reverse-ch
 
 Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**, **Changed**, **Fixed**, **Removed**, **Deprecated**, **Security**.
 
+## Unreleased
+
+### Fixed
+
+- **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
+
 ## v4 — Multi-engine code review + open-source release candidate
 
 Headline: Stage 4 (review) is no longer locked to Cursor Bugbot. Projects opt into Cursor Bugbot (`/bugbot-loop`), GitHub Copilot (`/copilot-loop`), both engines concurrently, or curator-only (no external bot). Sprint-auto resolves the choice from `review_engine:` in `.mind-vault.yml` or `CLAUDE.md` and dispatches per-engine; default is `none`. The codebase narrative is now engine-agnostic — `/bugbot-loop` and `/copilot-loop` are the two engine-specific surfaces, everything else refers to "the review loop" / `/<engine>-loop`.
