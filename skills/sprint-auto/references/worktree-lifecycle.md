@@ -103,6 +103,8 @@ Lookup order: explicit env override → sibling dir of the project → `~/projec
 
 Updates to the canonical script propagate to every project via `git pull` in mind-vault alone — same benefit as symlinks, without the fragility.
 
+**Caveat — local checkout state (2026-05-28 empirical).** The wrapper finds the canonical script at whatever revision the local mind-vault checkout is currently on. If that's a feature branch (e.g. `compound/<topic>`) or a stale `main`, recent canonical-script fixes that landed on `origin/main` will NOT be in effect — the bootstrap runs the script as the local mind-vault sees it. One observed bite: a `/compound` session left mind-vault on `compound/<topic>` from earlier work; later the same day a sprint-auto run hit a bug the user had **already merged to mind-vault main** as PR #2 a few hours earlier, because the local checkout was still on the pre-fix compound branch. Two operationally cheap mitigations: (a) **wrapper-side warning** — emit `WARN: mind-vault is on '<branch>', not 'main' — canonical script may be stale` when the resolved candidate's `git branch --show-current` isn't `main`; bootstrap continues, but the operator gets the signal; (b) **pin via env** — `export MIND_VAULT_ROOT=<path-to-a-known-main-checkout>` (perhaps a second worktree dedicated to "the canonical main"), so feature-branch work in the primary mind-vault checkout doesn't bleed into project bootstraps.
+
 ## The hooks file
 
 Project-local. Not a symlink, not a wrapper — a real file, edited in-project. Bash functions:
@@ -208,4 +210,4 @@ For v3.1, the inline fallback only applies to the integration worktree (per-IDEA
 
 ---
 
-**Last Updated**: 2026-04-27
+**Last Updated**: 2026-05-28

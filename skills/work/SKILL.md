@@ -104,6 +104,12 @@ If verification fails:
 2. Document the failure in the plan's Open Questions section (append, don't overwrite).
 3. Route to the user for a decision: fix in place, roll back the latest commit, or return to `/plan` for a revised approach.
 
+#### Sprint-auto v3.2 PR base routing — verify and re-point if needed
+
+When `SPRINT_AUTO_INTEGRATION_BRANCH` is set, the per-IDEA PR must target the integration branch (`gh pr create --base "$SPRINT_AUTO_INTEGRATION_BRANCH"`), not the parent (`main` / `sprint-*`). **Empirical 2026-05-28**: the env var did not propagate cleanly to `gh pr create` in two consecutive subagent-spawned `/work` invocations of one sprint-auto batch — both PRs opened with `base: main` and needed an immediate `gh pr edit --base "$SPRINT_AUTO_INTEGRATION_BRANCH" <PR>` to re-point. The agents caught it both times by inspecting `gh pr view <PR> --json baseRefName` after open and correcting, but the silent default-to-main is the failure mode to guard against.
+
+Cheap belt-and-suspenders: when `SPRINT_AUTO_INTEGRATION_BRANCH` is set, **unconditionally** run `gh pr edit --base "$SPRINT_AUTO_INTEGRATION_BRANCH" <PR>` immediately after `gh pr create` succeeds. It's idempotent (`gh pr edit` is a no-op when the base already matches) and removes the env-propagation failure mode regardless of subagent vs main-context shell.
+
 ### 5a. Sprint-auto v3.1 verification routing
 
 Under sprint-auto v3.1, per-IDEA worktrees are pure code surfaces — no `.env`, no docker stack. The integration worktree's stack (at port offset `+30000`) is the only docker stack of the batch, and all verification routes there.
@@ -239,4 +245,4 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 
 ---
 
-**Last Updated**: 2026-04-27
+**Last Updated**: 2026-05-28
