@@ -2,13 +2,33 @@
 
 All notable changes to mind-vault — skills, rules, agents, commands, tools.
 
-Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each bullet references the PR whose merge introduced the change. From v4 onward, major architectural milestones get an explicit version header (v4.0.1 introduced multi-engine review and was the first open-source release); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
+Mind-vault is a rolling config library. Entries are grouped by month, reverse-chronological within each month, and each entry carries a provenance marker — a date and/or the PR link — on the bullet for rolling month-grouped entries, or on the version-section's intro paragraph for a single-PR version section (where every bullet shares one PR, repeating the marker per bullet is noise). From v4 onward, major architectural milestones get an explicit version header (v4.0.1 introduced multi-engine review and was the first open-source release); month groupings continue to roll forward inside each version. Older than the first entry: the `git log` is authoritative.
 
 Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**, **Changed**, **Fixed**, **Removed**, **Deprecated**, **Security**.
 
 ## Unreleased
 
 _(none)_
+
+## v4.5 — Agent profiles → recognized Claude Code subagent schema + cross-harness portability
+
+Minor release — the first IDEA-driven (non-compound) release since the v4.4 patch line began. The eight `agents/AGENT_*.md` personas were carrying **OpenCode-style** frontmatter (`mode`/`temperature`/`tools`-map/`allowed_tools`, no `name:`) and so registered **degraded or not at all** as dispatchable Claude Code `subagent_type`s — silently weakening the dispatch substrate that five of the six sprint-workflow skills route through. IDEA-011 re-authors them to the recognized schema and adds a cross-harness portability methodology. (2026-06-01, [#163](https://github.com/infohata/mind-vault/pull/163))
+
+### Changed
+
+- **All eight `agents/AGENT_*.md` profiles re-authored to the recognized CC subagent schema** — namespaced `name: mv-<persona>` (collision-safe in the shared subagent registry), rich `description:` with `<example>` trigger blocks (drives correct auto-dispatch), comma-string `tools:`, `model: inherit`, `color:`. **Persona bodies unchanged** — this is a schema/registration refactor, not a behaviour rewrite. Filenames stay `AGENT_*.md` (CC dispatches on the frontmatter `name:`, not the filename — so no rename, `RULE_rename-before-drop` doesn't bind, and the `~/.claude/agents/` + `.cursor/agents/` symlinks + every `agents/AGENT_*.md` doc-link stay valid).
+- **Per-role tool-grant audit** (not blanket-copied from the old uniform map): `mv-curator` is review-only (no `Write`/`Edit` — `Bash`/`Grep` for inspection like `git diff HEAD`); `mv-researcher` **gains `WebFetch`/`WebSearch`** (it was webless despite being the external-scout persona). The dual-mode `mv-architect` keeps `Write`/`Edit` (author in `/work`, reviewer in `/plan`); `mv-documentation` keeps `Bash` (Prime Directive 4 interrogates `git log`/`git diff` when authoring changelogs).
+- **Dispatch sites point at the `mv-*` ids** — `skills/work/SKILL.md` matrix, `skills/work/references/persona-dispatch.md` (now carries the canonical *persona ↔ subagent_type ↔ profile-file* map as the single source of truth), and `skills/plan/references/architect-handoff.md` (`subagent_type: mv-architect`). Conceptual prose elsewhere keeps the `AGENT_*` display names; file-path links unchanged.
+- **`docs/guides/CURSOR_SETUP.md`** — Cursor-discovered names shift `AGENT_*` → `mv-*`; documents that `model: inherit` is what makes the same file work unchanged in both Claude Code and Cursor (no fork).
+
+### Added
+
+- **`docs/guides/AGENT_PORTABILITY.md`** — cross-harness agent-profile methodology (the user's added requirement, framed as a fork-and-fix doc, not a generator — honouring the IDEA non-goal). Web-verified compatibility matrix: **Cursor** = straight copy (already symlinked via `.cursor/agents/`; works because of all-inherit), **OpenCode** = fork (boolean `tools` map + provider-prefixed `model`), **Antigravity** = fork (prose `## Name (@handle)` sections in `.agents/agents.md`, no per-file format). Includes worked before/after fork recipes for OpenCode + Antigravity, a downstream-consumer safety note (file-links unchanged + unknown `subagent_type` degrades to inline persona-read), and a regenerate-after-body-change note. Indexed in `docs/README.md`.
+- **`skills/review-loop/references/COSMETIC_NONCONVERGENCE.md`** — `/compound` of this PR's own review loop: knowing when to stop fixing a non-converging review engine. (1) **Adopt-don't-fight** — when an engine flags the same convention gap across cycles, codify the convention or accept the valid point in one edit, never a third instance-level reword. (2) **Asymmetric hard-stop** — when the substance engine (Bugbot) is clean for several SHAs while a prose-sensitive engine (Copilot) emits one cosmetic nit per cycle, hard-stop on the substance gate and hand back residual cosmetic findings as Tier-3. The Phase-4 no-progress guard now counts repeated same-category cosmetic-prose nits as a hand-back trigger.
+
+### Removed
+
+- The OpenCode-only `mode:` / `temperature:` / `allowed_tools:` frontmatter keys from all eight profiles (superseded by the CC `tools:` comma-string + `model:` keys).
 
 ## v4.4.6 — Compound: shell-swap lifecycle (pre/post-swap re-init · persisted-toggle reset) + wrap-rewrite-not-stale-marker + large-PR independent review
 - **Added** `skills/django-frontend/references/HTMX_WIDGET_LIFECYCLE.md` § 7 — **don't (re-)init a swapped region from a plain `HX-Trigger` custom event; it fires PRE-swap.** HTMX dispatches plain `HX-Trigger` events before the swap (only `-After-Swap` / `-After-Settle` fire post-swap), so a re-init driven by the custom trigger reads the old, not-yet-replaced DOM and the real swap then lands with nothing to boot it. Tell: a sibling widget wired to `htmx:afterSwap` works while the trigger-wired one is half-dead. Fix: re-init on `htmx:afterSwap` scoped to the swap-target id (§1) + `htmx:beforeSwap` teardown (§3). Compounded from teisutis IDEA-149 (chat session-switch left a dead token meter + send button when re-booting off a `shellSurfaceChanged` HX-Trigger). (2026-05-31)
