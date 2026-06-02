@@ -1,22 +1,24 @@
 ---
 name: review-loop
-description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
+description: Drive a bounded-autonomy review-fix-rerun loop against one or more pluggable review engines (Cursor Bugbot, GitHub Copilot, Claude Code Review, future N-engines) on a PR. Triages findings into Tier 1 / 2 / 3, batches per-cycle fixes into single commits, retriggers engines after each push, tracks each engine through a review-state machine (NOT_TRIGGERED → TRIGGERED → RUNNING → DONE) read from its check-run status, treats an engine as clean only when DONE with zero active findings, and hands back to the user with a structured report. Engine-agnostic core; per-engine specifics live in references/engine-<name>.md per the adapter contract.
 ---
 
 Drive a review-fix-rerun cycle on the given PR using one or more review engines. The orchestrator is engine-agnostic — all engine-specific work routes through adapters described in `references/engine-adapter-contract.md`.
 
 **Inputs**:
 - `PR_NUMBER` (optional; defaults to PR for current branch).
-- `ENGINES` (one or more of: `bugbot`, `copilot`; defaults to all engines whose adapter is present + retrigger tool is reachable).
+- `ENGINES` (one or more of: `bugbot`, `copilot`, `claude`; defaults to `bugbot,copilot,claude` — all engines whose adapter is present + retrigger tool is reachable. **Reachability caveat (A2):** `claude` is in the default set only on repos where its action workflow (`claude-code-review.yml`) is installed; where absent, `find_claude_comments.sh` emits `CLAUDE_NOT_INSTALLED=true` and claude **self-excludes from the default** so a bare `/review-loop` doesn't block to HUNG on an un-provisioned engine. An explicit `/review-loop <PR> claude` still attempts it and degrades **loudly** — see [`references/engine-claude.md`](references/engine-claude.md) § Tool invocations.)
 
-This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, or `bugbot,copilot` (any subset); single-engine runs are just a one-element list.
+This skill is invoked via `commands/review-loop.md` — the single review entry point. Pass `ENGINES` as `bugbot`, `copilot`, `claude`, or any subset (e.g. `bugbot,copilot,claude`); single-engine runs are just a one-element list.
 
 **Before you trigger engines — wrap docs first if this is a doc-heavy / IDEA PR.** If the PR carries substantial docs (IDEA file, plan, index, devlog, guides), run a bare `/wrap` (the `--scope=docs` default) FIRST, then trigger engines — so the reviewer sees docs at their merged shape and doc-consistency findings land in this cycle instead of as post-review drift. The bare `/wrap` default **structurally cannot reach merge**, so it is safe to run before review. Mechanics + the two-pass model: [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md). (Code-only PRs: skip — go straight to the loop.)
+
+**Pre-flight — un-draft the PR.** `/work` opens PRs as **draft** so the push-triggered Claude engine doesn't bill a review on every WIP commit (see [`references/engine-claude.md`](references/engine-claude.md) § Push-triggered model). The review stage is where that flips: if `claude` is in `ENGINES` and `gh pr view <PR> --json isDraft -q .isDraft` is `true`, mark it ready (`gh pr ready <PR>`) **before** Phase 1 — a draft PR makes claude no-op (the run fires but posts nothing → reads SILENT), so its verdict is unavailable until ready. Bugbot/Copilot are unaffected by draft state. Skip the un-draft only if the user explicitly wants the PR to stay draft.
 
 ## Hard bounds (enforced by the loop)
 
 - `max_commits_per_session = 20`
-- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large dual-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
+- `max_active_work_minutes = 240` (excludes ScheduleWakeup sleep time; 240 covers large multi-engine surface-migration PRs whose fix-cycle count legitimately accumulates past 180)
 - `max_idle_polls = 20` (consecutive wakes with no new finding AND no new push, across all engines). **New-push detection**: Phase 4 compares the scratch file's `last_push_sha` against `git rev-parse HEAD` on each wake; if they differ (e.g. an out-of-band push by another process or the user), reset `idle_polls=0`, update scratch `last_push_sha`, and re-enter Phase 1 to fetch fresh state for the new SHA. Without this check the counter accumulates forever past a push the loop didn't initiate.
 - Targeted tests only inside the loop; broader regression deferred to hand-back
 - Feature branch only — never main (per `RULE_git-safety`)
@@ -25,7 +27,7 @@ This skill is invoked via `commands/review-loop.md` — the single review entry 
 
 ## Multi-engine mode
 
-When `|ENGINES| > 1`, see [`references/dual-engine-sync.md`](references/dual-engine-sync.md) for the synchronisation contract: wait for the slowest engine per push SHA, batch findings from all engines into one fix commit, push once, retrigger all engines, surface asymmetric clearance (one engine clean + another hung) prominently in hand-back.
+When `|ENGINES| > 1`, see [`references/multi-engine-sync.md`](references/multi-engine-sync.md) for the synchronisation contract: wait for the slowest engine per push SHA, batch findings from all engines into one fix commit, push once, retrigger all engines, surface asymmetric clearance (one engine clean + another hung) prominently in hand-back.
 
 ## Phase 0: Worktree environment bootstrap
 
@@ -92,7 +94,7 @@ If for any engine in `ENGINES` the review state is `NOT_TRIGGERED` for the curre
 - **Scratch-file bootstrap is still required** on the trigger-only cycle: write `engines`, `last_push_sha`, and the per-engine `<engine>_review_state` (set to `TRIGGERED`), plus `last_seen_<engine>_signal_id` if the trigger script emitted a comment id. Without these, Phase 4's wake-loop can't construct the resume prompt's engine list and can't compare against `last_push_sha` for new-push detection — the scratch is what Phase 4 reads after compaction.
 - **Guardrail**: trigger only when the engine has no check-run for the head SHA (state `NOT_TRIGGERED`). **Never** retrigger while a check-run is `RUNNING`, nor on a bare wake-poll — a retrigger happens exactly twice in a SHA's life: this zero-activity bootstrap, or Phase 3 after a fix push. Engines are rate-limited and each review is billed.
 
-**Under multi-engine mode** the per-engine zero-activity branch above does NOT permit fixing findings from engines that are already `DONE` while a sibling engine is still `TRIGGERED`/`RUNNING` — that violates the dual-engine sync rule (see [`references/dual-engine-sync.md`](references/dual-engine-sync.md)). Instead, the orchestrator waits for the slowest engine to reach `DONE` for `last_push_sha` before batching fixes from all engines and pushing. The escape hatches in `dual-engine-sync.md` § Trade-off escape hatch govern when to break sync (engine stalled past N× normal latency, service-errored consecutively, etc.) — those, not "this engine has findings now", are the only valid reasons to push mid-cycle while another engine is still RUNNING.
+**Under multi-engine mode** the per-engine zero-activity branch above does NOT permit fixing findings from engines that are already `DONE` while a sibling engine is still `TRIGGERED`/`RUNNING` — that violates the multi-engine sync rule (see [`references/multi-engine-sync.md`](references/multi-engine-sync.md)). Instead, the orchestrator waits for the slowest engine to reach `DONE` for `last_push_sha` before batching fixes from all engines and pushing. The escape hatches in `multi-engine-sync.md` § Trade-off escape hatch govern when to break sync (engine stalled past N× normal latency, service-errored consecutively, etc.) — those, not "this engine has findings now", are the only valid reasons to push mid-cycle while another engine is still RUNNING.
 
 ### Triage tier classification
 
@@ -113,7 +115,7 @@ Persist to `~/.claude/memory/projects/<project-slug>/review-loop-pr-<N>.md` (eng
 - `idle_polls` (int, /20)
 - `engines` (comma-separated list of active engines for this session)
 - `last_push_sha`
-- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...} }` for dual-engine. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
+- `no_progress_map` — **always namespaced per engine** (uniform across single-engine and multi-engine modes): `{ bugbot: {<category>: <count>} }` for a bugbot-only run, `{ copilot: {<category>: <count>} }` for copilot-only, `{ bugbot: {...}, copilot: {...}, claude: {...} }` for a multi-engine run. Flat (un-namespaced) maps from pre-shared-core sessions must be migrated to the per-engine shape on first wake — otherwise Phase 4's no-progress guard reads the wrong slot and never trips.
 
 Per-engine state slots (replicate the pattern for each engine in `engines`):
 
@@ -155,9 +157,10 @@ If at least one fix was applied:
 1. **One commit per cycle**, not per finding.
    - Format: `fix(scope): address review N (PR #M)` — under multi-engine mode the body lists all findings closed across engines.
 2. `git push origin HEAD`, then **update scratch `last_push_sha` to the new HEAD**. Phase 4's new-push detection compares against it — without this update the loop reads its *own* push as an out-of-band change next wake, resets every engine to `NOT_TRIGGERED`, and double-retriggers (wasting billed reviews).
-3. **Retrigger** — for each `<engine>` in `ENGINES` (iterated **alphabetically** for reproducibility, matching [`references/dual-engine-sync.md`](references/dual-engine-sync.md) § Retrigger discipline): fire `./tools/<engine>_retrigger.sh [PR_NUMBER]` once and set `<engine>_review_state=TRIGGERED`. No interval, no defer — the push just created a new SHA, so there is no in-flight review for it to stack behind. (A retrigger is withheld in exactly one situation — Phase 4's `RUNNING` state — which Phase 3 never hits, because a fix push always supersedes any prior SHA's review.)
+3. **Resolve the threads for the findings fixed this cycle** (forward auto-resolve — [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) Pattern 1). For each finding closed by this commit, map its `comment id` → thread node id (`PRRT_*`) via the `reviewThreads` query and call `resolveReviewThread`. **Leave Tier-3 / won't-fix / escalated-elsewhere threads OPEN** — they are the live tracker; resolving them loses the signal. For a won't-fix (false positive), post a one-line reply documenting the rationale *before* resolving. This step is NOT optional bookkeeping: skipping it accumulates stale "N unresolved conversations" that hide the real open findings and force a manual sweep at hand-back (the failure mode THREAD_AUTO_RESOLVE was written to prevent). Engine adapters should capture the thread id alongside the comment id at fetch time so this step needs no extra round-trip; until they do, the inline `gh api graphql` reviewThreads query is the fallback.
+4. **Retrigger** — for each `<engine>` in `ENGINES` (iterated **alphabetically** for reproducibility, matching [`references/multi-engine-sync.md`](references/multi-engine-sync.md) § Retrigger discipline): fire `./tools/<engine>_retrigger.sh [PR_NUMBER]` once and set `<engine>_review_state=TRIGGERED`. No interval, no defer — the push just created a new SHA, so there is no in-flight review for it to stack behind. (A retrigger is withheld in exactly one situation — Phase 4's `RUNNING` state — which Phase 3 never hits, because a fix push always supersedes any prior SHA's review.)
 
-4. Increment `commits_this_session`. If ≥ 20 → stop and hand back.
+5. Increment `commits_this_session`. If ≥ 20 → stop and hand back.
 
 ## Phase 4: Wait + wake
 
@@ -182,7 +185,7 @@ The wake-loop in this phase IS a watcher in the [`skills/work/references/WATCHER
 Always end with:
 
 1. **Engines summary** — per engine: cycles run, findings auto-fixed, findings approved, findings escalated, findings skipped, final verdict (CLEAN / HUNG / ERRORED / STILL_FINDING).
-2. **Asymmetric clearance** — if some engines CLEAN and others not, surface prominently. See [`references/dual-engine-sync.md`](references/dual-engine-sync.md) for the message templates.
+2. **Asymmetric clearance** — if some engines CLEAN and others not, surface prominently. See [`references/multi-engine-sync.md`](references/multi-engine-sync.md) for the message templates.
 3. **Tier 3 escalations** with reasoning (need human decision).
 4. **Suggested broader regression command** for pre-merge.
 5. **PR URL**.
@@ -196,7 +199,9 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md) — what an engine adapter must implement.
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
-- [`references/dual-engine-sync.md`](references/dual-engine-sync.md) — multi-engine synchronisation contract.
+- [`references/engine-claude.md`](references/engine-claude.md) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
+- [`references/engine-claude-onboarding.md`](references/engine-claude-onboarding.md) — onboarding a project to the claude engine: ship the write-perm + guarded workflow templates ([`assets/claude-code-review.yml`](assets/claude-code-review.yml) + [`assets/claude.yml`](assets/claude.yml)) to the default branch (NOT `/install-github-app`'s read-only default), the anti-tampering bootstrap catch-22, and the fork-PR / author-association guards.
+- [`references/multi-engine-sync.md`](references/multi-engine-sync.md) — multi-engine synchronisation contract.
 - [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
 - [`references/THREAD_AUTO_RESOLVE.md`](references/THREAD_AUTO_RESOLVE.md) — closing review threads in step with the fixes: forward (in-loop, Phase 3) auto-resolve via `resolveReviewThread` GraphQL mutation; retroactive audit + bulk-resolve recipe for PRs accumulated under the prior pattern. Load when wiring engine-adapter thread-ID capture, when a PR carries visible stale-thread debt, or when designing the user-facing "merge cleanly" handoff.
 - [`skills/wrap/references/WRAP_BEFORE_REVIEW.md`](../wrap/references/WRAP_BEFORE_REVIEW.md) — for doc-heavy / IDEA PRs, run `/wrap` (`--scope=docs` default) BEFORE entering this loop so the engines review finalized docs; merge stays a separate post-review-clear `--scope=full` pass. Read at trigger-time for the pre-flight wrap decision.
