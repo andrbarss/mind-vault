@@ -7,8 +7,10 @@ flowchart LR
     I0(["/ideate — optional discovery"]) -.-> I1
     I1(["/idea — capture"]) --> P
     P(["/plan · /brainstorm — what + how"]) --> W
-    W(["/work — execute"]) --> R
-    R(["review-loop\n+ curator · architect"]) --> C
+    W(["/work — execute"]) --> RD
+    RD(["/review-loop — deliverables\n+ curator · architect"]) --> WR
+    WR(["/wrap — finalize docs\n(pre-merge)"]) --> RR
+    RR(["/review-loop — docs"]) --> C
     C(["/compound — router"]) -.promotes.-> V[("mind-vault\nskills · rules · agents\ncommands · memory")]
     C -.next sprint.-> I1
 ```
@@ -32,8 +34,9 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
 | 3. Work | `/work` | Plan file | Code changes on a feature branch |
-| 4. Review | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Open PR | Cleared review findings + loop output file |
-| 4.5. Wrap | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Review-cleared open PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
+| 4a. Review — deliverables | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Open PR | Cleared code findings + loop output file |
+| 4b. Wrap — finalize docs | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Deliverables-cleared PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the docs review (wrap-before-review) so engines see docs at merged shape. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
+| 4c. Review — docs | `/review-loop <PR> <engine>` (same engines as 4a) | Wrapped PR | Cleared doc findings; PR ready to merge. Code-only PRs collapse this pass. |
 | 5. Compound | `/compound` | Solved problem, or PR-review output file | Solution doc OR mind-vault skill/rule/agent/command/memory update |
 
 **Brainstorm folds into plan.** `/brainstorm` is an alias for `/plan`. When the IDEA file is thin or the description is under-specified, the plan skill interactively explores requirements (the brainstorm front-end) before emitting the plan artifact.
@@ -148,7 +151,9 @@ Typical invocation on a new feature:
 /plan <slug>               # or /brainstorm <slug> — produces plan doc
 /work <plan-path>          # dispatches to personas, commits as it goes
 # ... open PR ...
-/review-loop <pr-url> <engine>    # bugbot | copilot | claude | any subset, per project's review_engine
+/review-loop <pr-url> <engine>    # 4a deliverables — bugbot | copilot | claude | any subset, per project's review_engine
+/wrap                      # 4b finalize docs (pre-merge, --scope=docs default)
+/review-loop <pr-url> <engine>    # 4c docs pass — same engine(s); code-only PRs collapse this
 /compound                  # routes what we learned
 ```
 

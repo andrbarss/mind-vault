@@ -25,7 +25,7 @@ A **cross-host configuration library** for AI coding agents. Skills, subagent pe
 - **Agents** (`agents/`) — subagent personas (`AGENT_architect`, `AGENT_backend`, `AGENT_curator`, …) with prime directives, multi-pass workflows, structured verdict formats.
 - **Commands** (`commands/`) — slash commands invoked as `/<name>` from any host that supports them.
 - **Rules** (`rules/`) — always-on guardrails auto-loaded every session (e.g. `RULE_git-safety` blocks pushes to `main`).
-- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop → /wrap → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
+- **Sprint workflow** — a compounding 5-stage loop (`/ideate → /idea → /plan → /work → /review-loop (deliverables) → /wrap → /review-loop (docs) → /compound`, where `/review-loop` carries the configured engine(s) — `bugbot`, `copilot`, `claude`, or any subset per project config) that makes the *next* sprint start with a higher floor via the final `/compound` stage. See [SPRINT_WORKFLOW.md](SPRINT_WORKFLOW.md).
 
 **The workflow principle** — every sprint should make the next sprint cheaper. `/compound` is the lever: any recurring fix-up becomes a new skill / rule / agent improvement.
 
@@ -247,7 +247,7 @@ If your repo has no external review bot, run `AGENT_curator` against the local d
 /wrap
 ```
 
-Post-merge sweep — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, tears down any per-IDEA worktree stack, scans project docs for stale references. Can run pre-merge on the feature branch so the merge lands the final docs state in one shot.
+**Pre-merge docs finalization** (the default, `--scope=docs`) — flips IDEA frontmatter to `complete`, re-sorts the index, appends a devlog entry, scans project docs for stale references (plus the staleness-gated whole-README currency audit). Runs on the feature branch **before** the docs-review pass, so engines see docs at their merged shape and the merge lands the final state in one shot. This is the middle of the two-pass finish the headline shows: **`/review-loop` (deliverables) → `/wrap` → `/review-loop` (docs)** — after wrap, re-run `/review-loop` so the engines review the finalized docs (code-only PRs collapse this second pass). Only the destructive per-IDEA worktree teardown is strictly post-merge.
 
 ### Stage 5 — compound
 
