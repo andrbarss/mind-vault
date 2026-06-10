@@ -213,6 +213,39 @@ Slack on deploy result:
     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
+## CI debugging gotchas
+
+Build/codegen toolchains fail in CI in environment-specific ways the console hides — they pass locally and break only on the runner, often surfacing far from the real cause. Assert loudly and know the runner defaults.
+
+### A build tool can exit 0 while emitting nothing
+
+A wrapper (a webpack plugin, a codegen step, an asset pipeline) can swallow a sub-tool's failure and still exit 0 — so CI "passes" but produces **no artifact**. The failure then surfaces *downstream* as a baffling symptom: a static server returns 404, a test-server readiness check times out — far from the build step that actually failed. (Seen with an `ext-webpack-plugin` build: it logged `[ERR]` for a failed Sencha Cmd spawn but webpack still exited 0 → empty output dir → `http-server` served 404 → Playwright's `webServer` timed out at the full 420s. Several iterations were burned on the *symptom* before the empty dir was found.)
+
+**Fix — assert the artifact exists, fail loud:**
+
+```bash
+npm run build
+test -f "$OUT_DIR/index.html" || { echo "::error::build produced no $OUT_DIR/index.html"; ls -R "$OUT_DIR" 2>/dev/null | head -40; exit 1; }
+```
+
+Converts a silent downstream mystery into a hard failure at the real step, with a tree listing for diagnosis. Add this guard whenever a black-box build tool's exit code can't be trusted to reflect "did it actually produce the thing."
+
+### `localhost` resolves to IPv6 `::1` on Ubuntu runners
+
+A server bound to IPv4 `0.0.0.0` (many dev servers, `http-server` defaults) is **unreachable** via `http://localhost:PORT` on `ubuntu-latest` — `localhost` resolves to `::1` (IPv6) first, the server isn't listening there → connection refused → readiness timeout. It works locally on macOS (where `localhost` → `127.0.0.1`), so the bug is CI-only and looks like "the server never started."
+
+**Fix:** pin **both** the server bind and the client URL to `127.0.0.1` explicitly — e.g. `http-server -a 127.0.0.1`, and a Playwright `webServer.url` / `baseURL` of `http://127.0.0.1:PORT`. Unambiguous IPv4 loopback, identical behaviour everywhere.
+
+### `npm install` drops the executable bit on package-bundled binaries
+
+Some packages ship executables inside their tree (a launcher script, a vendored JRE/native tool). Local extraction preserves the `+x` bit; the CI runner's `npm install` may not → `Error: spawn .../bin/tool EACCES` the moment something tries to run it. Like the IPv6 case, it passes locally and fails only in CI.
+
+**Fix:** `chmod -R +x node_modules/<pkg>/<bin-dirs>` after install, before the build invokes the binary.
+
+### JVM-based build tools need Nashorn → pin Java ≤ 11
+
+Tools that use the JVM's built-in JavaScript engine (`javax.script` engine name `"javascript"` = **Nashorn**) fail on **JDK 15+** (Nashorn was removed): `Unable to create javax script engine for javascript`. `ubuntu-latest` defaults to Java 17/21, so a `setup-java` step pinning a Nashorn-bearing JDK (`java-version: '11'`, sometimes `'8'`) is required. **Caveat:** even with Nashorn present, newer JDK builds can tighten module/reflective-access enough to break a sub-step (e.g. a SASS compiler) that the same major version runs fine locally — when matching the local JVM still fails in CI, the toolchain is genuinely environment-sensitive and a container with a pinned, known-good toolchain is the robust fix rather than chasing JVM versions.
+
 ## Security checklist
 
 - [ ] Dedicated deploy key (not a developer SSH key)
