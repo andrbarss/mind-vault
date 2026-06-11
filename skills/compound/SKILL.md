@@ -120,7 +120,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 2. **Check branch.** `git -C <mind-vault-path> branch --show-current`.
 3. **Branch policy (Q3 resolution):**
    - If the current branch is `main`: `git checkout -b compound/YYYY-MM-DD-<slug> origin/main`. Surface to the user which branch was created.
-   - If the current branch is any feature branch (e.g. `ce-inspired-evolution`): stay on it. No new branch. No branch spam.
+   - If the current branch is any feature branch (e.g. `ce-inspired-evolution`): **first check its PR state** — `gh pr view <branch> --json state`. If the PR is **MERGED or CLOSED, the branch is stale**: do NOT stay on it (a push lands on a dead PR and the commit silently never reaches main — field-observed: a compound commit orphaned this way, then lost when the branch was deleted; recovered only via reflog cherry-pick). Branch fresh from `origin/main` instead. Only an OPEN-PR (or no-PR-yet) feature branch is a valid stay-on-it target. No new branch otherwise. No branch spam.
    - Never modify `production` / `deployment` branches; refuse if on one.
 4. **Emit the file(s).** Write the target files per step 3.
 5. **Customer-data scrub gate — MANDATORY.** Mind-vault is a cross-project knowledge store and must contain **zero project/customer-identifying data**: no real tenant slugs, customer names, account / conversation / record ids, customer-supplied filenames, customer domain hostnames, internal URLs that could identify a deployment, or any other data that wouldn't be safe in a public repo (mind-vault may be private today and public tomorrow). Run a scrub pass on the staged diff before commit:
@@ -147,7 +147,7 @@ When the destination is inside `mind-vault/`, detect the repo's checkout path an
 
 6. **Commit.** One commit per invocation, using the standard commit-message format (type(scope): description). **Mind-vault self-mode CHANGELOG bump:** when the destination is mind-vault itself (self-promotion, not a project-local write), patch-bump `CHANGELOG.md` in this same commit — pure `/compound` PRs increment the patch component by 1 (`vX.Y.Z → vX.Y.(Z+1)`, not a bump *to* `0.0.1`) with their own `## v` section (no IDEA → `/wrap` never runs to do it). See [`references/mind-vault-promotion.md`](references/mind-vault-promotion.md) § Self-mode CHANGELOG bump.
 7. **Push.** `git push --set-upstream origin <branch>`.
-8. **Ensure open PR.** `gh pr view <branch>` to check existence. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current.
+8. **Ensure OPEN PR — state, not existence.** `gh pr view <branch> --json state,url`. If no PR exists, `gh pr create --title "..." --body "..."`. If one exists AND `state == OPEN`, append a short note to the PR body describing what this `/compound` invocation added — keeps the PR description current. If `state == MERGED/CLOSED`, the step-3 stale-branch check was missed — the just-pushed commit is sitting on a dead PR: cherry-pick it onto a fresh branch off `origin/main` and open a new PR (do not leave it stranded).
 9. **Report back.** Print the branch, commit SHA, and PR URL. Never suggest the human merge — that's theirs to do.
 
 ### 5. Cross-link and index
