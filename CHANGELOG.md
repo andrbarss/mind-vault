@@ -12,6 +12,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.10 — compound: watcher hygiene — kill the process TREE, then verify
+
+### Added
+
+- **`skills/work/references/WATCHER_HYGIENE.md`** — Hard Rule 7 (a `pkill -f <wrapper>` is not cleanup: wrapper children — java build daemons, re-exec'd vendor CLIs — survive name-pattern kills, hold workspace locks/ports, and poison every subsequent run with a misdirecting "timed out waiting" symptom; kill the wrapper AND known child patterns, then **verify** the port/lock is free) + Failure Mode E (worked example: surviving `sencha app watch` java daemon → every dev-server start wedged at "App watch is already running", surfacing as a Playwright webServer timeout while the true cold start was ~24s).
+
+### Fixed
+
+- **`skills/compound/SKILL.md`** — branch policy (step 3) + ensure-PR (step 8) now check PR **state**, not existence: staying on a feature branch whose PR already MERGED pushes the compound commit onto a dead PR where it silently never reaches main (field-observed in this very PR's first landing attempt; recovered via reflog cherry-pick). Stale-PR branches route to a fresh branch off `origin/main`; step 8 prescribes the cherry-pick recovery when caught late.
+
 ## v4.6.9 — compound: CI build-debugging gotchas (deployment/CICD.md)
 
 - **Added** a "CI debugging gotchas" section to `skills/deployment/references/CICD.md` (2026-06-10): four cross-project CI-build failure modes that pass locally and break only on the runner — (1) a build tool exiting 0 while emitting **nothing** → add a loud artifact-existence assertion (`test -f $OUT || exit 1`) so CI fails at the real step instead of a baffling downstream 404/timeout; (2) `localhost` → IPv6 `::1` on Ubuntu runners makes an IPv4-bound server unreachable → pin both the server bind and the client URL to `127.0.0.1`; (3) `npm install` dropping the executable bit on package-bundled binaries → `chmod -R +x` the bin dirs after install; (4) JVM build tools needing the Nashorn JS engine (removed in JDK 15+) → pin Java ≤ 11 via `setup-java`, with the caveat that a genuinely environment-sensitive toolchain may still need a pinned-toolchain container. Compounded from standing up a prebuilt-static-serve Playwright CI for an ExtJS / Sencha-Cmd SPA, where these four stacked through ~6 CI iterations before the build emitted.
