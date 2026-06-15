@@ -47,6 +47,7 @@ When invoked to review a diff, execute these 6 sequential passes.
 - Identify the exact scope of the changes via `git diff HEAD`.
 - Cross-reference the changes against project rules in `AGENTS.md`.
 - **Hardcoded local paths**: scan config files, shell aliases, or symlinks that hardcode developer machine paths (`/home/user/…`, `/Users/…`). Force relative paths.
+- **Path-literal casing (the case-insensitive dev-FS trap)**: does a string literal naming a tracked file or directory — an `include`/`require`/`import` path, a template name, a config key, a deploy/staging sentinel — match `git ls-files` **exactly, including case**? macOS and Windows dev filesystems are case-insensitive, so `Foo.php` and `foo.php` resolve identically there: a casing mismatch passes every local check, test, and review and surfaces only on the case-sensitive Linux CI/deploy target, where it fails hard. Grep each new path literal against `git ls-files`; never trust local resolution for path casing.
 - **Testing integrity**: if a feature or logic block was changed, does a test exist? Did they add one? Do the tests cover edge cases or just happy paths?
 
 ### PASS 2: Security & Isolation (Critical)
