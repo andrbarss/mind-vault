@@ -12,6 +12,12 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.11 — compound: path-literal casing vs the case-insensitive dev FS
+
+### Added
+
+- **`agents/AGENT_curator.md`** (PASS 1) — a string literal naming a tracked file/dir (an include/require/import path, a template name, a config key, a deploy sentinel) must match `git ls-files` **exactly, including case**. macOS/Windows dev filesystems are case-insensitive, so a casing mismatch (`Foo.php` vs `foo.php`) passes every local check, test, and review, and surfaces only on the case-sensitive Linux CI/deploy target. The reviewer greps new path literals against `git ls-files`. Surfaced when a deploy sentinel checking a capital-B filename cleared a 4-pass architect review and 4 review-bot cycles on a macOS host, then failed on the first run against the Linux server.
+
 ## v4.6.10 — compound: watcher hygiene — kill the process TREE, then verify
 
 ### Added
