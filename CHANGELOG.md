@@ -12,12 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.11 — compound: phantom verification — a probe that cannot fail proves nothing
+## v4.6.12 — compound: phantom verification — a probe that cannot fail proves nothing
 
 ### Added
 
 - **`skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`** — "phantom verification" sibling trap: a plan's probe/assertion proves nothing when its asserted signal is **constant in the environment the check runs in** (an empty config that no-ops the transform under test, a default every unmocked endpoint returns, a single-tenant fixture for a multi-tenant claim, a mock that echoes its input). The test before trusting a probe — *would the expected value differ between the pass and fail cases in the actual run environment?* — plus discharge: assert a signal the behaviour-under-test uniquely produces. Field case: a host-prefix assertion vacuous in CI (empty host) replaced with a CSRF-header assertion the hook uniquely emits.
 - **`agents/AGENT_architect.md`** PASS 3 (Boundary Contradiction Analysis) — phantom-verification bullet so the architect's plan-review pass flags green-theatre probes, sibling to the existing self-defeating-gate corollary.
+
+## v4.6.11 — compound: path-literal casing vs the case-insensitive dev FS
+
+### Added
+
+- **`agents/AGENT_curator.md`** (PASS 1) — a string literal naming a tracked file/dir (an include/require/import path, a template name, a config key, a deploy sentinel) must match `git ls-files` **exactly, including case**. macOS/Windows dev filesystems are case-insensitive, so a casing mismatch (`Foo.php` vs `foo.php`) passes every local check, test, and review, and surfaces only on the case-sensitive Linux CI/deploy target. The reviewer greps new path literals against `git ls-files`. Surfaced when a deploy sentinel checking a capital-B filename cleared a 4-pass architect review and 4 review-bot cycles on a macOS host, then failed on the first run against the Linux server.
 
 ## v4.6.10 — compound: watcher hygiene — kill the process TREE, then verify
 
