@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.13 — compound: a review bot can be confidently wrong about a framework API
+
+_2026-06-19 · compound from a project sprint where a review engine flagged a correct Modern-toolkit ExtJS class as "Classic, use <nonexistent>"._
+
+### Added
+
+- **`skills/review-loop/references/VERIFY_BOT_API_CLAIMS.md`** — false-positive triage for review-engine framework-API claims. Bots generate findings from a training distribution favouring the *mainstream* variant; on a non-default variant (different toolkit/flavour/fork/pinned version) a bot can emit a confident, specific, **false** claim ("class X is wrong, use Y"). Verify against the installed package (`node_modules/`/`vendor/`) before applying — the tell is **current-symbol-found + suggested-replacement-absent**, and a green real-build run is the clincher. Loop action: refute on-thread with evidence, don't apply, don't re-trigger unchanged (Tier-3 disagreement, human decides). Worked example: ExtJS Modern `Ext.grid.filters.Plugin` (real) flagged as Classic with a suggested `Ext.grid.plugin.GridFilters` that doesn't exist in `@sencha/ext-modern`. Pointer added to the `review-loop` SKILL References.
+
 ## v4.6.12 — compound: phantom verification — a probe that cannot fail proves nothing
 
 ### Added
