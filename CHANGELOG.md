@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.14 — compound: claude review engine — the `@claude` retrigger runs a workflow `find` doesn't track
+
+_2026-06-23 · compound from a project sprint where the review-loop's post-fix retriggers produced false/premature verdicts._
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — documented that `claude_retrigger.sh`'s explicit `@claude review` triggers the **`Claude Code`** workflow (`claude.yml` / `issue_comment` event), which is **separate from** the `Claude Code Review` workflow (`claude-code-review.yml` / `pull_request`) that `find_claude_comments.sh` reads Actions-job status from. So post-retrigger, `CLAUDE_CHECKRUN` / `STATUS` is read from the stale synchronize **skip-no-op** run (reports `completed` near-instantly) while the live verdict comes from the untracked `@claude` run — `find` then mixes a `completed` CHECKRUN with the in-progress run's unchecked checklist placeholder → a false `FINDINGS=true` / premature verdict (observed twice in one loop). Mitigation added: after any explicit retrigger, verify the `Claude Code` (`claude.yml`) run is `completed`, confirm the summary checklist is finalized (no `- [ ]` boxes), and decide clean **structurally** (zero active inline findings), never off the prose-matched `FINDINGS=true` flag. The `Dedup` note now flags its run-selection is `claude-code-review.yml`-only.
+
 ## v4.6.13 — compound: a review bot can be confidently wrong about a framework API
 
 _2026-06-19 · compound from a project sprint where a review engine flagged a correct Modern-toolkit ExtJS class as "Classic, use <nonexistent>"._
