@@ -56,7 +56,15 @@ The `claude-code-review.yml` action auto-runs on every push (`synchronize`), **b
 
 The retrigger script also covers the **zero-activity bootstrap**: no Actions run at all for the head SHA (fresh PR / just-installed workflow).
 
-**Dedup.** `find_claude_comments.sh` always selects the **latest Actions run by `run_started_at`** + the newest summary comment for the head SHA, so any auto-run / fallback overlap collapses to one authoritative signal.
+**⚠️ The explicit `@claude review` runs a DIFFERENT workflow than `find` tracks — so `CHECKRUN` goes STALE post-retrigger (confirmed 2026-06-23).** The push/synchronize auto-run is the **`Claude Code Review`** workflow (`claude-code-review.yml`, `pull_request` event) — the only one `find_claude_comments.sh` reads its Actions-job status from. But `claude_retrigger.sh`'s `@claude review` comment triggers the **separate `Claude Code`** workflow (`claude.yml`, `issue_comment` event), which `find` does **not** track. So after an explicit retrigger:
+
+- `CLAUDE_CHECKRUN` / `STATUS` is read from the *stale* `claude-code-review.yml` run — typically the just-pushed synchronize **skip-no-op** (it completes near-instantly), NOT the live `@claude` review run. It reports `STATUS=completed` while the real review is still running.
+- The verdict **comment**, meanwhile, is posted by the untracked `@claude` run. While that run is in-progress the comment is the **unchecked progress-checklist placeholder** (`- [ ] Read … - [ ] Synthesize findings`), which the summary-body classifier can match as `FINDINGS=true`.
+- Net: `find` emits a `completed` CHECKRUN **mixed** with an in-progress run's placeholder comment → a **false / premature verdict** (false `FINDINGS=true`, or a false CLEAN if the placeholder reads empty). Observed twice in a single loop.
+
+✅ **Mitigation — after ANY explicit retrigger, verify against the `@claude` run directly, not `find`'s CHECKRUN.** Don't trust `STATUS=completed` post-retrigger. Instead: (1) find the `Claude Code` (`claude.yml` / `issue_comment`) run for the head SHA and confirm **it** is `completed`; (2) re-read the summary-comment **body** and confirm the checklist is **finalized** (zero `- [ ]` boxes — all `- [x]` + an Issues/clean section), not the in-progress placeholder; (3) decide clean **structurally** — zero active *inline* findings on the head SHA — never off the prose-matched `FINDINGS=true` flag (the summary routinely discusses *prior-cycle resolved* issues by name, tripping the flag while the verdict is actually clean).
+
+**Dedup.** `find_claude_comments.sh` always selects the **latest Actions run by `run_started_at`** + the newest summary comment for the head SHA, so any auto-run / fallback overlap collapses to one authoritative signal — **but only within `claude-code-review.yml`**; the `@claude`-mention `claude.yml` run is invisible to this dedup (see the ⚠️ above), which is why the post-retrigger CHECKRUN can be stale.
 
 ### ⚠️ DRAFT PRs get NO posted review — the action runs but posts nothing
 
