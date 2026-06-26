@@ -200,8 +200,58 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
    awk '/^---$/{c++;next} c==1 && /#/{n++} c==2{exit} END{print n+0}' <new-file>   # vs a sibling; should match
    ```
 
+## Guard-Return-Asymmetry Sweep — Full Recipe
+
+A *guard family* is a set of sibling methods implementing the same "is there anything to do here?" no-op decision across several backends — engines, adapters, providers, drivers, channels. They share a shape: `if (!active || empty($remoteHandle)) return <X>;` then do the real work. The trap is that **one member returns a different `<X>` than the rest** on the same empty-input branch — `false`/throw where the siblings return `true` (no-op success), or vice versa — and a *caller that gates a local side effect on the return* turns that single-token divergence into a silent data bug.
+
+The canonical failure: a cancel/update/sync entry point gates its own local work on the guard's return —
+
+```text
+if (!$this->syncEnabled || $provider->guard($row)) {
+    …commit the LOCAL effect (status change, row write, broadcast)…
+} else {
+    return error;   // "couldn't sync externally"
+}
+```
+
+When `guard()` returns `true` on an empty remote handle (nothing registered externally → nothing to do → success), the local effect runs. When one provider's `guard()` returns `false` on that same empty handle, the gate inverts: the local effect is silently skipped and the row is stranded. Each method passes its own unit tests; each reads as locally sensible. The bug only exists *in the relationship* between the divergent sibling and the gating caller — which is why neither a single-file review nor a per-method test catches it.
+
+### Why it hides
+
+- **Per-file correctness.** Returning `false` when there's no remote handle is a defensible local choice ("I can't cancel what was never created"). It's only wrong relative to (a) its siblings and (b) the caller's gate semantics.
+- **The empty-input branch is rarely exercised.** The handle is usually populated; the empty case is a newer/edge state (e.g. a deferred-registration row whose remote id hasn't been backfilled yet). Tests seeded with a populated handle never hit it.
+- **Reviewers read the diff, not the family.** A diff that touches one provider doesn't surface the other six, so the asymmetry stays off-screen.
+
+### The grep
+
+When you touch or review any member of a guard family — or a caller that gates on one — line the whole family up and read the empty-input branch of each:
+
+```bash
+# 1. Find the family: every implementation of the guard method name
+grep -rn 'function <guardName>' <providers-dir>/
+
+# 2. Read each one's empty-input branch — what does it return when the
+#    handle/id/key is absent? Build the truth table by hand:
+#    provider        empty-handle return
+#    ------------------------------------
+#    A (first-probed) false   ← odd one out
+#    B               true
+#    C               true     ...
+# 3. Find the gate(s): callers that branch on the return
+grep -rn '<guardName>(' <callers-dir>/ | grep -E 'if *\(|\|\||&&|return'
+```
+
+The fix usually belongs at the **shared seam** the whole family routes through (a wrapper/dispatcher), not in each provider — one short-circuit (`if (!hasRemoteHandle($row)) return true;`) fixes every backend uniformly and can't drift. Per-member edits re-introduce the asymmetry risk on the next backend added. Pair with the *defensive-code sweep* (trigger 3): verify the field the short-circuit reads (`$row['remoteHandle']`) against the producer's write site.
+
+### When this fires
+
+- A bug fix that flips one guard's empty-input return — sweep the siblings so the fix is consistent, and decide wrapper-vs-per-member.
+- A review of a diff that adds a new backend to an existing guard family — the new member must match the family's empty-input contract.
+- Any "this works for engine X but not engine Y" report where the engines share a guard family — return-value asymmetry is the first hypothesis.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
 - [`RULE_rename-before-drop`](../../rules/RULE_rename-before-drop.md) — sweeps also catch leftover imports after a rename.
-- The review-loop skill should run pyflakes self-sweep (triggers 1–4) and the doc-consistency sweep (trigger 5) between Phase 2 and Phase 3 as a built-in step.
+- The review-loop skill should run pyflakes self-sweep (triggers 1–4), the doc-consistency sweep (trigger 5), and the guard-return-asymmetry sweep (trigger 6) between Phase 2 and Phase 3 as a built-in step.
+- Trigger 6 pairs with trigger 2 (contract-change) — both are about a method's return contract — and trigger 3 (defensive-code), which validates the field the recommended wrapper short-circuit reads.
