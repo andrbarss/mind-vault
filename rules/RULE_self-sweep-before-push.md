@@ -4,7 +4,7 @@ Before `git commit` on any cycle that touches Python or JS source — **or makes
 
 Grep recipes, full Why-This-Matters discussion, edge cases, the Pyflakes Pipe Pattern, and the **Pipeline Exit-Code Discipline** (gate on the upstream's exit, not a downstream `tee`/`grep`/`jq`) live in [`../docs/rules/RULE_self-sweep-before-push-rationale.md`](../docs/rules/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
 
-## The Five Sweep Triggers
+## The Six Sweep Triggers
 
 ### 1. Touched-files sweep (every commit)
 
@@ -41,9 +41,14 @@ When `make test` reports pre-existing failures unrelated to your change, fix the
 
 When a commit carries substantial doc/markdown changes (IDEA files, ideas index, plan docs, devlogs) — **even alongside code** — sweep the consistency class bots flag one-nit-per-cycle: (1) frontmatter `related`/`depends_on`/`supersedes` ↔ body prose symmetry, every id and every edge; (2) every id in an ordering/recap block has an index-table row; (3) count/range claims match the listed set; (4) domain-terminology precision (e.g. shared-schema vs per-tenant); (5) PR-description ↔ final-diff drift; (6) frontmatter formatting matches repo convention. Grep recipes + detail → rationale doc.
 
+### 6. Guard-return-asymmetry sweep (when a fix or review touches a guard whose return gates a caller's side effect)
+
+When you touch — or review — a method whose return value a *caller* uses to **gate a side effect** (`if (!sync || $x->guard($row)) { …commit local effect… }`), and that method is one of a **family of sibling guards** (the same "nothing to do here" no-op pattern across several engines / adapters / providers / backends), verify the whole family returns the **same value on the same empty/absent-input condition**. A lone divergent member — one that returns `false` (or throws) where its siblings return `true` (no-op success) on an empty key/id/handle — silently flips the gate and **discards the caller's local effect**. The bug is invisible per-file: each method reads as locally correct; only lining the siblings up side-by-side exposes the odd one out, and only a caller that gates on the return turns the asymmetry into a silent data bug. Grep the family + write the gate's truth table → rationale doc.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
 - Every commit that is **doc-heavy** (substantial IDEA / index / plan / devlog markdown), even when it also carries code — trigger 5.
+- Every fix or review that touches a guard method whose return value gates a caller's side effect, where that method belongs to a sibling family (engines / adapters / providers / backends) — trigger 6.
 - Mandatory before push if a review bot (code or doc) is wired up to the PR — saves an entire billed bot cycle per trivial finding.
 - Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger).

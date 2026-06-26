@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.15 — compound: guard-return-asymmetry sweep — one sibling guard returning the wrong token silently breaks a caller's gate
+
+_2026-06-26 · compound from a project sprint where a fix touched a family of external-sync guard methods and found one member returning `false` on an empty remote-handle where its siblings returned `true` — silently blocking a caller's local cancel._
+
+### Added
+
+- **`rules/RULE_self-sweep-before-push.md` (+ rationale)** — new **trigger 6, guard-return-asymmetry sweep**. When a fix or review touches a method whose return value a *caller* uses to **gate a side effect**, and that method is one of a **family of sibling guards** (engines / adapters / providers / backends sharing the same "nothing to do here" no-op shape), verify the family returns the **same value on the same empty/absent-input branch**. A lone divergent member — `false`/throw where siblings return `true` (no-op success) on an empty key/id/handle — inverts the gate and silently discards the caller's local effect. The bug lives only in the *relationship* between the divergent sibling and the gating caller, so neither single-file review nor per-method tests catch it; only lining the family up and writing the gate's truth table exposes it. Rationale doc adds the full recipe: why it hides (per-file correctness, rarely-exercised empty branch, diff-not-family review), the family-enumeration grep + truth-table method, and the **fix-at-the-shared-seam** guidance (one wrapper short-circuit fixes every backend and can't drift, vs per-member edits that re-introduce the risk on the next backend). Pairs with trigger 2 (contract-change) and trigger 3 (defensive-code).
+
 ## v4.6.14 — compound: claude review engine — the `@claude` retrigger runs a workflow `find` doesn't track
 
 _2026-06-23 · compound from a project sprint where the review-loop's post-fix retriggers produced false/premature verdicts._
