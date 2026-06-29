@@ -249,6 +249,45 @@ The fix usually belongs at the **shared seam** the whole family routes through (
 - A review of a diff that adds a new backend to an existing guard family — the new member must match the family's empty-input contract.
 - Any "this works for engine X but not engine Y" report where the engines share a guard family — return-value asymmetry is the first hypothesis.
 
+### Variant: state-finalization asymmetry (branch family + a shared write sink)
+
+The return-value asymmetry above has a sibling shape that the same "line up the family" sweep catches — but the divergence is a **missing state-write**, not a divergent return, and the consumer is a **shared persistence sink**, not a gating caller.
+
+The shape: a method has several `if/elseif` branches that each handle one mode (e.g. a `create()` with a synchronous-engine branch, a deferred-registration branch, and an alternate-engine branch), and they all converge on **one shared write line** downstream:
+
+```text
+if      ($syncEngine)   { … $row['id'] = $providerResult['localId'] ?? null; }   // finalizes
+elseif  ($deferred)     { $row['deferMarker'] = 1; /* ← forgets to finalize $row['id'] */ }
+elseif  ($altEngine)    { … $row['id'] = null; }                                  // finalizes
+…
+$data['id'] = $row['id'];   // the shared sink — reads whatever each branch left
+```
+
+Two of the three branches finalize `$row['id']` (the alt-engine one explicitly nulls it; the sync one takes it from the provider, legitimately nullable). The deferred branch **omits the finalization**, so the sink persists a *stale value carried in from earlier* in the method (a locally-searched id) — a **phantom** the mode was never supposed to keep. Downstream readers keyed on that field (an availability index that marks the phantom busy; a `WHERE field IS NULL` filter that now *excludes* the row from a deduction it should be in) silently corrupt — exactly the per-file-correct, only-wrong-in-the-relationship signature of the return-value case.
+
+**Why it hides (same family logic, two extra wrinkles):**
+
+- **The shared sink obscures the producer.** Every branch *looks* complete because the sink line is far below; you have to scroll all branches against the sink to see which one didn't set its share.
+- **An aspirational comment masks the omission.** The killer wrinkle: the divergent branch often carries a comment that *claims the contract it never implements* — e.g. `// insert the row with id/handle unset (the unassigned case)` sitting directly above code that never unsets them. This is **not** trigger 1's *stale* comment (a comment that was once true and drifted); it's a **forward-looking comment describing intended-but-unwritten behaviour**. A reviewer who trusts the comment reads "id unset ✓" and moves on. The comment is the most dangerous part — it actively recruits the reviewer into missing the bug.
+
+**The sweep:** when you touch one branch of such a family, line up *all* branches against the shared sink and build a finalization table — *for each branch, does it set every field the sink consumes?* The odd branch is the one with a blank cell. Then **read the code, not the comment**: if a comment claims a field is finalized, grep the branch for the actual assignment.
+
+```bash
+# 1. Find the shared sink (the line every branch feeds)
+grep -n "data\['id'\] = " <file>          # the convergence point
+# 2. For each branch above it, confirm the field is set; the divergent branch is the gap.
+# 3. If a branch's comment claims the contract, verify the assignment exists — aspirational
+#    comments lie. (comment says "X unset" ⇒ grep the branch for "X = null", not just trust it.)
+```
+
+The fix is usually one line in the divergent branch, mirroring a sibling (`$row['id'] = null;`) — and **refresh the lying comment** so it now matches (or, since it already described the intent, the code finally satisfies it). Pairs with trigger 3 (defensive-code): the downstream `WHERE field IS NULL` reader is a data-shape claim about what the producer writes — this variant is the producer side of that contract.
+
+### When the state-write variant fires
+
+- A bug fix in one branch of a multi-mode method (sync/deferred/alt-engine, create/update/import) where the branches share a downstream write — sweep the siblings for a missing finalization.
+- Any "availability / dedup / filter is wrong only for mode X" report where mode X is one branch of such a family — a phantom/stale field from a missed finalization is the first hypothesis.
+- A review of a diff whose comment says "with X unset / cleared / defaulted" — verify the code in that branch actually does it.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.

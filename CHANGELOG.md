@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.16 — compound: trigger 6 guard-family variant — a sibling branch that omits a state-write before a shared sink (and an aspirational comment that masks it)
+
+_2026-06-29 · compound from a project sprint where a deferred-mode branch of a multi-mode `create()` omitted a `$field = null;` finalization its sibling branches all performed before a shared persistence line — leaking a phantom id that corrupted two downstream availability readers. The divergent branch's own comment *claimed* the field was unset._
+
+### Changed
+
+- **`rules/RULE_self-sweep-before-push.md` (+ rationale)** — broadened **trigger 6** from return-value-only to also cover the **state-finalization variant**: sibling `if/elseif` branches that each finalize a field before **one shared write sink**, where a lone branch omits its finalization and leaks stale/phantom state into the sink (same per-file-correct, only-wrong-in-the-relationship signature as the return-value case, with a different consumer — a downstream reader/filter instead of a gating caller). Rule body gains a tight scope clause + the variant pointer; rationale doc adds a full worked sub-section: the shared-sink shape, the finalization-table sweep, and the **aspirational-comment** wrinkle — a *forward-looking* comment that describes intended-but-unimplemented behaviour ("insert the row with X unset") sitting above code that never does it. This is distinct from trigger 1's *stale* comment (once-true, drifted): an aspirational comment was **never** true and actively recruits a reviewer into missing the omission, so the sweep's rule is **read the code, not the comment** (grep the branch for the assignment the comment claims). Pairs with trigger 3 (the downstream `WHERE field IS NULL` reader is the data-shape claim this producer-side variant must satisfy).
+
 ## v4.6.15 — compound: guard-return-asymmetry sweep — one sibling guard returning the wrong token silently breaks a caller's gate
 
 _2026-06-26 · compound from a project sprint where a fix touched a family of external-sync guard methods and found one member returning `false` on an empty remote-handle where its siblings returned `true` — silently blocking a caller's local cancel._
