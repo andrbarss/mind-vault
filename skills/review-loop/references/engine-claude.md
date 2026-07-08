@@ -134,6 +134,25 @@ Settle age is computed in Python `datetime` (cross-platform), never `date -d`.
 **Robust-mode alternative (record-only).** #1087 is an *open* upstream bug — the workflow fixes *mitigate* (post-during-run) but don't *guarantee* (the model can still end on a `TodoWrite` before posting). For guaranteed reliability, Anthropic's **managed Code Review GitHub App** (`@claude review`, Team/Enterprise) writes findings to **check-run annotations** independent of the comment buffer — but it's paid (~$15–25/review), research-preview, and unavailable under Zero Data Retention. If a project hits persistent SILENT despite the fixes, the managed App is the escalation path (a different adapter — it *does* post a named check-run, unlike this action path). Tracked in IDEA-012.
 | Review-pending race | Actions job `completed` but no head-SHA summary/inline comment yet | Downgraded to RUNNING + `CLAUDE_REVIEW_PENDING` (§ Race-condition caveats). Keep waiting; never a premature CLEAN. |
 
+## § Incremental review + the `num_turns` diagnostic — a re-trigger on an already-reviewed diff SILENTs by DESIGN
+
+The SILENT handling above assumes a silent run means *something went wrong* (buffer drop / read-only / un-fixed workflow) and prescribes "re-trigger once + verify perms." There is a **second, benign** cause of a silent run that re-triggering does **not** fix: the `code-review` plugin reviews the **incremental diff since its own last review of the PR**, not the whole PR each trigger. So a trigger that presents *nothing new to review* completes `success`, posts nothing, and reads SILENT — correctly, because there was nothing to say.
+
+This bites in two shapes:
+
+- **Re-trigger on an unchanged head SHA** (a `close`+`reopen` to force a re-review, or any trigger without a new commit) → the plugin has already reviewed this SHA → **deduped no-op**.
+- **A tiny follow-up push** (a one-line fix) → it reviews only that one-line increment → a near-no-op — which is *not* a verdict on the rest of the PR.
+
+**Consequence — the FIRST full pass is the only full pass, and it can't be recovered on the same PR.** If that first full review was muzzled (read-only perms) or dropped (#1087), fixing the workflow afterwards does **not** get you a fresh full review of that PR: every subsequent trigger only sees increments. Re-triggering in a loop just re-SILENTs. To force a fresh full-diff review you must make the plugin treat the PR as new — a **`opened` event**, i.e. **open a fresh PR** from the same branch (a `reopen` is not enough; it dedupes). Absent that, fall back to an **independent reviewer** (a subagent over the net diff — see [`LARGE_PR_INDEPENDENT_REVIEW.md`](LARGE_PR_INDEPENDENT_REVIEW.md)) rather than trusting a deduped no-op.
+
+**The `num_turns` diagnostic distinguishes the two silent causes.** The claude-execution result JSON in the run log carries `num_turns` and `permission_denials_count`. Read them before classifying a silent run:
+
+- **`num_turns` in the tens** (a substantial diff genuinely takes ~30–60 turns) + `permission_denials_count: 0` + nothing posted → a real clean pass *or* a buffer drop (#1087) — the existing SILENT handling applies (verify perms are `write`; if so, suspect #1087).
+- **`num_turns` single-digit** (4–9) → the plugin did almost no work → **incremental/deduped no-op**, not a verdict on the PR. Re-triggering will not help; open a fresh PR or use an independent reviewer.
+- **`permission_denials_count` > 0** on a run that otherwise did real work → the token was **muzzled** (read-only perms blocked the posting tools) → false-CLEAN vector; fix perms (§ Identity), but note the muzzled pass is *spent* per the paragraph above.
+
+So: `num_turns` (full vs single-digit) + `permission_denials_count` (muzzled vs not), read from the run log, are what separate "genuinely nothing to flag," "muzzled," and "deduped no-op" — three states that all present identically as `success` + zero posted comments. Never calibrate a claude verdict from the check-run status + comment count alone when any of these three is in play.
+
 ## § Common patterns (codified Tier 1)
 
 The codified Tier-1 catalogue is shared across engines — see [`common-review-findings.md`](common-review-findings.md). No claude-specific deltas at present; claude's behavioural quirks live in § Review-state + clean detection and § Race-condition caveats above. (claude's comment-body finding markers are now calibrated — see § calibration update — findings live in the SUMMARY BODY; the severity stamp on a summary-body finding is a heuristic, re-triaged by the loop.)
