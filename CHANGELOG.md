@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.19 — compound: verify-before-lock — a correct runtime trace of a mid-flight producer yields the stale cross-repo contract
+
+_2026-07-16 · compound from a cross-repo admin-CRUD sprint where a fan-out architect agent traced a sibling repo's reader, correctly quoted its current call sites, and still concluded the wrong id-contract — because that repo was mid-correction and the trace captured the shape it was moving away from. The producing side's owner overrode it with one sentence._
+
+### Changed
+
+- **`skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`** — added a third sibling trap, **"correct trace of a mid-flight producer."** The two existing traps are *shallow-read* failures (a line read that missed the lifecycle; a probe that couldn't fail). This one is distinct: the trace can be thorough and completely line-correct yet still yield the wrong contract, because the producer/consumer it read is **being changed in parallel** — a faithful read of the current tip gives the pre-migration shape the producer is moving away from. Guards cross-repo / cross-module data-shape contracts specifically: discharge by confirming with the **owner of the producing side** (or against the target/corrected build, not the current tip) and recording "the other side is in-flight" as an explicit Open Question, since "trace the runtime, not the line" already passed and still lost.
+
 ## v4.6.18 — compound: claude review engine — the $0 / 1-turn signature = a dead OAuth token (a fourth silent cause)
 
 _2026-07-13 · compound from a project sprint where a claude review reported job-`success` while posting nothing across four runs — the `CLAUDE_CODE_OAUTH_TOKEN` was invalid, so the model turn failed at the first API call ($0, 1 turn, `is_error`) and the action swallowed the error. Distinct from the read-only-muzzle and incremental-no-op silent causes already documented._
