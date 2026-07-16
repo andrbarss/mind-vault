@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.19 — compound: claude review engine — `permission_denials` with WRITE perms = a missing `--allowedTools` allowlist (not a read-only muzzle)
+
+_2026-07-16 · compound from a project sprint where a claude review reviewed the full diff (34 turns, real cost) but posted nothing across three runs with `permission_denials_count: 17` — even though the workflow already had `pull-requests: write`. The bare `/install-github-app` template raised perms but never added the posting-tool allowlist, so the existing "permission_denials > 0 = read-only muzzle" diagnostic mis-pointed the fix at perms._
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — split the `permission_denials_count > 0` diagnostic (§ `num_turns`) into its **two** distinct causes. It previously read "> 0 = the token was muzzled (read-only perms)"; but denials also fire when perms are **already `write`** and the workflow lacks `claude_args: --allowedTools "Bash(gh:*),mcp__github_inline_comment__create_inline_comment"` — the action's default tool policy blocks `gh pr comment` + the inline-comment MCP tool unless explicitly allowed. Write perms are necessary but not sufficient; the bare `/install-github-app` template (or a partial retrofit that raised perms but not tooling) hits this, and the fix is shipping the FULL canonical `assets/claude-code-review.yml` (allowlist + `classify_inline_comments:false` + post-during-run prompt), not another perms edit. Field signature: `permission_denials_count: 17` on a `write`-perm run that reviewed the full diff but posted nothing.
+
 ## v4.6.18 — compound: claude review engine — the $0 / 1-turn signature = a dead OAuth token (a fourth silent cause)
 
 _2026-07-13 · compound from a project sprint where a claude review reported job-`success` while posting nothing across four runs — the `CLAUDE_CODE_OAUTH_TOKEN` was invalid, so the model turn failed at the first API call ($0, 1 turn, `is_error`) and the action swallowed the error. Distinct from the read-only-muzzle and incremental-no-op silent causes already documented._
