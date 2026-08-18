@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.23 — compound: claude-engine pre-flight perms gate + staged-set sweep trigger
+
+_2026-08-18 · compound from a downstream cycle where the claude engine burned two billed silent runs on a repo whose default-branch workflow was still read-only, and a wrap's README audit marker was silently lost to a case-insensitive `git add` casing mismatch._
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — new § Pre-flight: default-branch perms gate: before any trigger/un-draft/push, read the **default branch's** `claude-code-review.yml` `permissions:`; `pull-requests: read` there means every run is structurally muzzled — hand back immediately with the onboarding instruction instead of trigger→poll→SILENT→diagnose. Includes the orphaned-onboarding-branch trap (prepared fix branch whose worktree evaporated, PR never opened) and two hand-off caveats (classifier-blocked `gh pr create` on workflow files; fix only takes effect from the default branch). Cross-pointer added to the § Failure modes SILENT row.
+- **`rules/RULE_self-sweep-before-push.md`** — new trigger 7, staged-set verification: check the commit's `N files changed` stat against staging intent; the highest-frequency silent-miss is case-insensitive-filesystem casing drift (`git add README.md` staging nothing when the repo tracks `readme.md`). Resolve tracked casing via `git ls-files | grep -i` before adding. Trigger count updated Six → Seven.
+
 ## v4.6.22 — compound: claude engine clean-verdict calibration (first full-diff clean posts a summary)
 
 _2026-08-18 · compound from a downstream sprint where the claude engine's first full-diff review of a ready-for-review PR posted a positive clean summary ("No issues found…") — the engine's first field-observed posted clean verdict._

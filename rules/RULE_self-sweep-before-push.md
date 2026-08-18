@@ -4,7 +4,7 @@ Before `git commit` on any cycle that touches Python or JS source — **or makes
 
 Grep recipes, full Why-This-Matters discussion, edge cases, the Pyflakes Pipe Pattern, and the **Pipeline Exit-Code Discipline** (gate on the upstream's exit, not a downstream `tee`/`grep`/`jq`) live in [`../docs/rules/RULE_self-sweep-before-push-rationale.md`](../docs/rules/RULE_self-sweep-before-push-rationale.md). Load on first encounter or when adjudicating an edge case.
 
-## The Six Sweep Triggers
+## The Seven Sweep Triggers
 
 ### 1. Touched-files sweep (every commit)
 
@@ -45,10 +45,15 @@ When a commit carries substantial doc/markdown changes (IDEA files, ideas index,
 
 When you touch — or review — a method whose return value (**or a state-write that a shared downstream sink later consumes**) a *caller* or *sink* uses to **gate a side effect** (`if (!sync || $x->guard($row)) { …commit local effect… }`), and that method (**or branch**) is one of a **family of sibling guards / sibling branches converging on a shared write** (the same "nothing to do here" no-op pattern across several engines / adapters / providers / backends — or several `if/elseif` branches that each finalize a field before one shared persistence line), verify the whole family returns / writes the **same value on the same empty/absent-input condition**. A lone divergent member — one that returns `false` (or throws) where its siblings return `true` (no-op success) on an empty key/id/handle, **or one that omits a state-finalization (`$x = null;`) its siblings all perform before the shared sink** — silently flips the gate (or leaks stale/phantom state into the sink) and **discards or corrupts the caller's effect**. The bug is invisible per-file: each member reads as locally correct; only lining the siblings up side-by-side exposes the odd one out. **Don't trust an in-branch comment that *claims* the contract** — an *aspirational* comment ("insert the row with X unset") describing intended-but-unimplemented behaviour masks the omission from a reviewer who reads the comment instead of the code (distinct from trigger 1's *stale* comment — this one was never true). Grep the family + write the truth table; the state-write variant + aspirational-comment masking are worked in the rationale doc.
 
+### 7. Staged-set verification (every commit — zero-cost)
+
+After `git commit`, read the commit's own stat line (`N files changed` — already printed in the output) and check it against the file count you intended to stage. A mismatch means a path silently didn't stage; the highest-frequency cause is **case-insensitive-filesystem casing drift** (macOS/Windows): the repo tracks `readme.md` but the edit/`git add` referenced `README.md` — on a case-insensitive checkout both names hit the same disk file, yet `git add` with the untracked casing can stage **nothing, with no error**, and the edit survives as an uncommitted working-tree change that later surfaces as mystery dirt on another branch (field-observed: a wrap's audit-marker edit lost this way — commit said 4 files, intent was 5; caught only post-merge). When touching any file whose casing you didn't type from `git ls-files` output, resolve the tracked name first: `git ls-files | grep -i <name>`. The check costs one glance at output already on screen; the miss costs a lost edit plus a confused later session.
+
 ## When This Applies
 
 - Every commit on a feature branch that touches `.py` or `.js` source.
 - Every commit that is **doc-heavy** (substantial IDEA / index / plan / devlog markdown), even when it also carries code — trigger 5.
 - Every fix or review that touches a guard method whose return value gates a caller's side effect — or a branch that finalizes a field before a shared persistence sink — where that method/branch belongs to a sibling family (engines / adapters / providers / backends, or sibling `if/elseif` branches) — trigger 6.
+- Every commit, for the staged-set verification — trigger 7 (one glance at the already-printed stat line; case-sensitivity drift bites doc and code commits alike).
 - Mandatory before push if a review bot (code or doc) is wired up to the PR — saves an entire billed bot cycle per trivial finding.
 - Especially valuable inside `review-loop` skills: between Phase 2 (apply edits) and Phase 3 (commit + push + retrigger).
