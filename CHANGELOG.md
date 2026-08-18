@@ -12,6 +12,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.21 — compound: muzzled-run diagnostics precedence + migration statement-ordering reference
+
+_2026-08-18 · compound from a project sprint where a muzzled claude review landed at 9 turns / 12 denials (breaking the "single-digit turns = deduped no-op" heuristic), the mention-path retrigger would have been a billed muzzled no-op, and a second reviewer pass caught a migration down-file wired as a mirror of its (correctly ordered) up-file._
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — two diagnostics refinements: (1) in § `num_turns`, the **denials check now outranks the turn-count heuristic** — a muzzle truncates the session early, so a muzzled run can land in single-digit turns too (field signature: 9 turns, 12 denials, real cost, nothing posted); only `permission_denials_count: 0` lets single-digit read as a deduped no-op. (2) The SILENT failure-mode row gains a **retrigger-futility check**: the explicit retrigger runs the `claude.yml` mention workflow, so read *its* `permissions:` first — read-only means the retrigger is a billed muzzled no-op; skip it, substitute an independent reviewer subagent over the PR's net diff for the verdict, and ship the canonical-workflow fix as its own default-branch PR in the same session.
+
+### Added
+
+- **`skills/deployment/references/MIGRATION_STATEMENT_ORDERING.md`** — SQL migration statement ordering on non-transactional runners (MySQL DDL auto-commit, streamed `multi_query`, ledger-on-full-file-success): all idempotent statements before the single unguardable one, with the failure/retry table; **the rule applies to the down-file independently — usually NOT a mirror of the up-file** (rollback has the same failure topology; the mirror intuition survives the first lesson, hence the reference). Pointer added to the deployment SKILL references list.
+
+## v4.6.20 — compound: claude review engine — `permission_denials` with WRITE perms = a missing `--allowedTools` allowlist (not a read-only muzzle)
+
+_2026-07-16 · compound from a project sprint where a claude review reviewed the full diff (34 turns, real cost) but posted nothing across three runs with `permission_denials_count: 17` — even though the workflow already had `pull-requests: write`. The bare `/install-github-app` template raised perms but never added the posting-tool allowlist, so the existing "permission_denials > 0 = read-only muzzle" diagnostic mis-pointed the fix at perms. (Renumbered from v4.6.19 on merge — main's v4.6.19 landed first from a sibling compound.)_
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — split the `permission_denials_count > 0` diagnostic (§ `num_turns`) into its **two** distinct causes. It previously read "> 0 = the token was muzzled (read-only perms)"; but denials also fire when perms are **already `write`** and the workflow lacks `claude_args: --allowedTools "Bash(gh:*),mcp__github_inline_comment__create_inline_comment"` — the action's default tool policy blocks `gh pr comment` + the inline-comment MCP tool unless explicitly allowed. Write perms are necessary but not sufficient; the bare `/install-github-app` template (or a partial retrofit that raised perms but not tooling) hits this, and the fix is shipping the FULL canonical `assets/claude-code-review.yml` (allowlist + `classify_inline_comments:false` + post-during-run prompt), not another perms edit. Field signature: `permission_denials_count: 17` on a `write`-perm run that reviewed the full diff but posted nothing.
+
 ## v4.6.19 — compound: verify-before-lock — a correct runtime trace of a mid-flight producer yields the stale cross-repo contract
 
 _2026-07-16 · compound from a cross-repo admin-CRUD sprint where a fan-out architect agent traced a sibling repo's reader, correctly quoted its current call sites, and still concluded the wrong id-contract — because that repo was mid-correction and the trace captured the shape it was moving away from. The producing side's owner overrode it with one sentence._
