@@ -174,9 +174,9 @@ claude exposes its review-state as `CLAUDE_CHECKRUN ... STATUS=<status>` **synth
 Two runs on the SAME commit, non-draft, settled the open questions:
 
 - **Findings-bearing run → POSTS a full review.** ~9-minute run; posted inline findings + a top-level **"Code review" summary** ("N issues found … No bugs detected") under **`claude[bot]`**. So claude **does** post findings reliably on a ready-for-review PR — the long-pending findings-path question is answered YES.
-- **Clean run → SILENT (still).** After the findings were fixed, the re-review on the clean tree finished in **~1 minute** and posted **nothing** — no inline, no summary — well past settle → `CLAUDE_REVIEW_SILENT`. **The LAYER-2 forced-summary prompt does NOT fire on a clean run**: the action short-circuits ("nothing to flag") and exits without posting the "no issues found" summary it was instructed to post. So the mitigation works for *findings* but not for *clean*.
+- **Clean run → SILENT (still).** After the findings were fixed, the re-review on the clean tree finished in **~1 minute** and posted **nothing** — no inline, no summary — well past settle → `CLAUDE_REVIEW_SILENT`. **The LAYER-2 forced-summary prompt does NOT fire on a clean run**: the action short-circuits ("nothing to flag") and exits without posting the "no issues found" summary it was instructed to post. So the mitigation works for *findings* but not for *clean*. **(Scope-bounded 2026-08-18: this silent clean was a clean *re-review* — an incremental pass with ~nothing new to review. A clean FIRST full-diff run DOES post the forced summary — see § calibration update 2026-08-18 below.)**
 
-**Net engine capability (action + `code-review` plugin):** posts **findings** reliably; never posts a **positive clean verdict** — a clean PR reads SILENT (correctly held non-clean by the detection, so SAFE, but never a green "claude says clean"). Consequence for the loop: claude contributes findings; it cannot be the source of a CLEAN signal. **For a reliable clean verdict, the managed Claude Code Review App** (named check-run, verdict independent of the comment buffer) **remains the robust-mode answer** — IDEA-012 stays open on this.
+**Net engine capability (action + `code-review` plugin):** posts **findings** reliably; a **positive clean verdict** posts on a clean **first full-diff review** (confirmed 2026-08-18, § below) but NOT on a clean incremental re-review — the post-fix-cycle clean, the case the loop most wants confirmed, still reads SILENT. Consequence for the loop: claude contributes findings, and can green-light a PR that is clean on first pass; it still cannot confirm clean *after* a fix cycle. **For a reliable clean verdict on re-reviews, the managed Claude Code Review App** (named check-run, verdict independent of the comment buffer) **remains the robust-mode answer** — IDEA-012 stays open on this, narrowed to the re-review case.
 
 ## § calibration update — findings live in the SUMMARY BODY (downstream, 2026-06-03)
 
@@ -188,7 +188,25 @@ The first *high-volume* findings-bearing run (13 `claude[bot]` summary comments 
 - **No-op skip bodies must be filtered — ANCHORED.** claude posts `## Code review\n\nSkipped — …draft status` and `## Code review\n\nSkipped: …already reviewed this PR` issue comments that match the signature but are **not verdicts**. Anchored to the heading-then-`Skipped` shape (`^##\s+code[ -]?review\s*\n+\s*skipped`, `re.MULTILINE`) — **not** a bare search-anywhere — so a real findings body whose *prose* merely says "already reviewed in PR #N but regressed" is not false-filtered (PR #169 self-dogfood caught the old unanchored `already (posted|reviewed)` arm dropping exactly that — claude's finding body literally contained "already reviewed").
 - **Surface is CATCH-EVERYTHING, marker-INDEPENDENT (PR #169 self-dogfood).** Review format is **non-deterministic** — count-line ("One issue found.") + ``### `file` `` headers in one run, `#### 1.` numbered + `### Bugs` sections in another, future runs may differ again. So the adapter does **not** require a matched marker to surface findings: a posted, non-no-op summary is **either provably-clean OR surfaced-as-findings** (`findings = posted ∧ ¬clean`). Markers now only gate the *clean* determination + severity. An unseen future finding shape therefore can never read SILENT. (The dogfood: claude posted "One issue found." under ``### `file` `` while reviewing this adapter; the marker-only logic read SILENT and dropped it — the inversion + anchored no-op are the fix.)
 
-This does **not** change the net capability above: claude still posts findings reliably and never a positive clean verdict (a fully-clean tree still reads SILENT — the forced-summary prompt doesn't fire on a short-circuit clean run). The C1 fix only stops claude's *findings* — when they exist and live in the body — from being silently dropped.
+This does **not** change the net capability above: claude still posts findings reliably; the clean-verdict capability is per § calibration 2026-08-18 (first full-diff clean posts a summary; incremental clean re-reviews still read SILENT). The C1 fix only stops claude's *findings* — when they exist and live in the body — from being silently dropped.
+
+## § calibration update — a clean FIRST full-diff run DOES post the forced clean summary (downstream, 2026-08-18)
+
+First field observation of a **posted positive clean verdict** from this engine. On a downstream repo running the full canonical workflow (the [`../assets/claude-code-review.yml`](../assets/claude-code-review.yml) shape: posting-tool allowlist + `classify_inline_comments:false` + post-during-run forced-summary prompt), the **first review of a small ready-for-review PR** — auto-fired by the un-draft (`ready_for_review`), full-diff, ~10-minute run — completed with a `claude[bot]` summary:
+
+```text
+## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+```
+
+plus **zero inline findings**. `find_claude_comments.sh` classified it whole-review clean (positive phrase, no finding markers) and the orchestrator reached a structural CLEAN with zero fix cycles.
+
+What this changes, precisely:
+
+- **The forced-summary prompt DOES fire on a clean run — when the run is a first full-diff pass.** The 2026-06-03 "clean run → SILENT" observation is not contradicted but **scope-bounded**: that run was a clean *re-review after a fix cycle*, i.e. an incremental pass with ~nothing new to review (§ Incremental review) — the short-circuit path exits before the summary posts. A first pass over a real diff that finds nothing goes through the full review path and posts the instructed summary.
+- **Loop consequence:** the recommended sprint cadence (draft through `/work` + wrap, un-draft once for review) can now terminate CLEAN on cycle 0 with a genuine posted verdict — no independent-reviewer substitution needed for the "PR was clean on arrival" case.
+- **Still true:** a SILENT run is never read as clean (all four silent causes in § Failure modes remain live); clean incremental re-reviews still read SILENT, so the post-fix-cycle clean confirmation — the case that matters after any findings cycle — is still unavailable from this engine (IDEA-012's managed-App escalation now targets that case specifically).
 
 ## § residual open questions (post-downstream calibration)
 

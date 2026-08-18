@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.22 — compound: claude engine clean-verdict calibration (first full-diff clean posts a summary)
+
+_2026-08-18 · compound from a downstream sprint where the claude engine's first full-diff review of a ready-for-review PR posted a positive clean summary ("No issues found…") — the engine's first field-observed posted clean verdict._
+
+### Changed
+
+- **`skills/review-loop/references/engine-claude.md`** — new § calibration update (2026-08-18): a clean **first full-diff** run under the canonical workflow DOES post the forced clean summary; the 2026-06-03 "clean run → SILENT" observation is scope-bounded to clean *incremental re-reviews* (the § Incremental-review short-circuit path), not contradicted. Net-capability paragraph revised: claude can green-light a clean-on-arrival PR, but post-fix-cycle clean confirmation still reads SILENT — IDEA-012's managed-App escalation narrowed to the re-review case.
+
 ## v4.6.21 — compound: muzzled-run diagnostics precedence + migration statement-ordering reference
 
 _2026-08-18 · compound from a project sprint where a muzzled claude review landed at 9 turns / 12 denials (breaking the "single-digit turns = deduped no-op" heuristic), the mention-path retrigger would have been a billed muzzled no-op, and a second reviewer pass caught a migration down-file wired as a mirror of its (correctly ordered) up-file._
