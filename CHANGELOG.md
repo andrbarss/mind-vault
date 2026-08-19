@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.24 — compound: docs-only plans get a claim-vs-code architect review
+
+_2026-08-19 · compound from a downstream cycle where a documentation-baseline plan's architect review — tempting to skip as "no architecture to review" — caught four major claim-vs-code errors before they shipped as confidently wrong docs._
+
+### Changed
+
+- **`skills/plan/references/architect-handoff.md`** — new § Docs-only plans still get the review: don't skip the reviewer pass for documentation-only plans; recalibrate the four passes (abstraction → doc-structure drift with source-stamped tables, coupling → claim-vs-code spot-checks against referenced source files, boundary → what wrong claims commit future work to, scaling → N/A). Includes the handoff-prompt addition requesting the calibration explicitly, and the field example (runtime-shipping CSS framework believed dev-only, documented invariant already violated in code, load-bearing route ordering, scope-less soft delete with silent-leakage failure mode). Wrong docs are worse than no docs — downstream agents trust and propagate them.
+
 ## v4.6.23 — compound: claude-engine pre-flight perms gate + staged-set sweep trigger
 
 _2026-08-18 · compound from a downstream cycle where the claude engine burned two billed silent runs on a repo whose default-branch workflow was still read-only, and a wrap's README audit marker was silently lost to a case-insensitive `git add` casing mismatch._
