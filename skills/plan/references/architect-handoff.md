@@ -58,6 +58,19 @@ From `agents/AGENT_architect.md`:
 
 These are structural, not stylistic. If the plan passes architect but has, say, N+1 query risks, that's for `/<engine>-loop` in the review stage, not here.
 
+## Docs-only plans still get the review — recalibrated to claim-vs-code verification
+
+A documentation-only plan (CLAUDE.md authoring, reference-doc baseline, architecture write-up) looks like it has no architecture to review, so the temptation is to skip the reviewer pass for it. Don't. Recalibrate the four passes instead — and say so explicitly in the handoff prompt:
+
+1. **Abstraction sweep → doc-structure drift check.** Where will the docs duplicate a machine-readable source of truth (column lists from migrations, route tables, command inventories)? Require each duplicated table to be stamped with its source ("as of `<migration>`", "regenerate via `<command>`") so staleness is detectable.
+2. **Coupling probe → claim-vs-code verification.** The architect spot-checks every factual claim the plan makes about the codebase against the actual source files. This is the highest-yield pass: plans summarize a repo scan, and summaries are where wrong beliefs crystallize.
+3. **Boundary analysis → what the docs commit future work to.** A wrong claim in a reference doc quietly locks future agents into a wrong architectural belief (the field-observed class: "X is only a dev dependency" when X actually ships at runtime — making a future "remove X" look trivially safe when it isn't).
+4. **Scaling pre-check** — usually N/A; skip without ceremony.
+
+Field calibration for why this pays: a docs-baseline plan for a small MVC app came back 🟢 sound but with four major claim-vs-code corrections — a CSS framework believed dev-only that actually shipped on every page; a documented localization invariant already violated by hardcoded strings in the code; a load-bearing route-declaration ordering the how-to guide had to name explicitly; a hand-rolled soft delete with no global query scope whose failure mode (silent data leakage on any forgotten filter) the docs originally wouldn't have mentioned. Every one would have shipped as confidently wrong documentation. Wrong docs are worse than no docs — downstream agents trust and propagate them without re-verifying.
+
+Handoff-prompt addition for docs-only plans: "This is a documentation-only plan — calibrate the passes to claim-vs-code verification: spot-check the plan's factual claims against the referenced source files, check the planned doc structure for duplicated facts that will drift, and flag any claim that would quietly commit future work to a wrong architectural belief."
+
 ## What NOT to pass to architect
 
 - **The IDEA file alone.** Architect reviews plans, not ideas. If the plan hasn't been drafted, there's nothing for architect to do.
