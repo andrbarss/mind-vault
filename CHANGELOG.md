@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.26 — compound: forward-sync the default branch before un-draft and before wrap
+
+_2026-08-22 · compound from a downstream sprint (Laravel, two IDEAs on parallel branches) where the default branch advanced three times during one PR's life: the review-workflow perms fix landed under a feature branch that still carried the read-only copy, and a sibling module + its compound docs produced `CONFLICTING` on the open PR twice — after review had cleared._
+
+### Added
+
+- **`skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md`** — Step 1 addendum: fetch + `git merge origin/<default>` into the feature branch *before* editing the files every IDEA edits (ideas index, devlog, `CLAUDE.md`, architecture / how-to docs); keep-both resolution in ship order with a parse/lint check; re-query `gh pr view --json mergeable` after the final push. Second-order catch: grep modules the merge brings in for the convention this IDEA introduced — a sibling authored in parallel is structurally unaware of it — and record the gap in index / devlog / `CLAUDE.md` rather than patching code in a docs pass.
+
+### Changed
+
+- **`skills/wrap/SKILL.md`** — Step 1 gains the forward-sync stub + pointer; References list entry.
+- **`skills/review-loop/references/engine-claude.md`** — § Pre-flight perms gate: the *feature branch's* workflow copy can lag the default branch (validated byte-for-byte by the action); diff the two workflow files against `origin/<default>` and forward-merge before `gh pr ready`, so the PR's one full-diff review isn't spent on a stale copy.
+
 ## v4.6.25 — compound: driver-divergence typed-column trap + claude stale-summary-on-new-SHA
 
 _2026-08-22 · compound from a downstream CRUD-module cycle (Laravel, sqlite test suite vs PostgreSQL dev) where the architect caught a filter that would 500 only on the real driver, and the claude review engine reported the previous SHA's clean summary as a verdict for a freshly pushed one._
