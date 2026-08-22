@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.25 — compound: driver-divergence typed-column trap + claude stale-summary-on-new-SHA
+
+_2026-08-22 · compound from a downstream CRUD-module cycle (Laravel, sqlite test suite vs PostgreSQL dev) where the architect caught a filter that would 500 only on the real driver, and the claude review engine reported the previous SHA's clean summary as a verdict for a freshly pushed one._
+
+### Changed
+
+- **`agents/AGENT_architect.md`** — PASS 3 gains the *test-driver ≠ prod-driver typed-column trap*: request input compared against integer/date/enum columns passes on a lenient test driver and raises on the strict production one; demand coercion before the query builder, hostile-input tests per typed filter, and a real-driver probe in the plan's Verification. Sibling of phantom verification.
+- **`skills/review-loop/references/engine-claude.md`** — new § Stale summary on a new SHA: after a fix push the synchronize auto-run skip-no-ops and `find_claude_comments.sh` re-stamps the *previous* SHA's clean summary with the new head `COMMIT=` — every structural signal reads CLEAN with zero review of the new code. Time-axis guard added to § Staleness rule (summary `AT=` must post-date the head push); explicit retrigger + `claude.yml`-run verification as the recovery; finder follow-up (`CLAUDE_STALE_SUMMARY=true`) noted.
+
 ## v4.6.24 — compound: docs-only plans get a claim-vs-code architect review
 
 _2026-08-19 · compound from a downstream cycle where a documentation-baseline plan's architect review — tempting to skip as "no architecture to review" — caught four major claim-vs-code errors before they shipped as confidently wrong docs._
