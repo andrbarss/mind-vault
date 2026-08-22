@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.27 — compound: rename-before-drop bridge state must be writable
+
+_2026-08-22 · compound from a downstream column-rename cycle (Laravel, `name` → `first_name`/`last_name`) where the rename-before-drop sequence stalled at its own gate: the legacy column kept its `NOT NULL` into the bridge state, so the moment factories and seeders switched to the new columns every insert failed, and the full-test-pass gate went red for a reason the rule hadn't named._
+
+### Changed
+
+- **`rules/RULE_rename-before-drop.md`** — Pattern step 2 and a new How-To-Apply step 2: relax the legacy column's `NOT NULL` (and any `UNIQUE` / `CHECK` the new columns now own) in the same migration that adds the new symbol, restoring it in that migration's `down()`; otherwise the bridge state is unwritable and the sequence collapses back into a big-bang rename + drop.
+- **`docs/rules/RULE_rename-before-drop-rationale.md`** — new section with the field case, the phantom-writer anti-fix, and the DB-level bridge-state test (`RefreshDatabase`-style suites start fully migrated and can't see it); anti-pattern bullet added.
+
 ## v4.6.26 — compound: forward-sync the default branch before un-draft and before wrap
 
 _2026-08-22 · compound from a downstream sprint (Laravel, two IDEAs on parallel branches) where the default branch advanced three times during one PR's life: the review-workflow perms fix landed under a feature branch that still carried the read-only copy, and a sibling module + its compound docs produced `CONFLICTING` on the open PR twice — after review had cleared._

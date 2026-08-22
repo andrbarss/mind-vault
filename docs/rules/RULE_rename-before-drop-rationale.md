@@ -25,7 +25,28 @@ in the (Python-general) module-split reference:
 [`skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md`](../../skills/django/references/MODULE_SPLIT_AST_EXTRACTION.md)
 § *Sequencing — the forced-atomic member*.
 
+## The bridge state must be writable — relax the legacy column's NOT NULL in step 2
+
+The pattern assumes that between "add new" (step 2) and "drop old" (step N+2) the codebase can
+run with writers populating only the new symbol. For a column rename that is only true if the
+old column accepts rows that don't set it. Field case: `users.name NOT NULL` → `first_name` /
+`last_name`. Migration 1 added the new columns and copied the data; the model, factory and
+seeder switched to the new pair (step 3); the full test pass then failed on every factory
+insert with `NOT NULL constraint failed: users.name` — the old column was still mandatory and
+nobody wrote it any more. The only ways out were (a) keep writing a derived `name` until the
+drop (a phantom writer that the drop commit must also remove — the big-bang coupling the rule
+exists to prevent) or (b) the fix: amend migration 1 to `->nullable()->change()` the legacy
+column, with `down()` refilling it and restoring `NOT NULL`. Do (b) up front, in the
+add-columns migration: the bridge state is then genuinely writable, every intermediate commit
+is green, and the drop migration stays a pure `dropColumn`. Same logic for a `UNIQUE` that the
+new columns now carry, or a `CHECK` the old value can no longer satisfy. A DB-level migration
+test that rolls back to the legacy schema, inserts old-shape rows, migrates forward, and
+inserts a *new-shape* row (old column omitted) pins the bridge state — the model-level suite
+can't, because `RefreshDatabase` starts fully migrated.
+
 ## Anti-Patterns
+
+- ❌ Leave the legacy column `NOT NULL` through the bridge — step-3 writers fail, and the "fix" drifts toward bundling the drop.
 
 - ❌ Big-bang rename + drop in one commit — bisectability dies, regressions become undifferentiated noise.
 - ❌ Drop first, then rename references — every intermediate commit is broken; tests can't run.
