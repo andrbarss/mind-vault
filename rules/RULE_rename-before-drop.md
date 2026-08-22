@@ -24,7 +24,8 @@ Does **not** apply to: in-file local variable renames, pure logic-internal refac
 
 ```text
 1.   Add new schema / new symbol     ← old still present, no new callers yet
-2.   Data-migrate / populate new     ← bridge state: old and new coexist
+2.   Data-migrate / populate new     ← bridge state: old and new coexist;
+                                       relax the OLD column's NOT NULL here
 3-N. Rename references everywhere    ← every read path → new symbol
 N+1. Full test pass                  ← green-light gate; missed refs surface here
 N+2. Drop old symbol                 ← destructive moment, isolated commit
@@ -37,7 +38,14 @@ Django specifically: the drop lives in a separate `0NNN_drop_legacy_*.py` migrat
 ## How To Apply
 
 1. **Plan the commit sequence explicitly** in the plan doc's Execution Sequence section. Push back at architect review if the plan bundles rename + drop.
-2. **Surface-coverage matrix audit.** Before rename commits, grep for `*_FIELDS`, `*_COLUMNS`, `_COPY_*`, `_TEXT_*` — any module-level list enumerating the old symbol.
-3. **In-flight reorder is allowed.** The plan's narrative ordering is a presentation choice; reorder commits if /work reveals a better sequence. The migration's *internal* operation order stays canonical.
-4. **One commit per logical step.** Don't pack "rename module A + drop legacy from module B" into one commit.
-5. **Post-drop green is the merge gate.** If post-drop tests fail, fix-and-retest before merging.
+2. **Relax the legacy column's constraints in step 2, not step N+2.** A `NOT NULL` (or a
+   non-null `UNIQUE` / `CHECK`) on the old column outlives the writers that populated it: once
+   step 3 switches factories, seeders and forms to the new column, every insert fails on the
+   old one — the bridge state is unreachable and the "rename first, drop later" sequence
+   collapses back into one commit. Make the old column nullable (and restore the constraint
+   in that migration's `down()`) in the same migration that adds the new one. Rationale doc
+   has the field case.
+3. **Surface-coverage matrix audit.** Before rename commits, grep for `*_FIELDS`, `*_COLUMNS`, `_COPY_*`, `_TEXT_*` — any module-level list enumerating the old symbol.
+4. **In-flight reorder is allowed.** The plan's narrative ordering is a presentation choice; reorder commits if /work reveals a better sequence. The migration's *internal* operation order stays canonical.
+5. **One commit per logical step.** Don't pack "rename module A + drop legacy from module B" into one commit.
+6. **Post-drop green is the merge gate.** If post-drop tests fail, fix-and-retest before merging.
