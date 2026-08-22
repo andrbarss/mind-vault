@@ -114,6 +114,26 @@ The legacy `CLAUDE_CLEAN_SIGNAL` line is corroboration only; the orchestrator de
 
 Keyed on **comment ids** (synthesized anchor), not a review id. `CLAUDE_LATEST_REVIEW` = the summary-comment id, or the newest head-SHA inline comment id when no summary exists. Each inline finding carries `(comment id <cid>, review <rid>)`; whether the inline comments share a single `pull_request_review_id` is **unconfirmed** (Q1, § residual open questions) — the anchor keys on the comment id either way, so the rule is safe regardless. When `<rid>` is null/absent the orchestrator tolerates an empty review token for comment-anchored engines.
 
+**Time-axis guard (load-bearing — see § Stale summary on a new SHA below):** a summary comment is only a verdict for the head SHA if its `created_at` is **later than the head commit's push**. `find_claude_comments.sh` stamps `CLAUDE_LATEST_REVIEW` / `CLAUDE_SUMMARY_ID` with the *current* head `COMMIT=` even when the summary predates it, so the orchestrator must compare `AT=` against `git log -1 --format=%cI HEAD` (or the PR's `pushedAt`) before reading CLEAN.
+
+## § Stale summary on a new SHA — the skip-no-op false CLEAN
+
+Field-observed (2026-08-22). Sequence: first review posts a clean summary on SHA₁ → a fix is pushed (SHA₂) → the `synchronize` auto-run fires, **completes `success` in ~70 s and posts nothing** (the plugin skips because claude already reviewed the PR — § Push-triggered model) → `find_claude_comments.sh` now emits:
+
+```text
+CLAUDE_CHECKRUN=<run> COMMIT=<SHA₂> STATUS=completed CONCLUSION=success
+CLAUDE_LATEST_REVIEW=<summary-id-from-SHA₁> COMMIT=<SHA₂> AT=<SHA₁ time> CLEAN=true
+CLAUDE_SUMMARY_ID=<summary-id-from-SHA₁> ... CLEAN=true FINDINGS=false
+```
+
+Every structural signal reads CLEAN for SHA₂ — DONE check-run, positive clean summary, zero inline — yet **no review of SHA₂ ever happened**. The only tell is `AT=` (13:12) being *earlier* than the SHA₂ push (13:33). An orchestrator that trusts the stream hands back CLEAN on unreviewed code.
+
+✅ **DO**, on every wake where `last_push_sha` changed: (1) compare the summary's `AT=` to the head commit time — older ⇒ **no verdict for this SHA**, treat as `NOT_TRIGGERED`; (2) confirm by listing `claude[bot]` issue comments newer than the push (none ⇒ skip-no-op); (3) fire `claude_retrigger.sh` **once** and then verify against the `claude.yml` (`issue_comment`) run + the new task-format comment, per § Push-triggered model's mitigation.
+
+❌ **DON'T** read `CLEAN=true` on a freshly-pushed SHA without the time check — the finder's `COMMIT=` on the `LATEST_REVIEW` line is the *head* SHA, not the SHA the summary reviewed.
+
+Adapter follow-up (not yet done): make `find_claude_comments.sh` emit `CLAUDE_STALE_SUMMARY=true` when the selected summary predates the head commit, so the orchestrator gets the signal without the manual date compare.
+
 ## § Race-condition caveats
 
 **The settle valve releases on comment PRESENCE, not Actions conclusion (A3 — load-bearing).** This is the divergence from copilot's `CONCLUSION=success` settle gate. claude's Actions job flips to `completed` *before* its summary/inline comments post — a poll in that gap sees DONE + zero findings → false CLEAN.
