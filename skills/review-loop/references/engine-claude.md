@@ -136,6 +136,8 @@ Every structural signal reads CLEAN for SHA₂ — DONE check-run, positive clea
 
 **Adapter guard (done 2026-08-25, second field occurrence).** `find_claude_comments.sh` now fetches the head commit's committer date and, when the selected summary's `created_at` is older, emits `CLAUDE_STALE_SUMMARY=true SUMMARY=<id> SUMMARY_AT=<ts> HEAD_COMMIT_AT=<ts>` and drops the summary's clean/findings signals before the verdict gate — so the run falls through to `CLAUDE_REVIEW_PENDING` / `CLAUDE_REVIEW_SILENT` (never CLEAN) and `CLAUDE_LATEST_REVIEW … CLEAN=false`. The orchestrator no longer needs the manual date compare; on `CLAUDE_STALE_SUMMARY=true` treat the engine as `NOT_TRIGGERED` for the head SHA and fire `claude_retrigger.sh` once (the DO-list above). Head-SHA inline findings are unaffected by the guard — they are filtered by SHA already.
 
+**Pre-check before the retrigger (2026-08-25, sibling of the stale-summary case).** `CLAUDE_STALE_SUMMARY=true` + no check-run for the head SHA has a second cause where `claude_retrigger.sh` is the *wrong* move: the PR is `CONFLICTING` (base moved under the branch), so GitHub created **no** `pull_request` run for the push — nor for a `reopened` — and the project's test workflow is equally silent. Run `gh pr view <N> --json mergeable` first; on `CONFLICTING` forward-sync and push instead of retriggering. See [`CONFLICTING_PR_NO_CI.md`](CONFLICTING_PR_NO_CI.md).
+
 ## § Race-condition caveats
 
 **The settle valve releases on comment PRESENCE, not Actions conclusion (A3 — load-bearing).** This is the divergence from copilot's `CONCLUSION=success` settle gate. claude's Actions job flips to `completed` *before* its summary/inline comments post — a poll in that gap sees DONE + zero findings → false CLEAN.
