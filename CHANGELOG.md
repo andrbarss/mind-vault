@@ -12,6 +12,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.28 — compound: credential rotation must be a revocation; constant-green side-effect tests
+
+_2026-08-25 · compound from a downstream users-module write cycle (Laravel, session auth). The review engine's full-diff pass came back clean and the architect-reviewed plan had specified a deactivation stack (login gate + middleware + sessions purge + remember-token rotation) — yet the change-password handler rotated only the hash, leaving a compromised account's live sessions and remember-me cookie valid. Only the independent security-lens pass over the net diff caught it. The same cycle produced a sessions-purge test that could never fail: tests ran on the array session driver, so no `sessions` row ever existed to be purged._
+
+### Changed
+
+- **`agents/AGENT_curator.md`** — PASS 2 (Security & Isolation) gains **credential-change revocation parity**: every path that changes or removes a credential (password change/reset, deactivation, role drop, key rotation) must revoke the same artefacts via one shared helper, exempting only the caller's own session on self-service; lock each path with a target-plus-bystander seeded test.
+- **`agents/AGENT_test-engineer.md`** — PASS 2 (Mock Reality Check) gains the **constant-green side-effect assertion** check: when the test config swaps the producer (array session driver, in-memory mailer, null queue), "X was deleted / not sent" assertions are structurally unfalsifiable — seed the sentinel for target AND bystander, then apply the delete-the-code-under-test check.
+- **`skills/review-loop/references/common-review-findings.md`** — catalogue entries **#26** (credential rotation that isn't a revocation — write the path × revocation truth table, shared helper, seeded regression per path) and **#27** (constant-green side-effect assertion under a swapped test backend; contrast with #22's loose-match class).
+
 ## v4.6.27 — compound: rename-before-drop bridge state must be writable
 
 _2026-08-22 · compound from a downstream column-rename cycle (Laravel, `name` → `first_name`/`last_name`) where the rename-before-drop sequence stalled at its own gate: the legacy column kept its `NOT NULL` into the bridge state, so the moment factories and seeders switched to the new columns every insert failed, and the full-test-pass gate went red for a reason the rule hadn't named._
