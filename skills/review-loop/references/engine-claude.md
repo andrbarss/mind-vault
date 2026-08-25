@@ -134,7 +134,7 @@ Every structural signal reads CLEAN for SHA₂ — DONE check-run, positive clea
 
 ❌ **DON'T** read `CLEAN=true` on a freshly-pushed SHA without the time check — the finder's `COMMIT=` on the `LATEST_REVIEW` line is the *head* SHA, not the SHA the summary reviewed.
 
-Adapter follow-up (not yet done): make `find_claude_comments.sh` emit `CLAUDE_STALE_SUMMARY=true` when the selected summary predates the head commit, so the orchestrator gets the signal without the manual date compare.
+**Adapter guard (done 2026-08-25, second field occurrence).** `find_claude_comments.sh` now fetches the head commit's committer date and, when the selected summary's `created_at` is older, emits `CLAUDE_STALE_SUMMARY=true SUMMARY=<id> SUMMARY_AT=<ts> HEAD_COMMIT_AT=<ts>` and drops the summary's clean/findings signals before the verdict gate — so the run falls through to `CLAUDE_REVIEW_PENDING` / `CLAUDE_REVIEW_SILENT` (never CLEAN) and `CLAUDE_LATEST_REVIEW … CLEAN=false`. The orchestrator no longer needs the manual date compare; on `CLAUDE_STALE_SUMMARY=true` treat the engine as `NOT_TRIGGERED` for the head SHA and fire `claude_retrigger.sh` once (the DO-list above). Head-SHA inline findings are unaffected by the guard — they are filtered by SHA already.
 
 ## § Race-condition caveats
 

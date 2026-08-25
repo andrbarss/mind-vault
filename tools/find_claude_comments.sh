@@ -462,6 +462,39 @@ SUMMARY_AT=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'AT=[^ ]+' | cut -d= -f2 || 
 SUMMARY_CLEAN=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'CLEAN=[^ ]+' | cut -d= -f2 || true)
 SUMMARY_FINDINGS=$(echo "$CLAUDE_SUMMARY_LINE" | grep -oE 'FINDINGS=[^ ]+' | cut -d= -f2 || true)
 
+# ── Time-axis guard: a summary is a verdict for the head SHA only if it was posted
+# AFTER the head commit. After a fix push the `synchronize` auto-run completes in ~1
+# minute and posts NOTHING (the plugin skips once it has reviewed the PR), so the newest
+# summary is still the PREVIOUS SHA's — and every structural signal (DONE run, clean
+# summary, zero inline) would read CLEAN on code nobody reviewed (engine-claude.md
+# § Stale summary on a new SHA). Compare the summary's created_at against the head
+# commit's committer date; when older, surface CLAUDE_STALE_SUMMARY=true and drop the
+# summary's clean/findings signals so the verdict gate below falls through to
+# PENDING/SILENT (never clean) and the orchestrator re-triggers explicitly.
+STALE_SUMMARY=false
+HEAD_COMMIT_AT=""
+if [ -n "$SUMMARY_ID" ] && [ -n "$PR_HEAD_SHA" ]; then
+    HEAD_COMMIT_AT=$(gh api "repos/$REPO_OWNER/$REPO_NAME/commits/$PR_HEAD_SHA" -q '.commit.committer.date' 2>/dev/null || echo "")
+    if [ -n "$HEAD_COMMIT_AT" ] && [ -n "$SUMMARY_AT" ]; then
+        STALE_SUMMARY=$(SUMMARY_AT="$SUMMARY_AT" HEAD_COMMIT_AT="$HEAD_COMMIT_AT" python3 -c "
+import os
+from datetime import datetime, timezone
+def parse(s):
+    return datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone(timezone.utc)
+try:
+    print('true' if parse(os.environ['SUMMARY_AT']) < parse(os.environ['HEAD_COMMIT_AT']) else 'false')
+except Exception:
+    print('false')
+" 2>/dev/null || echo false)
+    fi
+fi
+if [ "$STALE_SUMMARY" = "true" ]; then
+    echo "CLAUDE_STALE_SUMMARY=true SUMMARY=${SUMMARY_ID} SUMMARY_AT=${SUMMARY_AT} HEAD_COMMIT_AT=${HEAD_COMMIT_AT}"
+    echo -e "${YELLOW}⚠️  Newest claude summary (${SUMMARY_AT}) predates the head commit (${HEAD_COMMIT_AT}) — it reviewed a PREVIOUS SHA. Not a verdict for ${PR_HEAD_SHA:0:7}; the synchronize auto-run skip-no-ops once a review exists. Fire claude_retrigger.sh once and verify against the claude.yml (issue_comment) run.${NC}"
+    SUMMARY_CLEAN=false
+    SUMMARY_FINDINGS=false
+fi
+
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
     HEAD_INLINE_COUNT=$(echo "$CLAUDE_INLINE_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
 else

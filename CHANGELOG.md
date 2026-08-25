@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.29 — compound: stale-summary guard in the Claude finder; migration-ordering coupling in tests
+
+_2026-08-25 · compound from a downstream Laravel active-flag cycle. Two commits pushed after the review engine's CLEAN verdict made `find_claude_comments.sh` report a DONE run + a "no issues found" summary + zero inline for a SHA nobody had reviewed — the summary was the previous SHA's and the synchronize auto-run had skip-no-op'd (the field-observed trap from 2026-08-22, hitting a second time; the orchestrator caught it only via the manual `AT=` date compare). The same cycle broke a migration test twice: it rolled back a hard-coded number of steps to reach a legacy schema, and every later migration — from a parallel branch, then from this one — shifted the count. (2026-08-25, [#34](https://github.com/andrbarss/mind-vault/pull/34))_
+
+### Fixed
+
+- **`tools/find_claude_comments.sh`** — time-axis guard: the newest summary's `created_at` is compared against the head commit's committer date; when older, the finder emits `CLAUDE_STALE_SUMMARY=true SUMMARY=<id> SUMMARY_AT=<ts> HEAD_COMMIT_AT=<ts>`, drops the summary's clean/findings signals so the verdict gate falls through to PENDING/SILENT (never CLEAN), and prints the retrigger instruction. A post-verdict push can no longer read CLEAN off the previous SHA's summary. `skills/review-loop/references/engine-claude.md` § Stale summary: the "adapter follow-up (not yet done)" note replaced by the guard's contract.
+
+### Changed
+
+- **`agents/AGENT_test-engineer.md`** — PASS 3 (State Teardown & Isolation) gains **migration-ordering coupling**: tests that reach a prior schema by counting steps (`--step=N`, positional `000N`, a `LEGACY_ROLLBACK_STEPS` constant) are coupled to ledger order and break on every later migration; derive the depth from the migrations ledger (count at/after the anchor migration's name) or target the anchor by name, and assert schema state rather than step count.
+
 ## v4.6.28 — compound: credential rotation must be a revocation; constant-green side-effect tests
 
 _2026-08-25 · compound from a downstream users-module write cycle (Laravel, session auth). The review engine's full-diff pass came back clean and the architect-reviewed plan had specified a deactivation stack (login gate + middleware + sessions purge + remember-token rotation) — yet the change-password handler rotated only the hash, leaving a compromised account's live sessions and remember-me cookie valid. Only the independent security-lens pass over the net diff caught it. The same cycle produced a sessions-purge test that could never fail: tests ran on the array session driver, so no `sessions` row ever existed to be purged._
