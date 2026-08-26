@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.32 — compound: negative-existence claims are grep-verified before they land in a doc (self-sweep check 7)
+
+_2026-08-26 · compound from a downstream PHP/ZF1 feature cycle. An architect spike proved a DB-free controller-test recipe and noted "the test-request class has no `setQuery()`". The method existed — inherited from the parent request class; `setParam()` had merely been the first thing that worked — but the negative read as a settled fact and was copied verbatim into the test's header comment, the archive README, a cross-idea backref and the plan's resolved open question: four places, three commits, two agents, zero greps. An independent claim-vs-code reviewer falsified it with one `grep -rn 'function setQuery'` at wrap time. Negatives are the cheapest claim class to verify and the most likely to be wrong; the sweep now says so. (2026-08-26, [#37](https://github.com/andrbarss/mind-vault/pull/37))_
+
+### Added
+
+- **`docs/rules/RULE_self-sweep-before-push-rationale.md` § Doc-Consistency Sweep — check (7) negative-existence claims.** The claim shape ("`<framework>` has no `<method>`", "`<library>` doesn't support X"), why it propagates (a spike stops at the first failing attempt; a negative reads as settled), the one-command verification against the *installed* code (search the class **and its ancestors** / the whole package), the "say which root you searched" rule for a true negative, and the rewrite-as-positive rule when a hit lands ("`setParam()` because `getParam()` consults it first; `setQuery()` also works"). Provenance rule: a negative from a spike, bot or subagent is a hypothesis until the grep runs — and is re-verified at every copy, because the copy is where the sweep runs.
+
+### Changed
+
+- **`rules/RULE_self-sweep-before-push.md` trigger 5** — the doc-consistency list grows from six to seven checks with a one-clause pointer to the recipe.
+
 ## v4.6.31 — compound: a CONFLICTING PR gets zero pull_request runs — check `mergeable` before retriggering
 
 _2026-08-25 · compound from a downstream PHP/ZF1 feature cycle. A single-engine loop cleared CLEAN, pushed a docs fix, and then saw nothing: no check-run, stale-summary guard firing, no Actions run from **any** workflow — the test workflow was as silent as the engine, and a `close`/`reopen` changed nothing. The base branch had moved under the PR (a sibling IDEA's wrap touched the same ideas index / devlog / README), the PR was `CONFLICTING`, and GitHub creates no `pull_request` run when it cannot build the merge ref — no failed run, no log. One `gh pr view --json mergeable` would have said so; a forward-sync push fired every workflow immediately. (2026-08-25, [#36](https://github.com/andrbarss/mind-vault/pull/36))_
