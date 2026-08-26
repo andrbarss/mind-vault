@@ -175,9 +175,9 @@ Full ruff / mypy passes are PR-time / CI-time concerns. The sweep is the minimum
 
 ## Doc-Consistency Sweep — Full Recipe
 
-Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots emit these **one nit per cycle**, and each cycle is a billed round-trip — so the cost is multiplicative in the number of latent nits, not additive. Sweeping all six checks locally before the *first* trigger collapses that to zero.
+Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots emit these **one nit per cycle**, and each cycle is a billed round-trip — so the cost is multiplicative in the number of latent nits, not additive. Sweeping all seven checks locally before the *first* trigger collapses that to zero.
 
-### The six checks
+### The seven checks
 
 1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [A, B]` whose prose mentions only B is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
 
@@ -199,6 +199,17 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
    ```bash
    awk '/^---$/{c++;next} c==1 && /#/{n++} c==2{exit} END{print n+0}' <new-file>   # vs a sibling; should match
    ```
+
+7. **Negative-existence claims are grep-verified before they land in a doc.** Any sentence of the shape "`<framework>` has no `<method>`", "`<library>` doesn't support X", "there is no `<helper>` for Y" is the *easiest* claim class to falsify and the *most likely* to be wrong: it usually originates in an agent spike that stopped at the first failing attempt (the method lived on a parent class the spike never grepped), and — because a negative reads as a settled fact — it propagates unchallenged. Field case: a plan's spike note "the test-request class has no `setQuery()`" (the method existed, inherited from the parent request class; `setParam()` had simply been the first thing that worked) was copied verbatim into the test's header comment, the archive README, a cross-idea backref and the plan's resolved open question — four places, three commits, two agents — before an independent claim-vs-code reviewer grep-falsified it. The check is one command per claim, run against the *installed* code, not memory:
+
+   ```bash
+   # "<Class> has no <method>()" — search the class AND its ancestors / the whole package
+   grep -rn 'function <method>' <vendor-or-lib-root>/<package>/        # any hit ⇒ claim is false as stated
+   # "<library> doesn't support <feature>" — grep the changelog / source for the feature keyword
+   grep -rni '<feature>' <vendor-or-lib-root>/<package>/{CHANGELOG*,src,lib} | head
+   ```
+
+   Zero hits ⇒ the claim stands *for that root* — say which root you searched ("not in `lib/<pkg>/`", not "does not exist"). Any hit ⇒ rewrite the sentence as a *positive* statement of what you actually chose and why ("`setParam()` because `getParam()` consults it first; `setQuery()` also works"). Positive statements are cheaper to keep true than negative ones, and a reviewer can verify them by reading one line. Provenance rule: a negative that came from a spike, a bot, or a subagent report is a **hypothesis**, not a fact, until the grep runs — and it must be re-verified at *every* hop it is copied to, because the copy is where the sweep runs, not the origin.
 
 ## Guard-Return-Asymmetry Sweep — Full Recipe
 
