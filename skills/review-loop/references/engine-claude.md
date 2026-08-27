@@ -259,6 +259,20 @@ What this settles:
 - **Incremental scope is real and is fine.** The 57-second cycle-2 run reviewed the fix diff and re-asserted the unchanged parts by name ("unchanged since the last full review and still looks correct") — a verdict on the increment plus an explicit no-regression statement, which is what a post-fix re-review should say. It is not a second full-diff pass; the full pass remains the un-draft/first run (§ Incremental review).
 - **Adapter follow-up (open):** teach `find_claude_comments.sh` to select the `claude.yml` run and the task-format comment for the head SHA after a retrigger, so `CLAUDE_CHECKRUN` / `CLAUDE_LATEST_REVIEW` stop going stale and the manual read above becomes unnecessary. Until then the § Push-triggered model mitigation is the contract.
 
+## § calibration update — the reviewer says it "cannot run" the project's checks (downstream PHP project, 2026-08-27)
+
+**Symptom.** The posted review reads *"I wasn't able to run `composer openapi` or the PHPUnit suite in this environment (no `vendor/` in the checkout)"* and defers to the PR description for verification. Not a muzzle (`permission_denials_count: 0`, findings posted) — the bot genuinely had nothing to run with.
+
+**Three causes, all in the workflow / repo, none in the bot:**
+
+1. **The review job never installs dependencies.** The action checks out the repo and starts the model; a fresh runner has no `vendor/` / `node_modules/` / venv. Add the language setup + install steps (`setup-php` + `composer install --no-interaction`, or the stack's equivalent) *before* the action step in **both** the PR-event workflow and the `@mention` workflow.
+2. **The allowlist only names the posting tools.** Even with deps installed, `Bash(composer test)` is denied unless allowed. Extend `--allowedTools` with the exact verification commands (`Bash(composer openapi)`, `Bash(composer test)`, `Bash(vendor/bin/phpunit:*)`, `Bash(git diff:*)`, `Bash(git status:*)`), never a blanket `Bash(*)`.
+3. **The mention path has no prompt.** The PR-event workflow's `prompt:` can say "run X and quote the output"; the `@mention` workflow has none, so a repo-root `CLAUDE.md` is the only channel that reaches both runs. Write it for *the reviewer*: "deps are installed before you start — run these commands and quote the output; a diff in the generated artefact is a finding".
+
+**The vendor-churn misread.** If the repo tracks a partial `vendor/` snapshot, `composer install` rewrites and deletes tracked files, and `git status` after the install shows dozens of `M`/`D` entries under `vendor/`. A run under fix 1 still reported *"no `vendor/` in a usable state"* because it read that churn as a broken checkout. `CLAUDE.md` must say so explicitly ("expected and harmless — scope inspection with `':!vendor'`"). Once all three landed, every subsequent review posted its own `composer openapi` (zero warnings) / drift-check / `composer test` output before the findings — the reviewer became the verification, not a reader of claims.
+
+**Adapter false negatives on a clean re-review (same window).** `find_claude_comments.sh` classes a task-format summary as *findings-bearing* by heading heuristics: a section titled **"Verification results"** or **"Prior finding — confirmed fixed"** is reported as `CLEAN=false FINDINGS=true` although the body ends in *"No other issues found"*. Read the body before acting on `CLEAN=false`; the true verdict is the prose, not the flag. (Candidate tooling fix: treat headings matching `Verification|confirmed fixed|Prior finding` as non-findings.)
+
 ## § residual open questions (post-downstream calibration)
 
 The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:

@@ -226,6 +226,8 @@ This is the canonical landing page for anyone discovering the idea via grep/inde
 ## References
 
 - [references/persona-dispatch.md](references/persona-dispatch.md) — per-domain persona routing, worktree setup for parallel work streams, override conventions
+- [references/CAPTURE_FIRST_API_DOCS.md](references/CAPTURE_FIRST_API_DOCS.md) — load when the item is "document existing endpoint(s)": schema from a captured response ⊕ the DDL (never the DDL alone), a per-endpoint verification guide as the acceptance checklist, throwaway-row probing, structural guards, the recurring traps (0-keyed map example, never-empty loaders, sibling-branch asymmetry)
+- [references/GENERATED_ARTEFACT_HYGIENE.md](references/GENERATED_ARTEFACT_HYGIENE.md) — load when the item emits consumer-facing generated text (API spec, public changelog, reference docs): no process / environment provenance in the artefact, the banned-pattern guard test, where provenance lives instead
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](../idea/references/IDEAS_LOCATION_STATUS.md) — location-by-status contract driving step 6's archive move on merge
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer
 - [skills/plan/SKILL.md](../plan/SKILL.md) — previous stage; produces the plan this skill executes
