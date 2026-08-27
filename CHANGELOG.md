@@ -12,7 +12,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.33 — compound: shared-table availability guard at plan review; claude re-review posts a clean verdict via the explicit retrigger
+## v4.6.34 — compound: shared-table availability guard at plan review; claude re-review posts a clean verdict via the explicit retrigger
 
 _2026-08-27 · compound from a downstream PHP/Lumen admin-API cycle (two fix cycles, claude + independent two-lens review). Two cross-project lessons: the architect's plan review caught that a parent endpoint gaining a JOIN to a table owned by a sibling deployment would 500 on every tenant whose migration hadn't run yet — a class the test suite structurally cannot observe because it provisions the table; and the review-loop learned that the engine's post-fix-cycle clean verdict, documented as unavailable, is available through the explicit `@claude review` path — only the push-triggered re-run skip-no-ops. (2026-08-27, [#38](https://github.com/andrbarss/mind-vault/pull/38))_
 
@@ -24,6 +24,13 @@ _2026-08-27 · compound from a downstream PHP/Lumen admin-API cycle (two fix cyc
 ### Changed
 
 - **`engine-claude.md` "Net engine capability" + the 2026-08-18 "still true" caveat** — scope-bounded: what reads SILENT is the clean *push-triggered* re-run, not the clean re-review as such; the managed-App escalation narrows to the case where the explicit retrigger itself SILENTs.
+## v4.6.33 — compound: review-loop pre-flight names the two-pass chain (deliverables review → wrap → docs review) instead of contradicting its own reference
+
+_2026-08-27 · compound from a downstream ExtJS feature cycle. At `/review-loop` time the skill's pre-flight paragraph said "wrap docs FIRST, then trigger engines", while the reference it linked (`WRAP_BEFORE_REVIEW.md`) and sprint-auto's own stage order both define the chain as deliverables review → bare wrap → docs review. The agent followed the reference and had to say so in the hand-back; a second session reading only SKILL.md would have wrapped first, flipped the IDEA to complete before any code review, and — under the push-triggered claude engine, which skips a PR it already reviewed — found that the docs pass never auto-fired. The paragraph now states the two-pass chain as canonical, keeps "wrap first" as the explicitly-named single-pass shortcut for small doc surfaces, and points at the retrigger the second pass needs. (2026-08-27, [#39](https://github.com/andrbarss/mind-vault/pull/39))_
+
+### Changed
+
+- **`skills/review-loop/SKILL.md` pre-flight (doc-heavy / IDEA PRs)** — rewritten to name the pass being run: canonical two-pass chain matching `WRAP_BEFORE_REVIEW.md` + sprint-auto S3/S4 → S5 → S6/S7; pass 1 legitimately reviews an `in-progress` IDEA; the single-pass "wrap first" collapse is allowed but must be declared in the hand-back; pass 2 under a skip-on-reviewed engine needs the explicit retrigger (`claude_retrigger.sh`) — pointer to `engine-claude.md` § Incremental review.
 
 ## v4.6.32 — compound: negative-existence claims are grep-verified before they land in a doc (self-sweep check 7)
 
