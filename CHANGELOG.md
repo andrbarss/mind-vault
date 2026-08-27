@@ -12,6 +12,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.35 — compound: capture-first API docs recipe; consumer-facing artefacts carry no process provenance; the reviewer that "cannot run" the checks
+
+_2026-08-27 · compound from a downstream PHP/ZF1 documentation cycle (71 endpoints, eight PRs, seven review loops). Three cross-project lessons: docs for existing endpoints are true only when every field is backed by a captured response reconciled with the DDL and a per-endpoint verification guide; generated artefacts that ship to outsiders must not carry the sprint's vocabulary or the verification host's facts (171 leaked strings, a guard test now prevents it); and a review bot that reports "unable to run the suite" needs dependency install + a command allowlist + a repo-root prompt file — after which it verifies every PR itself._
+
+### Added
+
+- **`skills/work/references/CAPTURE_FIRST_API_DOCS.md`** — the recipe: inventory from code, verification guide before annotations, capture every branch, throwaway-row mutations, schema = capture ⊕ DDL (never a wildcard `additionalProperties`), `oneOf{Map, EmptyList}` + captured map examples, generated schema classes, reconcile-then-tick, structural guards, ship by handler group; the recurring traps (nullability inferred from observed values, the 0-keyed map example that serialises as a list, never-empty loaders, sibling-branch guard asymmetry, leading-numeric TypeErrors, post-action rendering interception).
+- **`skills/work/references/GENERATED_ARTEFACT_HYGIENE.md`** — the rule that consumer-facing generated text describes the thing, never how it was documented or where it was verified; the rewrite policy (behaviour phrased by its cause stays, host facts and evidence words go), the banned-pattern guard test, where provenance lives instead.
+- **`agents/AGENT_curator.md` PASS 1 + `agents/AGENT_documentation.md` PASS 4** — one bullet each: a provenance leak in an artefact that ships to outsiders is a finding of the same class as a hard-coded local path.
+- **`skills/review-loop/references/engine-claude.md` § calibration update 2026-08-27** — the reviewer "cannot run" the project's checks: three workflow-side causes (no dependency install, allowlist naming only posting tools, no prompt on the mention path → repo-root `CLAUDE.md`), the partially-tracked `vendor/` churn misread, and the adapter's heading-heuristic false negative on a clean re-review ("Verification results" / "Prior finding — confirmed fixed" read as findings).
+
+### Changed
+
+- **`skills/work/SKILL.md` References** — two pointer lines for the new references.
+
 ## v4.6.34 — compound: shared-table availability guard at plan review; claude re-review posts a clean verdict via the explicit retrigger
 
 _2026-08-27 · compound from a downstream PHP/Lumen admin-API cycle (two fix cycles, claude + independent two-lens review). Two cross-project lessons: the architect's plan review caught that a parent endpoint gaining a JOIN to a table owned by a sibling deployment would 500 on every tenant whose migration hadn't run yet — a class the test suite structurally cannot observe because it provisions the table; and the review-loop learned that the engine's post-fix-cycle clean verdict, documented as unavailable, is available through the explicit `@claude review` path — only the push-triggered re-run skip-no-ops. (2026-08-27, [#38](https://github.com/andrbarss/mind-vault/pull/38))_
