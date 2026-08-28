@@ -184,6 +184,8 @@ Grouping rules (all read frontmatter; location is filtered by status):
 
 Rebuild the index from scratch when out of sync: scan both dirs, read each file's frontmatter, regenerate.
 
+**Placeholder substitution is section-scoped.** `_(none)_` is the empty-section body of *every* tier (In Progress, each priority, Superseded / Rejected), so a scripted edit that replaces the first — or every — `_(none)_` with the new entry line puts the IDEA into the wrong section(s) too. Field-observed: a `/plan` move to In Progress also listed the idea under Superseded / Rejected, which the docs review did not catch and only a later forward-sync merge conflict exposed. When editing by script, address the section (`sed '/^## 🚧 In Progress/,/^## 💡/ s/^_(none)_$/<entry>/'`, or edit the block by its heading), then re-grep the id: it must appear in exactly one section. A wrap that removes an In Progress entry runs the same grep — the stray copy in another tier is silent rot otherwise.
+
 ## Hard rules
 
 1. **Never** create an IDEA file outside `docs/ideas/` or `docs/archive/YYYY-MM-idea-NNN-<slug>/`. No `docs/execution/`, no `docs/in-progress/`, no flat `docs/planning/`.
