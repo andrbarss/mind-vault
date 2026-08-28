@@ -67,10 +67,39 @@ not … yet") and offer the user the ~4-line follow-up explicitly. The point is 
 becomes **visible** the moment the two branches meet, instead of being discovered when someone
 wonders why module X never shows up in the audit log.
 
+## Stacked PR pairs — sync the base branch first, then the head
+
+When the feature PR is **stacked** on a docs PR (the idea + plan branch carries the archive dir
+and the feature branch was cut from it so the plan is updatable in place), the feature PR's
+diff is computed against the *docs branch*, not the default branch. Forward-syncing only the
+feature branch then makes the feature PR's diff swallow everything the default branch gained —
+hundreds of files a reviewer has already seen elsewhere — while the docs PR still goes
+`CONFLICTING` on its own index line. Sync both, in order:
+
+```bash
+git checkout <docs-branch> && git merge --no-edit origin/<default>   # resolve the index; push
+git checkout <feature-branch> && git merge --no-edit <docs-branch>   # brings the default branch in through the base; resolve; test; push
+```
+
+The docs-branch merge typically conflicts only on `docs/ideas/README.md` (keep both sides in
+ship order); the feature-branch merge is where the real conflicts live (a shared test file both
+IDEAs amended → keep-both in the class docblock; a generated artefact → take the incoming copy
+and **regenerate**, never hand-merge). Both PRs then read `MERGEABLE` and the feature PR's diff
+stays exactly its own commits. Merge order at the human's click stays docs → retarget feature
+to the default branch → feature.
+
+Two things a stacked wrap exposes that a single-branch wrap hides: (a) an index edit made at
+`/plan` time on the docs branch is *also* what the feature PR ships, so a mistake there (a
+placeholder substituted in every section instead of one) surfaces at wrap on both PRs — fix it
+on the docs branch, where it belongs; (b) the review engine that skip-no-ops pushes after its
+first review will not re-review either branch's sync merge — read the test workflow for the
+merged tree, and retrigger explicitly if a docs pass-2 is wanted.
+
 ## Checklist (Step 1 addendum)
 
 - [ ] `git fetch origin && git log --oneline HEAD..origin/<default>` — non-empty?
 - [ ] merge, resolve keep-both in ship order, lint/parse the resolved files, run the suite
 - [ ] commit the merge **before** any wrap edit
+- [ ] stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them)
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
 - [ ] after the final wrap push: `gh pr view --json mergeable` is `MERGEABLE`
