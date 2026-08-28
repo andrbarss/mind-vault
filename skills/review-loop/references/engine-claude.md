@@ -259,6 +259,28 @@ What this settles:
 - **Incremental scope is real and is fine.** The 57-second cycle-2 run reviewed the fix diff and re-asserted the unchanged parts by name ("unchanged since the last full review and still looks correct") — a verdict on the increment plus an explicit no-regression statement, which is what a post-fix re-review should say. It is not a second full-diff pass; the full pass remains the un-draft/first run (§ Incremental review).
 - **Adapter follow-up (open):** teach `find_claude_comments.sh` to select the `claude.yml` run and the task-format comment for the head SHA after a retrigger, so `CLAUDE_CHECKRUN` / `CLAUDE_LATEST_REVIEW` stop going stale and the manual read above becomes unnecessary. Until then the § Push-triggered model mitigation is the contract.
 
+## § calibration update — the push-triggered run can do a FULL re-review after a fix push, and catch what the retrigger missed (downstream, 2026-08-28)
+
+Third field observation on the canonical workflow, one fix cycle on a ~3k-line docs PR:
+
+| Trigger | Run | Posted |
+| --- | --- | --- |
+| fix push (SHA₂) + `claude_retrigger.sh` | `claude.yml` (`issue_comment`), **1 m 32 s** | task-format comment: "No issues found. Both findings from the prior review round are fixed …" (0 inline) |
+| the same push's `synchronize` auto-run (`claude-code-review.yml`) | **~12 min**, `completed/success` **after** the retrigger verdict | a new `## Code review` summary + **2 inline findings** on SHA₂ — a real structural defect (`allOf` pattern conjunction) the fix had introduced and the incremental re-review had not seen |
+
+What this settles — and partly reverses § Stale summary on a new SHA:
+
+- **The skip-no-op after a first review is not guaranteed.** On this repo the push-triggered run reviewed the increment in full (it runs the project's checks first, hence the length) and posted findings; the explicit-retrigger run, scoped to "were the prior findings addressed", declared clean. Both are legitimate outputs of the same engine on the same SHA.
+- **✅ DO wait for BOTH runs of the head SHA to be DONE before reading a verdict**: the `claude.yml` run the retrigger started *and* the `claude-code-review.yml` run the push started. `find_claude_comments.sh`'s `CLAUDE_CHECKRUN` line tracks whichever run is latest by start time, so a wake that sees the retrigger's clean comment while the push run is still `in_progress` is **RUNNING**, not CLEAN — the adapter's own gate held here; the orchestrator must not short-circuit it because a clean-looking comment exists.
+- **Stale re-anchored inline comments still appear on the new head.** GitHub carried the fixed findings' comments (older `review <rid>`) onto SHA₂; the adapter listed them under "findings on the head SHA". Identify by `comment id` + `review <rid>` against `LATEST_REVIEW` (§ Staleness rule) — they are not active, and their threads were already resolved by the fix cycle.
+- **Read the second review as a new cycle, not as a contradiction**: triage its findings, fix, push, retrigger, and again wait for both runs.
+
+## § Failure mode — org Actions billing block (downstream, 2026-08-28)
+
+A fourth infrastructure state that presents like an engine failure: **every** workflow run in the organisation — the test workflow, `claude-code-review.yml`, `claude.yml`, on every branch including pushes to the default branch — completes `failure` within seconds with a job that has **zero steps** (no runner ever started). githubstatus.com is all-green. The job's check-run annotation carries the cause verbatim: *"The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings"* (`gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations`). `gh api /orgs/<org>/settings/billing/actions` needs the `admin:org` scope and is not the fast path — the annotation is.
+
+Orchestrator action: the engine is **ERRORED**, not HUNG or STILL_FINDING — hand back with the annotation text; only an org admin can clear it. Do not retrigger into the block (each attempt is another zero-step failure). When the human reports it fixed, resume without a new push: `claude_retrigger.sh <PR>` (or `gh run rerun <run-id>` for the push run) — the fix commit is already on the head SHA. Local verification (`composer test` / the project's suite) is what the hand-back can vouch for in the meantime, and a status note on the PR saves the merger a guess.
+
 ## § calibration update — the reviewer says it "cannot run" the project's checks (downstream PHP project, 2026-08-27)
 
 **Symptom.** The posted review reads *"I wasn't able to run `composer openapi` or the PHPUnit suite in this environment (no `vendor/` in the checkout)"* and defers to the PR description for verification. Not a muzzle (`permission_denials_count: 0`, findings posted) — the bot genuinely had nothing to run with.

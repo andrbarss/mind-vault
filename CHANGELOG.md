@@ -12,6 +12,13 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.37 — compound: ungated / inherited-handler API-doc traps; the push-run second review; the org billing block
+
+### Added
+
+- **`skills/work/references/CAPTURE_FIRST_API_DOCS.md`** — five recurring traps from documenting an ungated, subclassed controller family: document the *absence* of a gate and make the guard assert it (file-keyed ungated list with a derived prefix, gated/ungated branch, positive control); the reachable surface of a subclassed handler is the router's, not the file's (enumerate by reflection over the class chain; several operations per docblock on the declaring method); composition conjoins — a shared block must not carry a property the variants disagree on; side-effecting error paths get a `curl-once` probe budget; probe every parameter once (a search parameter that never worked).
+- **`skills/review-loop/references/engine-claude.md`** — calibration: the push-triggered run can perform a full re-review after a fix push and post findings the explicit-retrigger run missed → wait for *both* head-SHA runs before reading a verdict; stale re-anchored inline comments on the new head are filtered by the staleness rule. New failure mode: the **org Actions billing block** — every workflow in the org fails at start with a zero-step job, cause in the check-run annotation; hand back ERRORED, resume with a retrigger once cleared.
+
 ## v4.6.36 — compound: the time-anchored-branch phantom probe; stacked-PR forward-sync; section-scoped index placeholders
 
 _2026-08-28 · compound from a downstream PHP/ZF1 feature cycle (one new read-only endpoint, two architect rounds, two stacked PRs). Three cross-project lessons: a performance probe that never crosses the date a branch is keyed on verifies the wrong axis; a stacked PR pair is forward-synced base first, then head, with generated artefacts regenerated rather than hand-merged; and the ideas-index `_(none)_` placeholder lives in every tier, so scripted substitutions must be section-scoped._

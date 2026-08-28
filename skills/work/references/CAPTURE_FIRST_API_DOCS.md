@@ -77,6 +77,39 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   the self-sweep guard-return-asymmetry trigger, applied to docs probing.
 - **Typed scalar parameters reject leading-numeric strings** on modern PHP (`"12abc"` → TypeError,
   not 12) — capture both the non-numeric and the leading-numeric variants.
+- **An ungated handler is documented as the absence of a gate — and the guard asserts the absence.**
+  A controller whose access check ends in an unconditional `return true` (the real checks commented
+  out) must not inherit the sibling controllers' `security` + `403` docblock: its operations carry
+  neither, the auth-dependent narrowing (`internal` rows, unlock keys) is stated per operation, and a
+  login token that merely widens the result is an ordinary optional parameter. Keep the ungated set
+  as a list of controller *files* whose URL prefix is derived the same way the coverage guard
+  derives paths (so it cannot drift), and make the gate guard branch: gated → both schemes + the
+  shared 403 present; ungated → both **absent**, with a positive control of at least one of each.
+  A pasted gated docblock then fails the suite instead of publishing a 403 the server never sends.
+- **The reachable surface of a subclassed handler is the router's, not the file's.** A subclass
+  that declares one action and inherits seven dispatches all eight (with its type switch applied);
+  a three-file family declared 11 actions and served 24 paths. Enumerate by reflection over the
+  class chain (public `*Action`s declared by any class whose file lives under the application tree),
+  document every reachable path, and let the coverage guard count inherited actions. When the
+  annotation scanner accepts several operations in one docblock (swagger-php does — one path item
+  per block, and scanning the subclass file never re-reads the parent's docblocks), put the
+  inherited paths' blocks on the declaring method's docblock rather than on stub methods.
+- **Composition conjoins; it does not override.** `allOf{Base, {field: pattern B}}` when `Base`
+  already constrains `field` with pattern A is unsatisfiable (`required` + non-nullable over a
+  nullable base likewise) — every real response fails the stricter branch, and only a strict
+  validator or a reviewer notices. When variants disagree on a property, that property does not
+  belong in the shared block: split it out and let each variant declare it once (raw DATETIME in
+  one list, `DATE()`-truncated `Y-m-d` in another, `date()`-normalised with an epoch sentinel in a
+  tree — the same column, three wire formats, three declarations).
+- **Error paths with side effects get a probe budget.** A disabled action that throws into an
+  error controller which renders under HTTP 200 *and e-mails support per request* is captured
+  exactly twice (plain, and with `Accept: application/json`) under a `curl-once` probe class the
+  guide states next to `safe` / `needs-fixture` / `code-read-only`; the plan records the total.
+- **Probe every parameter once, including the ones that "obviously" work.** A list action's
+  search parameter had never worked — the LIKE operand was quoted inside an already-quoted
+  literal, the statement failed, and the caller received the error page under 200 plus a support
+  mail. Nothing in the code read flagged it; the first capture did, and the operation now documents
+  the parameter as broken rather than pretending it filters.
 - **Post-action rendering interception**: an MVC framework whose view renderer runs after the action
   can replace the coded JSON with an error page for actions that forgot to disable rendering — the
   captured body, not the code, is the contract.
