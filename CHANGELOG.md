@@ -12,6 +12,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.38 — compound: reversible expiry on two-phase holds; cross-clock cutoffs and SET-order; IDEA numbers reserve at merge
+
+### Added
+
+- **`skills/plan/references/REVERSIBLE_EXPIRY_ON_TWO_PHASE_HOLDS.md`** — the design trap behind adding a reaper / TTL job to a two-phase hold (cart line, seat hold, quota grant, pending invitation). The expensive miss: the writer that materialises the confirmed row deliberately **skips the availability check** (`ignore_availability=True` and friends), because the hold row *was* the check — so the reaper silently voids that contract and a late confirmation overbooks with no error. Revival must re-validate at the revival site (never by loosening the worker's contract), demand-aware per resource-unit rather than per row, with distinct answers for missing-key vs missing-capacity-field. Plus: namespace the reaper's cancel with a reserved marker and grep every writer of the attribution column before claiming disjointness; keep the un-cancel marker-conditional and in the confirm's own statement (splitting it re-opens the reaper's own predicate mid-flight); re-apply the full predicate at the write so select-then-act needs no lock; make revival all-or-nothing with per-id reasons and a named exit. Ships a plan-time checklist including the deploy-order gate.
+
+### Changed
+
+- **`agents/AGENT_curator.md` PASS 4** — two DB-integrity bullets. **Cross-clock cutoffs**: a timestamp column defaulted by the database compared against a cutoff computed in application code is a cross-clock comparison, and app runtimes are routinely pinned to a local zone while the DB session runs UTC — an expiry sweep then destroys live rows, invisibly, because both clocks agree in CI. **Multi-column UPDATE assignment order**: MySQL evaluates a SET list left-to-right on already-updated values and ORMs emit pairs in caller order, so a discriminator column that several conditional assignments test must be assigned last; a review suggestion to "simplify" that ordering is to be rejected absent the engine's evaluation rule.
+- **`skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md`** — new section: an IDEA number is reserved at **merge** time, not at file-creation time. Two parallel wraps can file the same NNN and git merges both without conflict (different slugs = different paths), leaving the index with two rows for one number. Re-scan for collisions at every forward-sync, across the default branch *and* every remote branch; the side that hasn't merged renumbers, across all six surfaces (filename, frontmatter `id`, body heading, index row, originating archive's follow-up line, devlog follow-up line). Checklist line added.
+
 ## v4.6.37 — compound: ungated / inherited-handler API-doc traps; the push-run second review; the org billing block
 
 ### Added
