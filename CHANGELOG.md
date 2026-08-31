@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.40 — compound: a MERGED PR is not proof the branch tip merged; unreachable-by-construction decisions
+
+### Added
+
+- `skills/review-loop/references/MERGED_MID_LOOP.md` — a human merging while the review loop is still running strands every later commit, and no single signal shows it: the PR reads `MERGED`, the branch reads pushed, the tree is clean, and the loop's own `last_push_sha` is correct-and-irrelevant. Nothing in that set compares *what merged* against *what exists*. Covers the one-command detector (`git merge-base --is-ancestor`), the "measure the delta before proposing a revert" recovery — field case: revert-and-re-land ~1170 lines vs ship-the-delta 9 files — and the post-partial-merge checks (the default branch is running the pre-review state; a wrap that already ran wrapped the wrong thing; the archive needs the merge history, not just the outcome).
+
+### Changed
+
+- `rules/RULE_git-safety.md` — new §4, a three-line always-on stub: a `MERGED` PR does not mean the branch tip merged; verify before declaring work shipped, with the detector inline and the recovery deferred to the reference above. Sits in `rules/` rather than a skill because the check applies with zero skills loaded and across every stack.
+- `agents/AGENT_architect.md` PASS 3 — new **unreachable-by-construction decision** bullet, the sibling of the existing phantom-verification entry where the asserted signal is constant because the deciding line is never executed by the harness. Two failures compound and point opposite ways: the truth-table row asserts a shape production cannot produce, while the shape production does produce is asserted nowhere. Probe is to read the test bootstrap rather than assume it loads the config file; the fix is to move the logic into a unit the harness reaches, not to add a test.
+- `skills/review-loop/SKILL.md` — References entry for the new reference.
+
 ## v4.6.39 — compound: run a tool with its own interpreter; baseline counts from the base commit; a right finding with a wrong suggestion
 
 Shipped as one `/compound` PR. All three learnings come from one documentation sprint's review cycle.
