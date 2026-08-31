@@ -58,3 +58,17 @@ On any non-protected branch the agent commits freely. **No per-commit approval p
 - ❌ Force-pushing to a branch with an open PR *without informing the human first* — it invalidates existing review threads.
 - ❌ Deleting or resetting a branch the agent doesn't recognise — it may be someone else's in-progress work.
 - ❌ Committing files that likely contain secrets (`.env`, `credentials.json`, private keys). Warn the user if a commit includes any.
+
+### 4. A `MERGED` PR does not mean the branch tip merged
+
+Before declaring work shipped, confirm the merge captured what you think — a human merging while
+an agent still had commits in flight strands them, and *every* usual signal still reads healthy
+(PR `MERGED`, branch pushed, tree clean). One command settles it:
+
+```bash
+git merge-base --is-ancestor origin/<branch> origin/<default> && echo "fully merged" || echo "PARTIAL — commits stranded"
+```
+
+Recovery — and specifically why "measure the delta before proposing a revert" beats the
+revert-and-re-land reflex — is in [`skills/review-loop/references/MERGED_MID_LOOP.md`](../skills/review-loop/references/MERGED_MID_LOOP.md).
+
