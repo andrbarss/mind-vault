@@ -95,6 +95,44 @@ on the docs branch, where it belongs; (b) the review engine that skip-no-ops pus
 first review will not re-review either branch's sync merge — read the test workflow for the
 merged tree, and retrigger explicitly if a docs pass-2 is wanted.
 
+## An IDEA number is reserved at MERGE time, not at file-creation time
+
+`/wrap` files the follow-up IDEAs the sprint surfaced, and it picks their numbers by scanning
+for the highest one currently visible. On a repo with parallel IDEAs in flight, **that scan is
+stale the moment it runs**: a sibling wrap on another branch may have already filed the same
+NNN and simply not merged yet. Nothing catches it — the two IDEA files have different slugs, so
+they are *different paths*, and git merges them without a whisper of conflict. Both land. The
+index then carries two rows for the same number, in different priority sections, and the two
+archives cross-reference "IDEA-NNN" meaning two different things.
+
+Field case: two wraps a few days apart each filed a follow-up IDEA and both picked the same
+number. The second one's forward-sync merged cleanly; the collision was visible only because the
+resolver happened to read the index's backlog sections and noticed the number appear twice.
+
+**So re-scan for collisions at every forward-sync, not just when the number is first chosen** —
+and scan wider than the working tree:
+
+```bash
+git ls-tree -r --name-only origin/<default> -- docs | grep -oE 'IDEA-[0-9]{3}' | sort -u | tail -3
+for b in $(git ls-remote --heads origin | awk '{print $2}'); do … same scan per branch … done
+```
+
+**Who renumbers:** whichever side has *not* merged yet. The number belongs to the branch that
+reached the default branch first — renumbering a merged IDEA breaks links other archives and
+devlog entries already point at. Renumbering is mechanical but has six surfaces, and missing any
+one leaves a dangling reference:
+
+1. the file name (`git mv`),
+2. the frontmatter `id:`,
+3. the body `# IDEA-NNN:` heading,
+4. the ideas-index backlog row (link text *and* href),
+5. the originating IDEA's archive `README.md` "Follow-up" line,
+6. the devlog entry's follow-up line.
+
+Then `grep -rn "IDEA-<old>"` across `docs/` and confirm every remaining hit belongs to the
+*other* IDEA. Do it in the merge commit, and say so in the commit message — a reviewer seeing a
+renumber with no explanation will assume it was a mistake.
+
 ## Checklist (Step 1 addendum)
 
 - [ ] `git fetch origin && git log --oneline HEAD..origin/<default>` — non-empty?
@@ -102,4 +140,5 @@ merged tree, and retrigger explicitly if a docs pass-2 is wanted.
 - [ ] commit the merge **before** any wrap edit
 - [ ] stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them)
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
+- [ ] IDEA numbers filed by this wrap re-scanned for collisions against the default branch **and every remote branch** — the loser (whoever hasn't merged) renumbers across all six surfaces
 - [ ] after the final wrap push: `gh pr view --json mergeable` is `MERGEABLE`
