@@ -45,6 +45,43 @@ name; Modern uses `Ext.grid.plugin.GridFilters`."* Both halves were false for th
 The bot reasoned from mainstream/Classic Ext knowledge; the project used Modern. The finding was
 dismissed with an evidence-based rebuttal on the thread; **no code change**.
 
+## The adjacent case: the finding is right but the suggestion is wrong
+
+The sections above cover a bot whose **diagnosis** is false. The commoner and sneakier variant is
+a bot whose diagnosis is **correct** while the concrete value in its ```suggestion``` block is
+not. The finding earns your trust; the suggestion inherits it; the wrong number lands.
+
+It happens because the two halves are produced differently. Diagnosis is *comparison* — "these
+two documents disagree", which a bot does well from the diff alone. The replacement value is
+*derivation* — the bot must compute the right answer, and it can only compute from what the diff
+shows it.
+
+Worked case (documentation PR, counts of a generated artefact). The bot correctly spotted that a
+"N when this work started" figure was the **midpoint** rather than the baseline — genuinely wrong,
+and diagnosed from the PR's own text. Its suggested replacement then derived the second figure as
+`final − added`, which assumed the authoring change was the *only* contributor to that artefact
+in the window. It was not: a sibling change had landed two more entries concurrently. The
+diagnosis was right, the arithmetic was right, the **premise** was wrong, and applying the
+suggestion verbatim would have replaced one incorrect number with another — while closing the
+thread and making it look settled.
+
+The bot had even hedged: *"verify the starting count before committing — if X is the net addition,
+this is correct; if some were also removed or renamed, the other figure might be right."* That
+hedge is the signal to read for.
+
+**The discipline**: accept the *diagnosis* and the *suggestion* as two separate claims requiring
+two separate verifications.
+
+- Derive the correct value from **the source of truth, not from the diff** — for a count, read the
+  artefact at the base commit rather than doing arithmetic on the PR's own numbers:
+  `git show $(gh pr view <N> --json baseRefOid -q .baseRefOid):<path> | <count it>`.
+- **Any hedge in the suggestion body** ("verify before committing", "assuming X", "if Y then Z")
+  marks the half the bot could not verify. That is precisely the half to check.
+- A one-file `suggestion` block that is *committable in one click* deserves more scrutiny than a
+  prose finding, not less — the friction that would otherwise make you think is gone.
+- When you take the diagnosis but not the suggestion, **say so on the thread** with the command
+  that settles it, then resolve. It closes the loop honestly and stops the next cycle re-raising it.
+
 ## How it slots into the loop
 
 - This is a **Tier-3 disagreement** with the engine, not a defect → it does **not** auto-clear to

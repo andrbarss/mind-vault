@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.39 — compound: run a tool with its own interpreter; baseline counts from the base commit; a right finding with a wrong suggestion
+
+Shipped as one `/compound` PR. All three learnings come from one documentation sprint's review cycle.
+
+### Added
+
+- **`skills/review-loop/references/TOOL_INVOCATION_INTERPRETER.md`** — the finders are `#!/bin/bash`; invoked as `zsh tools/<name>.sh` they do not abort, they **degrade silently**: bash-only `[[ … =~ … ]]` / `BASH_REMATCH` evaluate empty under zsh, every downstream filter matches nothing, and the script honestly reports "No claude activity yet" for a PR that has a completed run and posted findings. Reproduced on two PRs; correct output returned immediately under `bash`. Read as "no findings", that is a **false CLEAN** — the structural-clean rule guards against a bot's prose lying, not against the tool that reads the bot returning empty for an unrelated reason. Ships the discipline (never prefix a script with a shell name; check the shebang once per tool; confirm any "nothing found" against the API; suspect your invocation before the tool) and generalises to `python` vs `python3` and node-major mismatches. Includes the field note that this was twice written up as an adapter defect before a two-minute `bash` re-run showed the tool was correct.
+
+### Changed
+
+- **`skills/review-loop/references/VERIFY_BOT_API_CLAIMS.md`** — new section for the adjacent, commoner case: the bot's **diagnosis is right while the value in its `suggestion` block is wrong**. The two halves are produced differently — diagnosis is comparison (a bot does that well from the diff), the replacement value is derivation (computable only from what the diff shows). Worked case: a bot correctly spotted that a "when this started" count was a mid-series figure, then derived the replacement as `final − added`, assuming the PR was the only contributor to that artefact in the window — it was not, and applying the suggestion verbatim would have swapped one wrong number for another while closing the thread. Discipline: treat diagnosis and suggestion as two claims needing two verifications; derive from the source of truth rather than the diff; read any hedge in the suggestion body ("verify before committing", "assuming X") as the marker for the half the bot could not check; give one-click-committable `suggestion` blocks *more* scrutiny, not less.
+- **`rules/RULE_self-sweep-before-push.md`** — trigger 5 item (3) now covers **baseline / delta** claims, not just "counts match the listed set": a "X when this started" or "N → M" figure must be read from the artefact at the PR's base commit (`git show $(gh pr view <N> --json baseRefOid -q .baseRefOid):<path>`), never derived as `final − added` and never carried over from a mid-series figure. Concurrent work lands in the same window, so the arithmetic is wrong even when your own addition count is right. The original claim passed a doc sweep precisely because it matched the listed set.
+
 ## v4.6.38 — compound: reversible expiry on two-phase holds; cross-clock cutoffs and SET-order; IDEA numbers reserve at merge
 
 ### Added
