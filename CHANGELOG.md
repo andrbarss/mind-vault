@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.42 — compound: plan-stage schema contract; additive-column fallback on the right error carrier
+
+Single-PR section; provenance on this paragraph (2026-09-01).
+
+### Added
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` — when a plan's schema change is consumed by a parallel team / codebase (an admin write-side, a sibling service, a client generator), `/plan` emits a standalone `schema-contract.md` into the idea's archive **before /work**: exact UP/DOWN DDL, a column-semantics table, writer invariants with a composability check (two individually-true rules that read as contradictory get an explicit "X is legal iff Y" sentence) and reader-tolerance declarations, plus a seed probe **with expected output arithmetic** that triple-duties as architect verification, the implementing side's acceptance check, and the consumer's assertion fixture. The migration mirrors the contract verbatim; divergence is a review finding. Second field instance of the pattern (a frozen write-side invariants set; a display-slot column hand-off unblocking a parallel UI team the day the plan locked).
+- `skills/plan/SKILL.md` — References entry for the new reference.
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — new **additive-columns-on-a-guarded-hot-path-read** bullet, the column-level sibling of the staggered-rollout bullet: a widened select on a lagging deployable throws unknown-column and a swallow-all guard blanks a months-old key (worse than the missing-new-key case the guard was built for). Demands an unknown-column fallback retrying the previous select list (sound only when the DDL defaults reproduce legacy semantics), error-code discrimination **on the right carrier verified live** (adapter families disagree — errno as the exception's own code with nothing chained vs a chained driver exception with SQLSTATE + `errorInfo`; a chain-walk written for one silently defeats the fallback on the other), and the flipped rollback-probe expectation (old key populated + new keys empty = pass; the naive all-empty probe is green on both the fallback and the regression).
+
 ## v4.6.41 — compound: availability probes at DDL-statement granularity; empty payload is never a refusal
 
 Single-PR section; provenance on this paragraph (2026-09-01).
