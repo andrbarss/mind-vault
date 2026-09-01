@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.41 — compound: availability probes at DDL-statement granularity; empty payload is never a refusal
+
+Single-PR section; provenance on this paragraph (2026-09-01).
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — the staggered-rollout availability-guard bullet gains two demands. **(4) Probe at DDL-statement granularity**: a migration of two ALTERs is not atomic as a unit — sibling tables diverge mid-rollout (or durably, on a failed second statement), so the probe must check the exact table/column set the code path touches, memoised per target; a single-table probe green-lights writes against the un-altered sibling. **(5) Refuse on payload non-emptiness, never key presence**: a well-behaved client sends every key on every save (`[]` for an emptied selection), so a presence-triggered refusal breaks every save on every not-yet-provisioned tenant — pin "empty = no-op success" in the cross-repo contract before the consuming client is built. Both field-sourced from a plan-review pass that caught the single-table probe as a blocker and a sibling-repo review that caught the presence trigger mid-work.
+
 ## v4.6.40 — compound: a MERGED PR is not proof the branch tip merged; unreachable-by-construction decisions
 
 ### Added
