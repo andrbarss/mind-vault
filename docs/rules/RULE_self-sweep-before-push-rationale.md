@@ -112,6 +112,14 @@ If suite reports M pre-existing + N new failures:
 - **Reviewer confusion**: reviewer sees N failures, can't tell which are your responsibility. Either approves blind or asks you to attribute.
 - **Compound interest**: every PR shipped with M pre-existing failures grows the noise floor by M. The dominant strategy if everyone follows the discipline is to monotonically decrease the count.
 
+### The unlisted-directory silent skip — gate on the exact count
+
+A suite configured with an **explicit directory list** (PHPUnit `<testsuite><directory>`, pytest `testpaths`, a Jest `roots` array, any glob allow-list adopted to keep a quarantined legacy tree out of discovery) has a failure mode the touched-suite sweep does not see: a new test file in a directory the list does not name is never discovered, the run stays green, and the count stays at the old N. Nothing is red, so nothing triggers the sweep.
+
+Field case: a refactor extracted a helper into a new source directory and added its test file under the matching new test directory; the suite printed `OK` with the pre-refactor count. The plan's architect review caught it only by reading the suite config and noticing the directory was absent — the plan's own "+8 tests" line was the sole tell, and the plan had not read it against the output.
+
+Two habits close it, both zero-cost: (1) when a commit adds a test file under a **new** directory, the suite config file is in the commit's scope (the project's `(amended IDEA-NNN: added ./<dir> for …)` header line is the convention); (2) every commit that adds tests **gates on the exact expected count** — baseline (read from the artefact at the branch base, per trigger 5's baseline rule) plus the per-file additions — and treats a lower N as a directory missing from the config, not as "some tests were consolidated". Green is necessary, the count is the signal.
+
 ### Anti-pattern
 
 ❌ "These 4 failures are pre-existing — I'll file a follow-up issue."

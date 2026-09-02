@@ -12,6 +12,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.47 — compound: content-hashed files are exempt from inline amendment markers; code-side shape changes flip at deploy; `$ref` siblings and shaper-built maps; unlisted test dirs
+
+Single-PR section; provenance on this paragraph (2026-09-02).
+
+### Changed
+
+- `rules/RULE_cross-idea-amendments.md` step 2 — **exception for content-hashed files**: an *applied* DB migration under a checksumming runner (or any signed/locked artefact) must never receive the inline `(amended IDEA-NNN …)` marker — even a comment edit changes the hash and every later `migrate` on every deployment prints a drift warning. The trail moves to the new migration's header, the commit trailer and the archive backref. Rationale doc gains the field case and the artefact classes.
+- `agents/AGENT_architect.md` PASS 4 — new **response-shape change produced in code flips at deploy, not at migrate** bullet: when a field's shape (list → keyed object, a different empty form) is transformed in the shaper rather than gated by schema, every deployable — migrated or not — answers the new shape the moment the code lands; the fleet-migrate gate stages nothing. Demand a consumer inventory (grep-verified, external consumers named) and a pinned consumer-first deploy order, or an explicit, recorded deliberate break.
+- `skills/work/references/CAPTURE_FIRST_API_DOCS.md` § Traps — two entries: **a `$ref` with siblings loses the siblings on OpenAPI 3.0** (author `description` + `allOf: [{$ref}]`, pin the shape in the spec test, read the artefact not the annotation); **a map built by a pure shaper is a plain map** (cast to an object at the consuming seam so `{}` and all-digit keys survive, one map component with `{}` as the empty form, example keys pinned to the shaper's key function, capture-scan label exemptions matching any key segment).
+- `rules/RULE_self-sweep-before-push.md` trigger 4 + rationale — **the unlisted-directory silent skip**: a suite configured with an explicit directory list never discovers a test file under a directory it does not name, so the run stays green at the old count; gate commits that add tests on the exact expected N and put the suite config in scope when the directory is new.
+
 ## v4.6.46 — compound: unique-key writer contract; catch-order shadowing; client-named column surfaces on tenant-absent columns
 
 Single-PR section; provenance on this paragraph (2026-09-02, [#51](https://github.com/andrbarss/mind-vault/pull/51)).
