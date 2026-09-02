@@ -113,6 +113,17 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
 - **Post-action rendering interception**: an MVC framework whose view renderer runs after the action
   can replace the coded JSON with an error page for actions that forgot to disable rendering — the
   captured body, not the code, is the contract.
+- **A trimmed capture is not a regression baseline.** The capture convention trims lists and
+  maps to a few entries, so a committed `[5, 7, 8]` may be the head of a 13-element answer. A
+  later change that must prove "the sibling endpoint is unchanged" cannot diff the live body
+  against that file — compare against the producer's own SQL, or against a fresh untrimmed
+  capture taken on the base branch with identical parameters (swap the one changed file in,
+  capture, restore). State in the transcript *why* the committed capture differs.
+- **A negative static-source pin must strip comments first.** When the suite cannot execute an
+  action (DB-bound) and pins its *shape* by reading the method source through reflection, an
+  assertion that a call is **absent** (`assertStringNotContainsString('getPacket(', $body)`)
+  fails on the action's own comment that names the call it deliberately omits. Strip
+  line comments before negative assertions; whitespace-normalise before pinning SQL text.
 
 ## ✅ DO / ❌ DON'T
 

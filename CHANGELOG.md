@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.43 — compound: waived rules amend their source; capture-first traps; claude skip is not deterministic
+
+Single-PR section; provenance on this paragraph (2026-09-02).
+
+### Added
+
+- **`skills/plan/references/WAIVED_RULE_AMEND_THE_SOURCE.md`** — when a plan decision deliberately departs from a written project rule (an API status-code rule, a "new endpoints must …" checklist), the plan schedules an edit to the rule text itself in the same PR: a general exemption (condition, what still applies, first use), a backref into the authoring IDEA's archive, and a docblock citation. A waiver that lives only in the plan / PR body is invisible to the review engine that enforces the written rule — field-observed as a clean first review followed by a full re-review that flagged the already-decided departure. Pointer in the plan SKILL References; wrap Step 6 gains a checklist probe for it.
+
+### Changed
+
+- **`skills/work/references/CAPTURE_FIRST_API_DOCS.md`** § Traps — two additions: a trimmed capture is not a regression baseline (compare against the producer's own SQL or a fresh untrimmed base-branch capture); a negative static-source pin must strip line comments first, because the code's own comment names the call it deliberately omits.
+- **`skills/review-loop/references/engine-claude.md`** § Push-triggered model — the post-first-review skip-no-op is not deterministic: a docs-only push got a full re-review while the next fix push skipped. Read the verdict by summary-time vs head-commit-time on every wake; retrigger only when the stale-summary guard says no verdict exists.
+
 ## v4.6.42 — compound: plan-stage schema contract; additive-column fallback on the right error carrier
 
 Single-PR section; provenance on this paragraph (2026-09-01).
