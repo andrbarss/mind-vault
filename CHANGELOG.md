@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.46 — compound: unique-key writer contract; catch-order shadowing; client-named column surfaces on tenant-absent columns
+
+Single-PR section; provenance on this paragraph (2026-09-02, [#51](https://github.com/andrbarss/mind-vault/pull/51)).
+
+### Added
+
+- `skills/plan/references/UNIQUE_KEY_TWO_LAYER_WRITER.md` — **new reference**: the writer contract for an application-written UNIQUE column (slug / short code / handle). Normalise only the types the normaliser accepts (a normaliser moved ahead of the validator sees arrays and objects), validate the normalised payload, an *unlocked* pre-check for the friendly "already used by <label> (id N)" message (no `FOR UPDATE` on a non-existent unique value — gap-lock deadlocks between inserts), an **errno-only** integrity-error catch as the guarantee (a key-name substring condition is a regression vector that drops a genuine duplicate into the generic error envelope), the column collation as the *shared* comparator (no `LOWER()` / `BINARY` in the pre-check), and a conflict exception whose base class no sibling `catch` already maps to another field. Ends in a plan-decisions checklist. Pointer added to `skills/plan/SKILL.md` References.
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 3 — new **catch-order shadowing + normaliser-ahead-of-validator** bullet: a new exception whose base a neighbouring catch already handles is silently reported as the wrong field's error; a normaliser hoisted before the validator turns a 400 on hostile types into a type-error 500. Demand the base class + full catch order pinned and a type-guarded normaliser with hostile-type tests.
+- `agents/AGENT_architect.md` PASS 4 — new **client-named column surfaces on a tenant-absent additive column** bullet: mapping `key: null` onto the select result is the visible half only — grid sorters, filters, live-search field lists and export pickers reach the query builder raw, so the first header click on an absent column is `Unknown column` → 500 while every row-level test passes. Demand the availability probe strip the column from every client-named parameter and a real-dropped-column test that sends sort + filter + search-fields and expects 200.
+
 ## v4.6.45 — compound: draft-PR `opened` run posts; read-path normalisation hides stored-data breakage
 
 Single-PR section; provenance on this paragraph (2026-09-02, [#50](https://github.com/andrbarss/mind-vault/pull/50)).
