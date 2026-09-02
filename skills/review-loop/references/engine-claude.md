@@ -58,6 +58,7 @@ The `claude-code-review.yml` action auto-runs on every push (`synchronize`), **b
 
 - The **push auto-run produces a real review ONLY the first time** claude sees the ready PR (any push before claude has commented). 
 - Every **subsequent push auto-SKIPS** → no fresh verdict (a "Skipping review …" no-op, caught by `CLAUDE_NOOP_PATTERNS`). Verified PR #169: pushes `06b3a3b` + `16e6dd4` both skip-no-op'd after the first review on `7399749`.
+  **The skip is not deterministic (field observation, 2026-09-02).** On one PR a docs-only push after a clean first review received a FULL re-review (which raised a new finding), while the very next fix push skip-no-op'd in ~2 minutes. Never predict which outcome a push gets: read the verdict by summary time vs head-commit time on every wake (the `CLAUDE_STALE_SUMMARY` guard), and retrigger only when the guard says no verdict exists for the head SHA.
 - An **explicit `@claude review`** (`claude_retrigger.sh`) **overrides the skip and forces a fresh review.** Verified PR #169: the explicit retrigger produced a full 3-minute review where the two prior pushes had skipped. Note the explicit path posts in the **@-mention / task format** ("Claude finished @user's task … ### Code Review …") — a different shape than the auto "## Code review" summary; the catch-everything classifier (§ Review-state + clean detection) handles both.
 
 ✅ **DO** let the **FIRST** claude review come from the push / un-draft auto-run (no explicit retrigger needed before claude has commented).

@@ -355,6 +355,7 @@ Concrete checklist — run each applicable probe, report findings:
 - [ ] **New top-level module / app?** Check `docs/README.md` feature list and any architecture diagrams.
 - [ ] **New settings surface?** `docs/reference/environment_variables.md` and any configuration guide need the knob + default + when-to-change.
 - [ ] **Removed settings / defaults flipped?** Same files — deprecate with a clear "As of YYYY-MM-DD, this variable is ignored" note for one release cycle before deletion.
+- [ ] **A written project rule waived by decision?** If the plan / PR body records "rule X deliberately not applied here", grep the rule's source (`docs/`, `CLAUDE.md`, `AGENTS.md`) — the rule text must carry the exemption, or the docs-pass review re-flags the code against the rule as written. Patch now: amend the rule with a general exemption + backref the authoring IDEA. See [`../plan/references/WAIVED_RULE_AMEND_THE_SOURCE.md`](../plan/references/WAIVED_RULE_AMEND_THE_SOURCE.md).
 
 Each finding → one of three dispositions:
 
