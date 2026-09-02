@@ -14,7 +14,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## v4.6.46 — compound: unique-key writer contract; catch-order shadowing; client-named column surfaces on tenant-absent columns
 
-Single-PR section; provenance on this paragraph (2026-09-02, [#51](https://github.com/andrbarss/mind-vault/pull/51)). Numbered past v4.6.45, which the concurrently-open [#50](https://github.com/andrbarss/mind-vault/pull/50) carries.
+Single-PR section; provenance on this paragraph (2026-09-02, [#51](https://github.com/andrbarss/mind-vault/pull/51)).
 
 ### Added
 
@@ -24,6 +24,15 @@ Single-PR section; provenance on this paragraph (2026-09-02, [#51](https://githu
 
 - `agents/AGENT_architect.md` PASS 3 — new **catch-order shadowing + normaliser-ahead-of-validator** bullet: a new exception whose base a neighbouring catch already handles is silently reported as the wrong field's error; a normaliser hoisted before the validator turns a 400 on hostile types into a type-error 500. Demand the base class + full catch order pinned and a type-guarded normaliser with hostile-type tests.
 - `agents/AGENT_architect.md` PASS 4 — new **client-named column surfaces on a tenant-absent additive column** bullet: mapping `key: null` onto the select result is the visible half only — grid sorters, filters, live-search field lists and export pickers reach the query builder raw, so the first header click on an absent column is `Unknown column` → 500 while every row-level test passes. Demand the availability probe strip the column from every client-named parameter and a real-dropped-column test that sends sort + filter + search-fields and expects 200.
+
+## v4.6.45 — compound: draft-PR `opened` run posts; read-path normalisation hides stored-data breakage
+
+Single-PR section; provenance on this paragraph (2026-09-02, [#50](https://github.com/andrbarss/mind-vault/pull/50)).
+
+### Changed
+
+- `skills/review-loop/references/engine-claude.md` — new calibration section: on the canonical workflow, the **`opened` run of a PR created as draft DID post its clean summary while still draft**, and the later `ready_for_review` run posted a second one on the same head SHA (no skip-no-op). The § DRAFT PRs claim is narrowed to what the 2026-06-03 A/B actually showed — a `synchronize` push on an existing draft posts nothing — with a pointer from that section; the draft billing lever avoids per-push reviews but not the first `opened` one; `CLAUDE_DRAFT_NOOP`'s early exit can hide a real verdict on such a PR (candidate tooling fix noted).
+- `agents/AGENT_architect.md` PASS 3 — new **read-path normalisation** bullet: trim/lower-case/coercion placed in a model `convert` / serializer read path / accessor canonicalises every read surface and hides non-canonical stored values in the very admin screen meant to expose them; demand write-seam-only normalisation through one shared normaliser (comparison and payload from the same value), a faithful read path, and a hand-inserted non-canonical-value probe (the UI round-trip probe cannot observe this).
 
 ## v4.6.44 — compound: select ladders over a boolean fallback; NULL semantics and rule order in schema contracts; examples drift from their schema
 
