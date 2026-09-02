@@ -87,6 +87,8 @@ The retrigger script also covers the **zero-activity bootstrap**: no Actions run
 
 ❌ **DON'T** read a draft PR's silence as a finding about the code — it's the draft no-op.
 
+⚠️ **Not universal — see § calibration update — the `opened` run on a draft PR DID post (2026-09-02).** The A/B above watched a `synchronize` push on an already-draft PR. A PR *created* as draft fires an `opened` run that, on the canonical forced-summary workflow, posts its verdict while the PR is still draft.
+
 **Adapter belt-and-suspenders:** `find_claude_comments.sh` now probes `gh ... pulls/<PR> .draft` up-front and, on a draft PR, emits **`CLAUDE_DRAFT_NOOP=true`** + exits early (instead of fetching runs → eventually SILENT). So even if `/review-loop`'s pre-flight un-draft is skipped or fails, the loop sees a clear "no claude verdict until ready (un-draft the PR)" signal, never a misattributed SILENT/HUNG/clean. In normal flow the pre-flight un-drafts before Phase 1, so this never fires.
 
 **✅ Use the draft no-op as a deliberate lever — the recommended sprint cadence.** claude is the only **push-triggered** engine (bugbot/copilot are on-demand inside the review-loop), so a non-draft PR auto-runs — and bills — a claude review on **every** `/work` commit push. Keep the PR in **draft during `/work`** to suppress that, iterate freely, and **flip to ready-for-review after `/wrap`** — that single un-draft fires one intentional claude review on the finalized state, which the `/review-loop` then drives alongside bugbot/copilot. Net: one billed review per cohesive change instead of one per WIP push, and no SILENT-on-WIP noise. (If you *want* a mid-`/work` claude pass, momentarily mark ready or trigger bugbot/copilot, which don't need the un-draft.)
@@ -295,6 +297,22 @@ Orchestrator action: the engine is **ERRORED**, not HUNG or STILL_FINDING — ha
 **The vendor-churn misread.** If the repo tracks a partial `vendor/` snapshot, `composer install` rewrites and deletes tracked files, and `git status` after the install shows dozens of `M`/`D` entries under `vendor/`. A run under fix 1 still reported *"no `vendor/` in a usable state"* because it read that churn as a broken checkout. `CLAUDE.md` must say so explicitly ("expected and harmless — scope inspection with `':!vendor'`"). Once all three landed, every subsequent review posted its own `composer openapi` (zero warnings) / drift-check / `composer test` output before the findings — the reviewer became the verification, not a reader of claims.
 
 **Adapter false negatives on a clean re-review (same window).** `find_claude_comments.sh` classes a task-format summary as *findings-bearing* by heading heuristics: a section titled **"Verification results"** or **"Prior finding — confirmed fixed"** is reported as `CLEAN=false FINDINGS=true` although the body ends in *"No other issues found"*. Read the body before acting on `CLEAN=false`; the true verdict is the prose, not the flag. (Candidate tooling fix: treat headings matching `Verification|confirmed fixed|Prior finding` as non-findings.)
+
+## § calibration update — the `opened` run on a draft PR DID post a clean summary; un-draft posted a second one (downstream ExtJS project, 2026-09-02)
+
+Third field observation on the canonical workflow (byte-identical to [`../assets/claude-code-review.yml`](../assets/claude-code-review.yml) on the default branch; write perms + posting-tool allowlist + forced-summary prompt), which narrows the § DRAFT PRs claim above:
+
+| Event | PR state | Run | Posted |
+| --- | --- | --- | --- |
+| `opened` (PR created with `gh pr create --draft`) | draft | `claude-code-review.yml`, ~8 min, `success` | `## Code review` — "No issues found." (0 inline) — **while still draft** |
+| `ready_for_review` (`gh pr ready`, ~16 min later, same head SHA) | ready | `claude-code-review.yml`, ~6 min, `success` | a **second** identical clean summary (0 inline) |
+
+What this settles and what it does not:
+
+- **The draft no-op is event-shaped, not state-shaped.** The 2026-06-03 A/B (SILENT while draft, full review on un-draft) watched a `synchronize` push on an existing draft. The `opened` event on a draft-created PR reviews and posts. So "draft ⇒ nothing posted" is too strong; "a push to a draft ⇒ nothing posted" is what the A/B showed.
+- **The billing lever still holds for pushes, but the initial `opened` costs one review.** Creating the PR as draft does not avoid the first review; it avoids the per-push ones. Expect **two** full reviews on a draft-then-ready PR whose head did not move: `opened` + `ready_for_review`. The `ready_for_review` run did **not** skip-no-op despite an existing posted review on the same SHA — the plugin's "already reviewed" dedupe (§ Incremental review) evidently keys on something the un-draft transition resets. Treat that as observed-once; if a cheaper cadence matters, open the PR ready and let the first push-run be the only one.
+- **Adapter caveat.** `find_claude_comments.sh`'s `CLAUDE_DRAFT_NOOP=true` early exit was written for the state-shaped model; on a draft PR whose `opened` run *did* post, it hides a real head-SHA verdict. Not observed here (the pre-flight un-drafted before the first fetch), but a draft-mode read should list head-SHA `claude[bot]` comments before exiting, and treat a summary whose `created_at` post-dates the head commit as a verdict regardless of draft state. Candidate tooling fix, not yet applied.
+- **Time-axis guard unchanged.** Both summaries post-dated the head commit; the stale-summary rule (§ Stale summary on a new SHA) is what makes either one a valid verdict for that SHA — read `AT=` against the head commit time as always.
 
 ## § residual open questions (post-downstream calibration)
 
