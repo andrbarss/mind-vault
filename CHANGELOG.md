@@ -12,6 +12,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.48 — compound: IDEA numbers collide across sibling branches; a reader rule may depart from the requesting contract; a contract reversal after CLEAN is a re-verification
+
+Single-PR section; provenance on this paragraph (2026-09-03).
+
+### Added
+
+- `skills/review-loop/references/CONTRACT_REVERSAL_AFTER_CLEAN.md` — when the user reverses a **contract-level** decision (a reader rule, a wire field, a default) after the loop read CLEAN, it is not a fix cycle: a nine-point checklist of every artefact that encoded the old rule (the code path *and* the degrade rung it now needs, every pin — inverted per route, generated-artefact wording + drift check, the new stem's migration headers, IDEA / plan revision section / contract / sidecars / index, the runtime verification re-run, the PR body, the cross-repo hand-off, the architect findings the reversal inverts), plus how the loop reads the next verdict (cycle 0 of a new contract, structurally). Pointer added to the review-loop SKILL.md References list.
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § **When the shipped behaviour departs from the requesting contract** — the DDL mirrors the request verbatim, but the *reader rules* are the owning repo's decision: state the departure explicitly in this repo's mirror contract, and amend the requesting contract in the other repo via a **paste-ready hand-off** (archive README + devlog + hand-back), never by editing a foreign in-flight branch from a docs pass; record an honest two-stem split of one requested `ALTER` with its rollback-topology difference. New anti-pattern: reconciling a deliberate departure back toward the request.
+
+### Changed
+
+- `skills/idea/SKILL.md` § 4 — **scan sibling branches, not only the on-disk trees**: an IDEA another branch has already moved to `docs/archive/` is invisible to the local scan, so max + 1 collides (field case: a capture took a shipped idea's number while two more numbers sat on unmerged branches; renumbered at `/plan`). One `git ls-tree` sweep over the remote `idea-NNN` branches before taking the number.
+- `skills/plan/SKILL.md` step 6 — **verify the number before the move**; `/plan` is the last cheap place to renumber (target dir, filename, `id:`, heading, a "captured as NNN, renumbered at `/plan`" status note); after the plan is emitted the number is in the plan, the contract, the branch names and the PR titles.
+- `skills/review-loop/references/engine-claude.md` § Push-triggered model — second same-day observation: a substantive two-commit contract reversal after a clean cycle-0 got a **full ~7-minute push-triggered re-review** (the reviewer ran the suite and drift check itself) while the repo's mention workflow was still read-only; read it structurally, never by expectation.
+
 ## v4.6.47 — compound: content-hashed files are exempt from inline amendment markers; code-side shape changes flip at deploy; `$ref` siblings and shaper-built maps; unlisted test dirs
 
 Single-PR section; provenance on this paragraph (2026-09-02).

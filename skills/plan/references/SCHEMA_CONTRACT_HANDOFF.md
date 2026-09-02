@@ -23,8 +23,18 @@ The contract carries five sections:
 - The contract is small enough to review exhaustively at plan time; the migration that mirrors it later needs only a "matches the contract verbatim" check.
 - Locking the DDL early is safe *because* the contract is additive-biased: when the design demands additive columns with behaviour-preserving defaults (see the architect PASS 4 additive-columns bullet for the read-path consequences), a later plan revision is a new contract version, not a silent drift.
 
+## When the shipped behaviour departs from the requesting contract
+
+The contract flows both ways. When *this* repo is the one asked for a column (the consumer wrote the request — DDL plus the rules it expects the reader to honour), the migration still mirrors the DDL verbatim, but the **reader rules are this repo's decision** and can legitimately end up different from what the request assumed. Field case: a requesting contract for a retire flag said "the storefront must keep emitting values of retired attributes"; after the first review the owner decided the storefront hides them. Two things then have to happen, and neither is a silent edit:
+
+1. **This repo's mirror contract states the departure explicitly** — a one-line "differs from the requesting contract's § X, decided YYYY-MM-DD" at the top and the replacement rule in the affected section — so an agent reading both files sees a deliberate divergence, not a drift to reconcile back toward the request.
+2. **The requesting contract is amended in the *other* repo** — but that file usually lives on that repo's own in-flight branch, with an uncommitted tree the amending session does not own. Do not edit it from a docs pass of this repo. Ship a **paste-ready hand-off**: the exact replacement bullet(s), the model-table cell wording and a Provenance line, in this IDEA's archive README (the wrap's canonical landing page), and name it as an owed item in the devlog and the hand-back. The human (or the other repo's next `/plan`) applies it.
+
+Also **split the ALTER honestly**: when one requested `ALTER` lands as two stems on this side (the first column shipped before the second was planned, and applied migration files are content-hashed — never re-opened), the mirror contract records both stems, the identical end state, and the one rollback-topology difference (both pending ⇒ one batch ⇒ a bare `rollback` reverts both; otherwise `--migration=<stem>`), so the consumer's degrade table still maps one-to-one.
+
 ## Anti-patterns
 
+- ❌ Reconciling a deliberate reader-rule departure *back* toward the requesting contract because "the contract says so" — the request describes what the consumer assumed, not what the owner of the reader decided; check the mirror contract's departure note first.
 - ❌ Handing the consumer the plan document itself — plans carry execution sequences, open questions and repo-relative paths that mean nothing in the other codebase; the contract is the extracted, stable subset.
 - ❌ A contract without the DOWN DDL — the consumer needs to know what a rollback window does to their writes.
 - ❌ A seed example without expected output — un-checkable, so it decays into decoration.
