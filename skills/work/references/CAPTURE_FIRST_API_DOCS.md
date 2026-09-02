@@ -65,6 +65,17 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
 - **Nullability is inferred from observed values only.** A property whose description says "null
   when …" needs `nullable: true` explicitly; sweep `description` containing "null" without
   `nullable` before opening the PR.
+- **The drift test cannot see a schema disagreeing with its own hand-written examples.** It
+  compares the committed artefact against the annotations, so adding a `required` property to an
+  element schema while the map examples that embed that element still lack the key regenerates a
+  self-consistent, green spec whose examples violate its schema — and Swagger UI renders the
+  examples, not the schema. Every hand-written example is a place a required key can silently go
+  missing. Fix it structurally: pin the element's key order in ONE constant on the pure shaper
+  that builds the element, assert the schema's `properties` **and** `required` equal it, and walk
+  every embedded example element (each list, each item) asserting `array_keys(example) ===
+  KEYS`. Field-caught by an architect pass on the second key added to a shared element — the
+  first addition had been reviewed by eye and the examples happened to be regenerated from
+  captures; nothing would have caught the day they weren't.
 - **A map example with a single `0` key serialises as a JSON list** in any language whose JSON encoder
   treats `0..n-1` keys as arrays (PHP, some Python paths) — the example silently stops suppressing
   placeholder keys. Key it as the real response does; if real keys start at 0, use two
