@@ -12,6 +12,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.44 — compound: select ladders over a boolean fallback; NULL semantics and rule order in schema contracts; examples drift from their schema
+
+Single-PR section; provenance on this paragraph (2026-09-02).
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — the **additive-columns** bullet gains clause (4): the second additive change on the same guarded tables turns the boolean "legacy select or not" into a **pinned, richest-first ladder of select shapes** walked one rung per unknown-column error, rethrowing after the last rung and on every non-matching error, behind a **callable seam** (`fetch(shape) → rows | throw`) so it is unit-testable without a DB adapter; the ladder is monotonic for the migration runner but not for a targeted rollback of the older migration — document that state as its own degrade probe; and drive rollback probes with the runner's real target identifier plus `--dry-run` first, because a "not applied" rollback leaves the DB untouched and every subsequent probe passes for the wrong reason.
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` — the model section must **say what NULL means** (bridge state awaiting a backfill vs a meaningful final value — identical DDL, opposite consumer designs; the relax-then-tighten rule biases authors toward reading every nullable column as a bridge), and writer invariants are **ordered as the save pipeline** when order changes the outcome (format-before-empty⇒NULL makes an implementer reject an emptied field; write trim → empty ⇒ NULL and stop → normalise → format → uniqueness, and say which steps a short-circuit skips).
+- `skills/work/references/CAPTURE_FIRST_API_DOCS.md` — new trap: **the drift test cannot see a schema disagreeing with its own hand-written examples** (artefact-vs-annotations only); a required key added to a shared element while embedded map examples still lack it regenerates a green, self-inconsistent spec. Pin the element's key order in one constant on the pure shaper, assert the schema's `properties` and `required` equal it, and walk every embedded example element asserting its keys equal it.
+
 ## v4.6.43 — compound: waived rules amend their source; capture-first traps; claude skip is not deterministic
 
 Single-PR section; provenance on this paragraph (2026-09-02).
