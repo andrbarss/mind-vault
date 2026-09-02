@@ -35,7 +35,7 @@ When you add code that reads a field on an object you didn't author (`if (state.
 
 ### 4. Touched-suite sweep (when you run a test suite)
 
-When `make test` reports pre-existing failures unrelated to your change, fix them in the SAME PR. Do not file as "out-of-scope". Habituation, bisect-poisoning, and reviewer-confusion costs → rationale doc.
+When `make test` reports pre-existing failures unrelated to your change, fix them in the SAME PR. Do not file as "out-of-scope". Habituation, bisect-poisoning, and reviewer-confusion costs → rationale doc. **And read the count, not the colour:** when the suite config enumerates test directories explicitly (`<testsuite><directory>`, `testpaths`, a glob list), a new test file under an unlisted directory **silently never runs** — the suite stays green at the old N. Gate every commit that adds a test file on the exact expected count (baseline + additions), and list the config file in scope when the directory is new; the rationale doc has the field case.
 
 ### 5. Doc-consistency sweep (doc-heavy commits)
 

@@ -135,6 +135,26 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   assertion that a call is **absent** (`assertStringNotContainsString('getPacket(', $body)`)
   fails on the action's own comment that names the call it deliberately omits. Strip
   line comments before negative assertions; whitespace-normalise before pinning SQL text.
+- **A `$ref` with siblings loses the siblings on OpenAPI 3.0.** The 3.0 spec ignores every
+  key next to `$ref`, and generators honour that at serialisation — swagger-php emits
+  `{"$ref": …}` alone for a `ref=` property or response and silently drops the `description`
+  you authored beside it (a `jq` walk of the artefact for `$ref` nodes with siblings finds
+  zero). When a property needs its own wording — a keying rule, an empty-form note, "present
+  only when …" — author it as `description` + `allOf: [{$ref}]`, the 3.0 idiom for
+  "reference plus annotation", and pin that shape in the spec test (`allOf[0].$ref` present,
+  description non-empty) so a later "simplification" back to bare `$ref` cannot lose the text
+  again. Read the artefact, not the annotation, to know what shipped.
+- **A map built by a pure shaper is a plain map; a map encoded from a raw array is a
+  container flip.** Legacy actions that `json_encode` whatever array they hold answer `[]`
+  for an empty id-keyed object, hence the `oneOf{<Name>Map, EmptyList}` convention with a
+  captured example on the map. A shaper that *owns* the type should not inherit that:
+  cast the map to an object at the seam the controller consumes (`stdClass` / `dict`), so the
+  empty form is `{}` and an all-digit key (`"0"`) cannot collapse the map into a JSON list,
+  and document it as one map component with `{}` as its empty form — no `EmptyList` branch.
+  Every map example key must equal the shaper's own key function applied to its element
+  (pin it in the spec test alongside the element key order), and the capture-scan's
+  catalogue-label exemptions must match *any* key segment, not only a numeric list index —
+  a keyed map's `title` leaves otherwise read as personal data.
 
 ## ✅ DO / ❌ DON'T
 

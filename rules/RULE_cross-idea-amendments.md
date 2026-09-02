@@ -22,7 +22,7 @@ When amending another IDEA's shipped files in scope of a current IDEA's work, AL
 
    Amends IDEA-MMM <file:line> to support <reason>.
    ```
-2. **Refresh the amended file's inline comment** to point at the amending IDEA. If the original file had a comment like `// Phase 2 — IDEA-MMM`, update it to `// Phase 2 — IDEA-MMM (amended IDEA-NNN: <one-line reason>)`. Future readers grepping the file see the amendment without leaving the source.
+2. **Refresh the amended file's inline comment** to point at the amending IDEA. If the original file had a comment like `// Phase 2 — IDEA-MMM`, update it to `// Phase 2 — IDEA-MMM (amended IDEA-NNN: <one-line reason>)`. Future readers grepping the file see the amendment without leaving the source. **Exception — content-hashed files** (an *applied* DB migration under a checksumming runner, a signed/locked artefact): never touch them, not even a comment — the hash mismatch is a per-deployment warning or a refused run, not documentation. Carry the amendment in the *new* migration's header, the commit trailer (step 1) and the archive backref (step 3) instead; rationale doc has the field case.
 3. **On `/wrap` of the amending IDEA**, append a one-line backref to the amended IDEA's archive directory (its README or devlog footer if no README exists). Format:
    ```
    <file> amended <X> → <Y> by IDEA-NNN (commit <sha>) — <reason>.
