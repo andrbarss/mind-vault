@@ -32,10 +32,21 @@ The contract flows both ways. When *this* repo is the one asked for a column (th
 
 Also **split the ALTER honestly**: when one requested `ALTER` lands as two stems on this side (the first column shipped before the second was planned, and applied migration files are content-hashed — never re-opened), the mirror contract records both stems, the identical end state, and the one rollback-topology difference (both pending ⇒ one batch ⇒ a bare `rollback` reverts both; otherwise `--migration=<stem>`), so the consumer's degrade table still maps one-to-one.
 
+## Charset and collation are part of the DDL — pin them on `ADD COLUMN` against a legacy table
+
+A column added with `ALTER TABLE … ADD COLUMN x VARCHAR(100) NULL` takes the **table's** default character set — not the database's, not the neighbouring columns'. On a schema that grew up before utf8 (MySQL `latin1` defaults are the common case), a table can default to latin1 while every one of its text columns carries its own `CHARACTER SET utf8mb4 COLLATE …` — readable, and a trap: the next additive column silently lands as latin1, and every non-Latin-1 letter is mangled **on write**, under HTTP 200, on every tenant. Nothing in a DB-free suite can see it; the migration round trip is clean; only real data exposes it. Field case: an eight-locale display-name family shipped latin1 on the first cut and stored `Š` as one byte; the seed read-back caught it before the first push.
+
+Three disciplines, in order:
+
+1. **Read the table default before writing the DDL** — `SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '<table>'` plus the `CHARACTER_SET_NAME` of two existing text columns. A dump in which every text column spells its own `CHARACTER SET` is the tell that the default is something else. If the default is not the charset you want, **every new text column in the contract's UP DDL pins `CHARACTER SET … COLLATE …` explicitly**, matching the table's newest text columns, and the migration header says why (so a later "tidy-up" does not drop it).
+2. **The contract under-specifies without it.** `VARCHAR(100) NULL` is not a complete column definition on such a schema; the consumer building a form against the contract will validate length in characters that the column then cannot store. Treat charset/collation as part of the frozen DDL, like the type and the nullability.
+3. **The seed probe is the acceptance gate for the bytes, not just the arithmetic.** Seed at least one value with a non-ASCII letter and read back `HEX(col), CHAR_LENGTH(col), LENGTH(col)`: the bytes must be the UTF-8 sequence and `LENGTH > CHAR_LENGTH`. Run it before the first push, while rolling the stem back still costs nothing — a stem that has reached a tenant is content-hashed and gets a *second* migration instead of an edit. (Seed from a client set to utf8mb4; a latin1 *client* produces a different, double-encoded symptom that looks like the same bug.)
+
 ## Anti-patterns
 
 - ❌ Reconciling a deliberate reader-rule departure *back* toward the requesting contract because "the contract says so" — the request describes what the consumer assumed, not what the owner of the reader decided; check the mirror contract's departure note first.
 - ❌ Handing the consumer the plan document itself — plans carry execution sequences, open questions and repo-relative paths that mean nothing in the other codebase; the contract is the extracted, stable subset.
 - ❌ A contract without the DOWN DDL — the consumer needs to know what a rollback window does to their writes.
 - ❌ A seed example without expected output — un-checkable, so it decays into decoration.
+- ❌ `ADD COLUMN … VARCHAR(n)` with no `CHARACTER SET` against a table whose default you have not read — on a pre-utf8 schema the column lands latin1 and mangles text on write; the round trip and the DB-free suite stay green.
 - ❌ Writing the migration first and extracting the contract after — the review order inverts, and the consumer's blocked window extends through /work.

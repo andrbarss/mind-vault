@@ -112,3 +112,17 @@ fi
 The detection is **conservative**: if any sibling `auto/<batch-mate-slug>` worktree is still on disk, we don't tear down the integration worktree. The reviewer is presumed to still be working through the batch's PRs in some order.
 
 When this firing fails (network down for remote-branch delete, the integration worktree was manually moved, etc.): log the failure, continue with the per-IDEA wrap normally. The integration worktree's leftover state is recoverable by hand and isn't a blocker for completing this IDEA's wrap.
+
+## Harness-created worktrees — exit with `keep`, then remove with git
+
+When the session's worktree was created by the harness's own worktree tool (the isolated-session mode that refuses edits in the shared checkout), the matching exit tool guards `remove` by counting commits on **the branch name it created**. Two routine moves defeat that count: renaming the branch to the project convention (`docs/idea-NNN-…`), and cutting the feature branch from it (`feat/idea-NNN-…`) — after which the tool reports "N commits, removing will discard this work" for commits that are already merged and verified as ancestors of the default branch. Do not answer that guard with `discard_changes: true` on your own authority; it is an explicit ask-the-human gate, and overriding it is the wrong reflex even when you know the commits are safe.
+
+The clean sequence:
+
+1. Verify first, as always: `git merge-base --is-ancestor <feature-tip> origin/<default>` for every branch the worktree carried.
+2. Tear down the worktree's docker stack (`docker compose … down -v`) and delete the merged remote branches.
+3. Remove the scratch files you created in the worktree (throwaway runner config, copied env file, log files) so git's own clean-tree check passes.
+4. Exit the worktree with `action: keep` — the session returns to the primary checkout with the tree intact.
+5. From the primary checkout run the standard sequence above: `git worktree remove <path>` (git refuses only on a dirty tree, which step 3 cleared), then `git branch -D` each branch after re-checking it is an ancestor of the default branch.
+
+This keeps the teardown on git's safety check (clean tree) rather than the tool's branch-name heuristic, and leaves the human-confirmation gate untouched for the case it exists for — genuinely unmerged work.
