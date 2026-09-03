@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.49 — compound: consuming a plan-stage contract — loaded-gated clearing keys, contract re-read at `/work` end, envelopes verified against the producing code
+
+Single-PR section; provenance on this paragraph (2026-09-03).
+
+### Added
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` — the consumer side of `SCHEMA_CONTRACT_HANDOFF`: (1) a `[]`-means-clear write key derived from an asynchronously loaded reference list is a positive statement — derive the payload from state the component owns, gate emission on the list's *successful* load, and keep the key **absent** (= untouched) otherwise, because an early Save or a transient load failure serialises `[]` and wipes every value while every spec stays green (architect-caught; the three empties are spec'd separately); (2) the contract is a moving target until its owner's `/wrap` — re-read it at the end of `/work` (field case: a single-read envelope root changed the same day, which would have opened the edit window empty with no proxy-stubbing spec able to catch it); (3) when the runtime walk is blocked, verify envelope roots, flag reads, `""`-vs-NULL and create-vs-update key collection against the producing code with `file:line` instead of leaving them as open questions.
+- `agents/AGENT_architect.md` PASS 3 — **a destructive-empty write key derived from a not-yet-loaded reference list**: the consumer-side sibling of the payload-non-emptiness bullet; demands owned-state derivation, a success-only loaded-gate, an absent branch, and the three-empties spec; the tell is any row asserting `[]` as the expected output of an empty list.
+
+### Changed
+
+- `skills/plan/SKILL.md` and `skills/work/SKILL.md` References — one-line pointers to the new reference (plan: when the design consumes a plan-stage contract; work: re-read the contract at the end of execution).
+
 ## v4.6.48 — compound: IDEA numbers collide across sibling branches; a reader rule may depart from the requesting contract; a contract reversal after CLEAN is a re-verification
 
 Single-PR section; provenance on this paragraph (2026-09-03).
