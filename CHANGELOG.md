@@ -14,7 +14,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## v4.6.52 — compound: worked examples are derived, not copied (self-sweep check 8); claude engine — two summaries per run, fast explicit re-review
 
-Single-PR section; provenance on this paragraph (2026-09-04). Numbered v4.6.52 because a sibling compound PR open at the same time holds v4.6.51; whichever merges second resolves the trivial adjacent-section conflict.
+Single-PR section; provenance on this paragraph (2026-09-04). Numbered v4.6.52 because v4.6.51 was taken by a sibling compound PR that merged the same day (forward-synced before merge).
 
 ### Added
 
@@ -22,6 +22,17 @@ Single-PR section; provenance on this paragraph (2026-09-04). Numbered v4.6.52 b
 - `skills/review-loop/references/engine-claude.md` § calibration update (2026-09-04) — one push-triggered run posted two summaries 15 s apart (clean, then findings-bearing — read the newest, never react to the first); the explicit `@claude review once` after a fix push re-reviewed in ~1 min, verified the fix by name and posted a clean task-format comment; a thread resolved before the loop is not a verdict — only a run post-dating the head commit is.
 
  charset/collation is part of the DDL contract; harness-created worktree teardown
+## v4.6.51 — compound: a contract's claims about *your* codebase are inferences; unobservable acceptance criteria
+
+Single-PR section; provenance on this paragraph (2026-09-04).
+
+### Added
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` §4 — a contract generous enough to hand you a *build spec* is, in those passages, asserting things about a codebase its author does not run; they are the document's least-reviewed prose and a consumer who trusts them inherits a false premise into their own plan. Field case: the contract stated a locale whose editor tab is filtered out "is never constructed, so its key is never posted" — true on update, **false on create**, where the framework's default writer forces write-all for a phantom record and iterates the *model's* declared fields rather than the rendered form's. The consuming repo's own solved-problem notes already contradicted the claim. Sort the contract into shapes (author's code — trust per §3) vs claims-about-me (hypotheses); grep your own framework and prior art before such a claim enters the plan; report the contradiction rather than coding around it; and pin it with a serialiser-level test that asks directly what a fresh record and a one-field edit would send — no server, no DOM.
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` §5 — inherited acceptance criteria are written from the producer's vantage and some are **unobservable in your client**, which makes copying them worse than omitting them: a human walks the row, sees a plausible signal, and ticks it. Field case: "paste an over-long value → the backend's message shows on the field" cannot happen where the save handler is `if (form.isValid())` with no `else`, so a client-side rule short-circuits and no request is ever issued — every signal the criterion names is produced locally, and the row reads green against a backend with no such validation at all. Per criterion, name the signal and ask whether the client can physically produce it; replace the ones it can't with something discriminating (client message + marked tab + **zero network requests**, asserted with a request spy), record the replacement as a decision, and tell the contract owner. Second-order: a client guard that makes the server's message unreachable promotes its *own* message to the only one the user sees, inheriting the wording and localisation bar the server's was holding.
+- Three anti-pattern bullets: trusting the claims-about-you because the shapes proved accurate; copying a criterion whose signal the client cannot emit; correcting the contract's mistake only in your own plan.
+
+## v4.6.50 — compound: charset/collation is part of the DDL contract; harness-created worktree teardown
 
 Single-PR section; provenance on this paragraph (2026-09-03).
 
