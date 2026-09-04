@@ -1,6 +1,6 @@
-# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code
+# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, and the claims the contract makes about *your* codebase
 
-Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Three disciplines, each field-caught once on the same idea; the first is the one that destroys data.
+Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Five disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
 
 ## 1. A `[]`-means-clear write key is a positive statement — gate it on the reference list having loaded
 
@@ -33,9 +33,39 @@ Consumers of a plan-stage contract routinely end with "runtime verification pend
 
 Each verified item flips its `Q` to "✅ verified in code (`Controller.php:NNN`)"; each divergence becomes a message to the contract owner and, when the consumer must change, a commit before the first review run. This is the consumer-side twin of [`VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`](VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md): the runtime claim you cannot observe is checked at its source, not assumed from the document.
 
+## 4. A contract that describes *your* codebase is making inferences — verify them like any other claim
+
+The best contracts go beyond shapes and hand you a build spec: the exact field config, the model declaration, the error wiring, "here is what your framework will put on the wire." That generosity is worth having, and it carries a hazard the shape sections don't: **those passages are assertions about a codebase the contract's author does not run.** They were written by reading your framework's docs, or by reasoning from your last integration. They are the least-reviewed prose in the document, and a consumer who trusts them inherits a false premise directly into their plan.
+
+Field case. The contract stated, as settled fact, that a locale whose editor tab is filtered out of the UI "is never constructed, so its key is never posted — absent means unchanged." True on **update**. False on **create**: the framework's default writer forces write-all for a new (phantom) record and iterates the **model's** declared fields, not the rendered form's — so the disabled locale's key ships anyway, as an empty string. The consuming repo already had this written down in its own solved-problem notes from an earlier idea; the contract's claim contradicted it. The consumer's plan had copied the claim into a "verified, read not assumed" table before the architect pass caught it.
+
+The discipline:
+
+- **Sort the contract into shapes vs claims-about-me.** Envelopes, keys, status codes, error values — those are the author's own code, trust and verify per §3. Anything phrased as "your X will do Y" is a hypothesis.
+- **Grep your own framework / prior art for each such claim** before it enters your plan. Serialisation defaults, create-vs-update divergence, lifecycle ordering and "this never reaches the wire" are the usual suspects — a create path almost always serialises differently from an update path, and contracts routinely document only the update.
+- **A claim contradicted by your own solved-problem notes is a defect in the contract, not a puzzle.** Report it; do not code around it and do not quietly correct only your own copy — the next consumer reads the same sentence.
+- **Pin it with a test that would fail if the claim were true.** The cheapest form asks your serialiser directly what it would send for a fresh record and for a one-field edit, with no server and no DOM. That test is also the guard on whatever field-declaration choice the divergence forced.
+
+## 5. An inherited acceptance criterion may be unobservable in your client — replace it, don't copy it
+
+Contracts often close with acceptance criteria, and they are written from the **producer's** vantage: "do X, and the API's message appears on the field." Some of them cannot happen in your client at all, because something upstream of the network short-circuits first. Copied verbatim into your verification section, such a row is worse than a missing test — a human walks it, sees *a* plausible signal, and ticks it.
+
+Field case. The criterion was: paste an over-long value, save, and "the backend's message shows on the field, the tab is marked, nothing is saved." In the consuming client the save handler is `if (form.isValid()) { … }` with **no else** — a client-side length rule fails first, so the request is never issued. Everything the criterion describes as evidence of correct server behaviour (a red field, a marked tab, nothing saved) is produced entirely locally. The row would read green against a correct backend and against a backend that had no such validation at all.
+
+The discipline, per inherited criterion: **name the signal, then ask whether this client can physically produce it.** If the answer is no:
+
+- **Replace the row with what the system can produce**, and make the replacement discriminating — here, the client message *plus* the marked tab *plus* **zero network requests**, asserted with a request spy. The zero-requests clause is the part that varies with correctness.
+- **Say in the plan that you replaced it, and why.** A silently-dropped criterion looks like an oversight at review time; a replaced one with a one-line rationale is a decision.
+- **Tell the contract owner.** An unobservable criterion is a defect in their document — they will hand it to the next consumer unchanged.
+- Watch for the second-order consequence: when a client-side guard makes the server's message unreachable, that guard's **own** message becomes the only thing the user ever sees for that failure. It inherits the quality bar (wording, localisation) the server's message was holding.
+
+
 ## Anti-patterns
 
 - ❌ "Empty picker ⇒ send `[]`, the degraded tenant accepts it" — the harmless case is the only one you thought about.
 - ❌ Deriving a write payload from a lookup / reference store instead of state seeded from the record.
 - ❌ Reading the contract once at `/plan` and never again — the owner's corrections land in their working tree while you build.
 - ❌ Leaving "reader root `result` vs `data`" as an open question when the producing controller is one grep away.
+- ❌ Treating a contract's description of *your* framework as verified because the rest of the contract proved accurate — the shapes and the claims-about-you have different authors' confidence behind them.
+- ❌ Copying an acceptance criterion whose signal your client cannot emit; a row that passes on a broken producer is a false negative you shipped on purpose.
+- ❌ Correcting a contract's mistake only in your own plan. The sentence stays wrong for the next consumer until its owner fixes it.
