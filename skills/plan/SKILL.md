@@ -67,7 +67,7 @@ Read [`assets/plan-template.md`](assets/plan-template.md) and fill its sections.
 
 1. **Context** — why this work, what prompted it, intended outcome.
 2. **Problem Frame** — what's broken or missing, how it hurts today.
-3. **Requirements Trace** — R1, R2, … each traceable back to the IDEA body or the user's request.
+3. **Requirements Trace** — R1, R2, … each traceable back to the IDEA body or the user's request. Tag every criterion only a human can satisfy (a real-device matrix, physical hardware, a third-party console) `(human)` and say whether it **gates close-out** or is a **recorded follow-up** — an untagged human-only criterion merges review-clean and then blocks the IDEA from ever closing; see [`../wrap/references/IDEA_COMPLETENESS_AUDIT.md`](../wrap/references/IDEA_COMPLETENESS_AUDIT.md) § Human-only acceptance criteria.
 4. **Scope Boundaries** — in-scope / out-of-scope / explicit non-goals.
 5. **Context & Research** — existing code and patterns to reuse (with file paths), institutional learnings, external references.
 6. **Key Technical Decisions** — opinionated defaults with one-line rationale each.

@@ -609,6 +609,7 @@ All user-visible text in `{% trans %}` / `{% blocktrans %}`. Template tag argume
 - [Multi-tenant Playwright](references/MULTI_TENANT_PLAYWRIGHT.md) — django-tenants Playwright fixtures: Host-header injection, schema seeding, storage_state cookie pre-baking inside `schema_context`
 - [Visual-acuity tests via Playwright](references/VISUAL_ACUITY_TESTS_VIA_PLAYWRIGHT.md) — Playwright-vs-render-and-assert decision table + Docker/Django bootstrap traps (full list in the reference)
 - [Visual Baseline Bumps](references/VISUAL_BASELINE_BUMPS.md) — AI agents NEVER auto-`--update-snapshots`; baseline regen requires explicit human invocation; default-locale baselines + structural-only locale assertions
+- [Forced dark mode — light-only page](references/FORCED_DARK_MODE_LIGHT_ONLY.md) — opt a page OUT of browser auto-darkening in code: `meta color-scheme=only light` + `:root { color-scheme: light; color-scheme: only light }` (both, in that order) + explicit 6-digit colours on every primary element + a `prefers-color-scheme: dark` re-assert; pin it with a rule-scoped static-source test; prove it with Playwright CDP `Emulation.setAutoDarkModeOverride` applied BEFORE a fresh navigation, an unguarded control page, screenshots not computed styles; the real-device matrix stays a human-only criterion
 - [django](../django/SKILL.md) — backend pairing (BaseModel, DRF, ORM optimisation, permissions)
 - [surgical-tdd](../surgical-tdd/SKILL.md) — testing approach for Django apps
 - [`RULE_i18n-workflow`](../django/references/I18N_WORKFLOW.md) — translation hard rules

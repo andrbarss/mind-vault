@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.53 — compound: light-only pages under forced dark mode; human-only acceptance criteria decided at plan time
+
+Single-PR section; provenance on this paragraph (2026-09-04, [#58](https://github.com/andrbarss/mind-vault/pull/58)). Two learnings from one guest-facing page that must never render dark, and from the wrap that could not close it.
+
+### Added
+
+- `skills/django-frontend/references/FORCED_DARK_MODE_LIGHT_ONLY.md` (+ pointer in `SKILL.md`) — the seven-declaration guard that opts a page out of browser auto-darkening (`meta color-scheme=only light`, `:root` with `light` then `only light`, explicit `html, body`, 6-digit colours on every primary element with no `inherit` / `transparent` / `initial` / named colours / `var()` in value position, a `prefers-color-scheme: dark` re-assert last); a rule-scoped static-source pin so a stylesheet tidy-up cannot drop it; and the Playwright proof — CDP `Emulation.setAutoDarkModeOverride` + `emulateMedia(dark)` applied **before a fresh navigation** (enabling it and then `setContent` is a false negative), an unguarded control page in the same run, screenshots as the only evidence because computed styles never change under forced dark. Emulated rows are labelled *emulated*; the real-device matrix stays human-only.
+- `skills/wrap/references/IDEA_COMPLETENESS_AUDIT.md` § Human-only acceptance criteria + one line in `skills/plan/SKILL.md` Requirements Trace — a criterion only a human can satisfy is tagged `(human)` at `/plan` and declared either a **close-out gate** (IDEA stays `in-progress` after merge until walked; the post-merge wrap flips it) or a **recorded follow-up** (the criterion is about the *recording*; the walk is a ⚠️ follow-up). Field case: a device-matrix criterion left untagged merged review-clean and left the IDEA unable to close by any agent action; the wrap hand-back now offers "walk it or waive it" explicitly, and a waiver is a plan amendment, not a quiet flip.
+
 ## v4.6.52 — compound: worked examples are derived, not copied (self-sweep check 8); claude engine — two summaries per run, fast explicit re-review
 
 Single-PR section; provenance on this paragraph (2026-09-04). Numbered v4.6.52 because v4.6.51 was taken by a sibling compound PR that merged the same day (forward-synced before merge).
