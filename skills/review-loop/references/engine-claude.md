@@ -314,7 +314,22 @@ What this settles and what it does not:
 - **Adapter caveat.** `find_claude_comments.sh`'s `CLAUDE_DRAFT_NOOP=true` early exit was written for the state-shaped model; on a draft PR whose `opened` run *did* post, it hides a real head-SHA verdict. Not observed here (the pre-flight un-drafted before the first fetch), but a draft-mode read should list head-SHA `claude[bot]` comments before exiting, and treat a summary whose `created_at` post-dates the head commit as a verdict regardless of draft state. Candidate tooling fix, not yet applied.
 - **Time-axis guard unchanged.** Both summaries post-dated the head commit; the stale-summary rule (§ Stale summary on a new SHA) is what makes either one a valid verdict for that SHA — read `AT=` against the head commit time as always.
 
-## § residual open questions (post-downstream calibration)
+## § calibration update — one push run, two summaries a minute apart; the explicit retrigger re-reviews a fix in ~1 min (downstream PHP project, 2026-09-04)
+
+Two more field observations on the canonical workflow (write perms, forced summary, `claude[bot]` identity):
+
+| Event | Run | Posted |
+| --- | --- | --- |
+| `synchronize` push on a ready, docs-only PR (first review of that PR) | `claude-code-review.yml`, ~8 min, `success` | **two** `## Code review` summaries 15 s apart from the same run: first "No issues found." (0 inline), then a findings-bearing one with **1 inline** suggestion — the second supersedes the first |
+| fix push after that finding | `claude-code-review.yml`, ~2.5 min, `success` | nothing (skip-no-op; `CLAUDE_STALE_SUMMARY=true`, adapter held it `SILENT`) |
+| `@claude review once` (`claude_retrigger.sh`) on the fix SHA | `claude.yml` (`issue_comment`), **1 min 2 s**, `success` | task-format comment: checklist fully ticked, "Prior finding resolved" with the fix verified by recomputation, rest of diff "no issues", "nothing further to flag" (0 inline) |
+
+What this settles:
+
+- **Read the newest summary, never the first.** A single run can post a clean summary and then a findings-bearing one (the plugin's post-during-run + final-summary paths both fired). `find_claude_comments.sh` already selects the newest summary for the head SHA, so the adapter reads the correct verdict — but an orchestrator (or a human) that reacts to the first "No issues found" notification acts on a superseded verdict. Wait for the run to reach `completed` *and* re-read the newest summary before declaring CLEAN; the § Race-condition caveats settle window exists for exactly this.
+- **The explicit retrigger after a fix is fast and specific.** Confirmed again that the push auto-run skip-no-ops once a review exists, and that `@claude review once` produces a full re-review from `claude.yml` — this time in about a minute, addressing the prior finding by name and verifying the fix independently. Verify it against the `claude.yml` run + the finalized task-format comment (zero `- [ ]` boxes, an explicit resolution/clean line, zero inline on the head SHA), per § Push-triggered model's mitigation — `find`'s `CHECKRUN` still reports the stale `claude-code-review.yml` skip run.
+- **Fix-before-loop is fine, but the loop still owns the verdict.** The finding here was fixed, replied to and its thread resolved *before* `/review-loop` was invoked; the loop's Phase 1 correctly saw a stale summary for the head, fired the retrigger once, and read CLEAN from the new run. Resolving a thread does not produce a verdict — only a run that post-dates the head commit does.
+
 
 The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
