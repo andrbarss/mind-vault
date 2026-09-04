@@ -90,6 +90,43 @@ User caught the inconsistency mid-`/compound` when the compound PR body re-menti
 
 The lesson driving this reference: the soft "Phase 2 (future)" framing without ⚠️ was the load-bearing failure. Had the original wrap output been `⚠️ Phase 2 pending — R7 unmet`, the next session's reader (the same agent post-compaction in /compound) would have seen the gap immediately and either deferred /compound until R7 closed OR opened a follow-up PR before the compound went out. Instead, the gap surfaced as a user catch-out.
 
+## Human-only acceptance criteria — decide the close-out gate at plan time
+
+Some criteria cannot be satisfied by the agent at all: a cross-browser matrix on real devices, a
+check on physical hardware, a step in a third-party console the agent has no credentials for. The
+audit above handles them correctly — ⚠️, `status: in-progress` — and that is where the trouble
+starts: the code is review-clean, the human merges the PR, and the IDEA now sits `in-progress` on
+the default branch with nobody owning the gap. It stays there until someone notices, or forever.
+
+Field case: a plan listed "walk the six-browser × three-mode matrix on real devices and record it in
+the archive" as its last R-criterion. Everything else shipped, the reviewer posted clean, the wrap
+kept the IDEA open per this audit, the human merged both PRs the same hour — and the IDEA could not
+close by any agent action. The criterion was legitimate; what was missing was a decision, made
+before execution, about what its non-completion *means*.
+
+**The rule.** At `/plan` time, every criterion only a human can satisfy is tagged `(human)` in the
+Requirements Trace and carries one of two declared outcomes:
+
+| Declared as | What it means at wrap | What the R-criterion should literally say |
+| --- | --- | --- |
+| **close-out gate** | The IDEA stays `in-progress` after merge until the human walks it; the post-merge `/wrap` (fallback mode, `docs/idea-NNN-wrap` branch) flips it. The archive README's *Pending* section carries the exact steps, commands and any DB writes the human needs. | "The matrix is walked on real devices and recorded." |
+| **recorded follow-up** | The IDEA can close when the *recording* exists; the walk itself is a follow-up owned by the human, listed in the devlog and index with ⚠️. | "The matrix table exists in the archive with every cell filled in or marked *not run*, and the emulated rows are labelled *emulated*." |
+
+Either is fine. What is not fine is the third state — a human-only criterion written as if the
+agent would satisfy it, discovered at wrap, and then left to the merge to resolve (it does not).
+
+**What the agent still does for a `(human)` criterion.** Everything short of the human step: emulate
+what can be emulated (browser dark-mode flags via CDP, device viewports, a locale), label those rows
+*emulated* — never ✅ real — write the human's commands and seed SQL next to the table, and put the
+⚠️ line in the three places the wrap already writes (IDEA banner, index, devlog). The audit's ⚠️
+marker rule applies unchanged.
+
+**At wrap, when the plan did not tag it.** Do not retro-fit the tag silently. Keep the IDEA open,
+say in the hand-back that the plan left the gate undeclared, and offer the human the two outcomes
+above as the question ("walk it, or waive it — either closes the IDEA on the next `/wrap`"). Waiving
+is a plan amendment (the R-criterion is rewritten to the *recorded follow-up* wording), recorded in
+the plan doc and the IDEA file, not a quiet flip.
+
 ## Relationship to other rules
 
 - [`RULE_rename-before-drop`](../../../rules/RULE_rename-before-drop.md) — phase-shipped IDEAs are most common for convention migrations (rename in Phase 1, drop in Phase 2). The two-PR cadence is the normal shape; this audit ensures each phase's wrap honestly represents what shipped.
