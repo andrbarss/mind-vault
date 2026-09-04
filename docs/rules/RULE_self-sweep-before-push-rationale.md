@@ -185,7 +185,7 @@ Full ruff / mypy passes are PR-time / CI-time concerns. The sweep is the minimum
 
 Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw a predictable review-bot Info-finding class that is **entirely locally checkable**. Bots emit these **one nit per cycle**, and each cycle is a billed round-trip — so the cost is multiplicative in the number of latent nits, not additive. Sweeping all seven checks locally before the *first* trigger collapses that to zero.
 
-### The seven checks
+### The eight checks
 
 1. **Frontmatter ↔ body cross-ref symmetry.** Every id in a file's `related:` / `depends_on:` / `supersedes:` frontmatter should be discoverable in the body's prose, and every id discussed in the body's "Related" section should be in the frontmatter. When you *add* an edge in frontmatter (e.g. `related: [..., NNN]`), add the matching one-line backref in the body — bots flag the asymmetry. **Applies to every edge type, and to every id within a list** — a `depends_on: [A, B]` whose prose mentions only B is the exact asymmetry bots catch. Name all the ids the frontmatter lists, not just the one you were focused on.
 
@@ -218,6 +218,10 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
    ```
 
    Zero hits ⇒ the claim stands *for that root* — say which root you searched ("not in `lib/<pkg>/`", not "does not exist"). Any hit ⇒ rewrite the sentence as a *positive* statement of what you actually chose and why ("`setParam()` because `getParam()` consults it first; `setQuery()` also works"). Positive statements are cheaper to keep true than negative ones, and a reviewer can verify them by reading one line. Provenance rule: a negative that came from a spike, a bot, or a subagent report is a **hypothesis**, not a fact, until the grep runs — and it must be re-verified at *every* hop it is copied to, because the copy is where the sweep runs, not the origin.
+
+8. **Worked examples are derived from the doc's own running example, never copied from a sibling doc.** A doc that says "the example is `X`" and then quotes a byte sequence, a hash, a computed length or a sample output for `X` is making a checkable claim about `X` — and the fastest way to get it wrong is to paste the figure from a neighbouring doc that used example `Y`. The number is correct *there* and wrong *here*, and the failure is silent: nothing in a suite reads prose, and a reader who greps their hexdump for the quoted bytes concludes the bug they are chasing is absent. Field case: a solution doc whose running example was one accented letter quoted the double-encoding bytes of a *different* letter, lifted from the dev-environment guide; a review engine caught it by recomputing (`C5 A0` → `C3 85 C2 A0`, not the pasted `C3 84 C2 8D`).
+
+   Sweep: for every literal figure that sits within a sentence naming the example it belongs to, recompute it from that example (a one-liner, e.g. `python3 -c "print('Š'.encode().hex())"` / `.encode('utf-8').decode('latin-1').encode('utf-8').hex()` for the double-encoded form) or, if recomputation is not cheap, cite the sibling doc *and its example* explicitly ("`č` → `…` in `<guide>`") rather than restating the number as if it were yours. The check costs seconds; the alternative is a billed review cycle plus a doc that misleads until someone reads it against real bytes.
 
 ## Guard-Return-Asymmetry Sweep — Full Recipe
 

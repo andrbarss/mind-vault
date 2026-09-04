@@ -12,7 +12,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.50 — compound: charset/collation is part of the DDL contract; harness-created worktree teardown
+## v4.6.52 — compound: worked examples are derived, not copied (self-sweep check 8); claude engine — two summaries per run, fast explicit re-review
+
+Single-PR section; provenance on this paragraph (2026-09-04). Numbered v4.6.52 because a sibling compound PR open at the same time holds v4.6.51; whichever merges second resolves the trivial adjacent-section conflict.
+
+### Added
+
+- `rules/RULE_self-sweep-before-push.md` trigger 5, check **(8)** + `docs/rules/RULE_self-sweep-before-push-rationale.md` § The eight checks — a byte sequence / hash / computed count quoted for "the example `X`" must be computed for `X`, never pasted from a sibling doc whose example differs; recompute with a one-liner or cite the sibling *and its example*. Field case: a double-encoding byte string copied from a guide with a different example letter, caught by a review engine recomputing it.
+- `skills/review-loop/references/engine-claude.md` § calibration update (2026-09-04) — one push-triggered run posted two summaries 15 s apart (clean, then findings-bearing — read the newest, never react to the first); the explicit `@claude review once` after a fix push re-reviewed in ~1 min, verified the fix by name and posted a clean task-format comment; a thread resolved before the loop is not a verdict — only a run post-dating the head commit is.
+
+ charset/collation is part of the DDL contract; harness-created worktree teardown
 
 Single-PR section; provenance on this paragraph (2026-09-03).
 
