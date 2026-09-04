@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.50 — compound: charset/collation is part of the DDL contract; harness-created worktree teardown
+
+Single-PR section; provenance on this paragraph (2026-09-03).
+
+### Added
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § "Charset and collation are part of the DDL" — an `ADD COLUMN` inherits the **table** default charset; on a pre-utf8 schema (latin1 table default, per-column utf8 text columns — the dump's per-column `CHARACTER SET` is the tell) the new column lands latin1 and mangles text on write under HTTP 200 while the round trip and the DB-free suite stay green. Read `information_schema.TABLES.TABLE_COLLATION` before writing DDL, pin `CHARACTER SET … COLLATE …` per column in the contract's UP DDL, and make the seed probe read back `HEX / CHAR_LENGTH / LENGTH` of a non-ASCII value before the first push. Plus an anti-pattern bullet.
+- `skills/wrap/references/WORKTREE_TEARDOWN.md` § "Harness-created worktrees" — the harness's exit tool counts commits against the branch name it created, so a renamed / re-cut branch trips its "will discard N commits" guard on already-merged work; exit with `keep`, then `git worktree remove` + `git branch -D` from the primary checkout after the ancestor check, instead of overriding the human-confirmation gate.
+
 ## v4.6.49 — compound: consuming a plan-stage contract — loaded-gated clearing keys, contract re-read at `/work` end, envelopes verified against the producing code
 
 Single-PR section; provenance on this paragraph (2026-09-03).
