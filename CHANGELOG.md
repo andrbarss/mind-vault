@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.54 — compound: seed probes must discriminate the rule under test; "blank ⇒ NULL" on numeric columns is `=== ''`, never `empty()`
+
+Single-PR section; provenance on this paragraph (2026-09-07, stacked on [#58](https://github.com/andrbarss/mind-vault/pull/58)). Two learnings from one ordering-column contract, both caught by the architect pass before `/work`.
+
+### Changed
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § 5 seed probe — **the seed must be able to discriminate the rule under test.** Co-monotonic fixture data (the new ordering column, the foreign key, the primary key and physical insertion order all agree, as rows inserted in sequence naturally do) makes "order by key", "order by id" and "no ORDER BY" return identical rows, so a probe's all-NULL and equal-position rows prove *no regression*, not the tie-break they claim. Either swap two rows' keys with a reversible `UPDATE … CASE` and expect the different order, or label the rows no-regression and cite the DB-free pin as the evidence. The question to ask of every seed row: *which candidate rule would make this row come out differently?* Field case: five verification rows that all agreed under three orderings.
+- Same file § 3 writer pipeline — **"blank ⇒ NULL" on a numeric column is spelled `=== ''`.** "trim → empty ⇒ NULL" reads as PHP `empty()` / JS `!value`, both true for `'0'`, so a legitimate `0` is stored as NULL in direct contradiction of the "any integer is legal" invariant beside it. The numeric pipeline is written in full: type guard (integers pass, strings continue, anything else 400 — `trim()` on an array is a TypeError) → trim → `=== ''` ⇒ NULL and stop → `^-?\d+$` → signed-INT range (strict-mode 1264 otherwise surfaces as a 500) → store as int. Two anti-pattern bullets added for both.
+
 ## v4.6.53 — compound: light-only pages under forced dark mode; human-only acceptance criteria decided at plan time
 
 Single-PR section; provenance on this paragraph (2026-09-04, [#58](https://github.com/andrbarss/mind-vault/pull/58)). Two learnings from one guest-facing page that must never render dark, and from the wrap that could not close it.
