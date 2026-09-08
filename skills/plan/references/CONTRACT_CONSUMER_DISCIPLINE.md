@@ -1,6 +1,6 @@
-# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, and the claims the contract makes about *your* codebase
+# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, the claims the contract makes about *your* codebase, wire booleans, and invariant handlers under a programmatic set
 
-Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Five disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
+Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Seven disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
 
 ## 1. A `[]`-means-clear write key is a positive statement — gate it on the reference list having loaded
 
@@ -59,6 +59,22 @@ The discipline, per inherited criterion: **name the signal, then ask whether thi
 - **Tell the contract owner.** An unobservable criterion is a defect in their document — they will hand it to the next consumer unchanged.
 - Watch for the second-order consequence: when a client-side guard makes the server's message unreachable, that guard's **own** message becomes the only thing the user ever sees for that failure. It inherits the quality bar (wording, localisation) the server's message was holding.
 
+## 6. Wire booleans are read through a truth table, never truthiness — the producer's own cast tells you why
+
+The contract promises JSON booleans on the read-back, and the producer keeps that promise with a cast — `(bool) (int) $row->flag` — because its DB layer hands a `TINYINT` back as an int *or a string* depending on driver settings. The consumer's draft read the flag with `!!row[key]`, which is one character away from correct and reads the string `"0"` as **true**. The write side of the same contract listed the accepted encodings (`true | false | 1 | 0 | "1" | "0"`); that list is the tell that the read side can carry the same forms, and a flag that the client re-sends on every save turns one wrong read into a persisted wrong value — with the UI's own indicators confirming the corrupted state.
+
+The rule: **one reader function, an explicit truth table, driven by the same field list every seed / commit / payload loop walks.** `true | 1 | "1"` ⇒ true; `false | 0 | "0"` ⇒ false; absent or `null` ⇒ the documented default; anything else ⇒ the default (the producer refuses those on write, so a read of one is drift, not data). Never `!!`, never `== true`. Spec the string forms, not only the numeric ones — a `1 / 0` row passes `!!` and proves nothing. Then, at the §3 static read, confirm the producer's cast (or its absence) in its own serializer: a guard's shape is validated against the producer's real data, never a mock (the self-sweep rule's defensive-code trigger). Precedent worth copying: a client that already reads a sibling flag strictly (`row.active !== false`) has the idiom on the same screen — reuse it.
+
+## 7. A programmatic multi-field set must never reach the invariant handler — prove it with an event spy and a positive control
+
+When N fields carry an invariant enforced by a `change` handler ("at least one on", "mutually exclusive", "sum ≤ limit"), loading a record sets the fields one at a time and **every intermediate state can violate the invariant**. The handler fires mid-load and "repairs" the record it was given: with three checkboxes showing `(on, off, off)` and a load of `(off, off, on)` that sets the first box first, the intermediate is all-off, the handler re-ticks the first box, and the loaded record is silently altered — the next commit persists the repair as if the user had asked for it.
+
+Two parts to the fix, and the second is the one that gets missed:
+
+1. **Set under suspended events** — the framework idiom the same screen already uses for its text fields (`suspendEvents()` / `setValue()` / `resumeEvents()`, or the equivalent).
+2. **Hoist the set above any per-type branch.** The existing idiom lived inside the branch for one card type only; copying it literally would have left the other type's card showing the *previous* record's flags, and the next tick would have committed them into the wrong record. Before copying an idiom, check where it *lives* — a branch-local idiom is a statement about one branch, and the reviewer's spot-check of "the code sets the fields exactly as it does the text fields" is what caught it.
+
+Proof — **never a transition assertion.** With three or more fields no single transition is set-order-independent: set the last field first and `(on, off, on) → (off, off, on)` never passes through all-off, so a spec that asserts "load this over that, map unchanged" is green on an implementation with no suspension at all, which still misfires on other transitions. Assert the signal the behaviour uniquely produces: attach a spy to **every** field's `change` event, drive several loads across record types, expect **zero** calls; then perform one real user tick and expect exactly **one** — the positive control that stops the zero from passing vacuously. Spy on the event, not on the handler's method name: string-resolved listeners may bind at registration time, so a spy installed later on the controller method sees nothing either way, and the zero would be meaningless.
 
 ## Anti-patterns
 
@@ -69,3 +85,5 @@ The discipline, per inherited criterion: **name the signal, then ask whether thi
 - ❌ Treating a contract's description of *your* framework as verified because the rest of the contract proved accurate — the shapes and the claims-about-you have different authors' confidence behind them.
 - ❌ Copying an acceptance criterion whose signal your client cannot emit; a row that passes on a broken producer is a false negative you shipped on purpose.
 - ❌ Correcting a contract's mistake only in your own plan. The sentence stays wrong for the next consumer until its owner fixes it.
+- ❌ `!!row.flag` on a value the producer casts from a DB integer — the string `"0"` is true, and a flag re-sent on every save persists the misread.
+- ❌ Proving "a load never fires the invariant handler" with one transition; only an event spy across several loads plus a positive control is set-order-independent.
