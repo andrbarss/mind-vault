@@ -12,6 +12,66 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.56 — compound: per-pair settings on child rows; a ladder step-down cannot name the column; example pins constrain the curation
+
+### Added
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § "A per-pair setting stored on per-child
+  rows" — when the only table carrying a (parent, item) pair is a child table with N rows per
+  pair, the contract owes a writer invariant (every row of the pair identical; the reinsert
+  carries the columns on every row), a reader tolerance rule (the **first emitted row** is
+  authoritative — post-sort, post-filter, never a pre-sort "head" row; OR-across-rows and
+  drop-on-disagreement both rejected with reasons), and a **two-direction** seed probe (only
+  clearing the *first* row while setting a later one separates first-wins from an OR). Plus an
+  anti-pattern bullet for the one-direction probe. (2026-09-08)
+- `skills/work/references/CAPTURE_FIRST_API_DOCS.md` — trap: the pins that already read a Map
+  example constrain the capture curated for it; grep the spec test's assertions over the example
+  before choosing the seed, keep every existing pin green, scope new per-placement assertions to
+  the first entry. (2026-09-08)
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — new bullet: a ladder step-down cannot name the missing
+  column, so the log line names the rung *transition* and quotes the driver message; the
+  non-monotone state (older change rolled back under the newer) gets its own degrade-table row
+  and probe, read through the *older* behaviour's flip; a rung rename re-keys every log branch
+  and pin in the same commit; the re-applied older stem lands in a later batch, so only targeted
+  rollbacks. (2026-09-08)
+
+## v4.6.55 — compound: seeding a row a UI can also create; wholesale emitters defeat "nothing reads this"
+
+### Added
+
+- `skills/deployment/references/CONVERGENT_SEED_ROW_MIGRATION.md` — a guarded
+  `INSERT … WHERE NOT EXISTS` that seeds a row into a table an application UI can also write is
+  idempotent by **skip**, not convergent. When the reader deploys before the fleet migrates and an
+  operator hand-creates the row from a form, the create path produces a *differently shaped* row
+  (quick-create renders a different widget so the choice list lands NULL; provenance flags get
+  stamped; optional prose is absent) — and the migration then skips it permanently, with an applied
+  file that may never be edited to repair it. Prescribes a paired idempotent repair `UPDATE`, how to
+  enumerate the shape columns (every column a consumer *branches on* — the widget discriminator is
+  the one most often missed, and missing it can leave a requirement permanently unsatisfiable while
+  the repair's own provenance normalisation closes the delete-and-recreate escape hatch), the
+  repair-shape-never-intent rule, the down-file ownership asymmetry, and the malformed-row
+  verification case that a fresh-DB test cannot reach. Cross-linked with
+  `MIGRATION_STATEMENT_ORDERING.md` as the second axis of re-runnability.
+- `skills/plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md` — before writing "nothing
+  reads this data" into a plan or IDEA: a wholesale emitter (`SELECT *` → map, `fields = '__all__'`,
+  a settings dump) publishes rows it **never names**, so the symbol grep returns zero and the
+  negative is wrong. Grep the *container* for such readers too. Covers the two follow-on traps: the
+  same value carrying different types on a wholesale vs a curated surface, and a loosely-schema'd
+  emitter meaning a clean generated-spec diff is not evidence the surface didn't change.
+
+### Changed
+
+- `RULE_self-sweep-before-push` trigger 4 — **a docs-only commit can turn the suite RED.** When a
+  guard test's inputs are *files* rather than code (a glob-and-parse over committed artefacts, a
+  fixture linter, a link checker), adding a document is a code path; "no source changed, so the
+  suite is unaffected" is true of the count and false of the verdict. Re-run after any commit that
+  adds files under a directory a guard test walks.
+- `RULE_self-sweep-before-push` trigger 5(7) — negative-existence claims about *data* need the
+  container grep, pointing at the new plan reference.
+
 ## v4.6.54 — compound: seed probes must discriminate the rule under test; "blank ⇒ NULL" on numeric columns is `=== ''`, never `empty()`
 
 Single-PR section; provenance on this paragraph (2026-09-07, stacked on [#58](https://github.com/andrbarss/mind-vault/pull/58)). Two learnings from one ordering-column contract, both caught by the architect pass before `/work`.

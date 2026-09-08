@@ -76,6 +76,18 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   KEYS`. Field-caught by an architect pass on the second key added to a shared element — the
   first addition had been reviewed by eye and the examples happened to be regenerated from
   captures; nothing would have caught the day they weren't.
+- **The pins that already read a Map example constrain the capture you may curate for it.** When
+  an example is regenerated from a *curated* capture (a seed that exercises the new feature), grep
+  the spec test for every assertion over that example *before* choosing the seed — the existing
+  pins encode invariants the new curation can silently break. Field case: a pin asserted the first
+  example entry's item list carried exactly one of each item type in a fixed order; the planned
+  curation moved the only multi-valued item out of that list, so the new per-placement walk would
+  have passed and the old pin failed — while regenerating from the un-curated baseline would have
+  failed the new walk on empty placements. Choose the curation so **every** reader of the example
+  holds (keep the item in both placements — which also makes the overlap the description promises
+  visible), and scope a new "non-empty per placement" assertion to the *first* entry so a
+  legitimately empty placement on a later entry stays legal. The order is seed → pins → capture →
+  example, never example → red drift check → re-seed.
 - **A map example with a single `0` key serialises as a JSON list** in any language whose JSON encoder
   treats `0..n-1` keys as arrays (PHP, some Python paths) — the example silently stops suppressing
   placeholder keys. Key it as the real response does; if real keys start at 0, use two

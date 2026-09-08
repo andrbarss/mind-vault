@@ -50,3 +50,12 @@ Write the down-file's header comment to say so explicitly ("same retry-convergen
 5. Does the project's migration-convention doc state the rule? If not, add it there in the same PR — the migration that taught the lesson is the right vehicle (this is how the rule stops being tribal knowledge).
 
 Provenance: an architect review caught the up-file ordering; the down-file's independent (non-mirror) application was caught only by a second reviewer pass after the up-file rule was already codified — the mirror intuition survives the first lesson, which is why this reference spells out the down-file case.
+
+## Related — the other axis of migration re-runnability
+
+Statement *order* protects against a mid-file failure. It does not protect against a **second
+writer**: a guarded `INSERT … WHERE NOT EXISTS` that seeds a row an application UI can also
+create is idempotent by *skip*, and skips a malformed pre-existing row permanently. See
+[`CONVERGENT_SEED_ROW_MIGRATION.md`](CONVERGENT_SEED_ROW_MIGRATION.md). Both rules apply to the
+same file, and the repair `UPDATE` that reference prescribes is itself idempotent — so it does
+not disturb the ordering rule above.
