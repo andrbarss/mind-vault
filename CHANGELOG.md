@@ -12,6 +12,32 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.56 — compound: per-pair settings on child rows; a ladder step-down cannot name the column; example pins constrain the curation
+
+### Added
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § "A per-pair setting stored on per-child
+  rows" — when the only table carrying a (parent, item) pair is a child table with N rows per
+  pair, the contract owes a writer invariant (every row of the pair identical; the reinsert
+  carries the columns on every row), a reader tolerance rule (the **first emitted row** is
+  authoritative — post-sort, post-filter, never a pre-sort "head" row; OR-across-rows and
+  drop-on-disagreement both rejected with reasons), and a **two-direction** seed probe (only
+  clearing the *first* row while setting a later one separates first-wins from an OR). Plus an
+  anti-pattern bullet for the one-direction probe. (2026-09-08)
+- `skills/work/references/CAPTURE_FIRST_API_DOCS.md` — trap: the pins that already read a Map
+  example constrain the capture curated for it; grep the spec test's assertions over the example
+  before choosing the seed, keep every existing pin green, scope new per-placement assertions to
+  the first entry. (2026-09-08)
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — new bullet: a ladder step-down cannot name the missing
+  column, so the log line names the rung *transition* and quotes the driver message; the
+  non-monotone state (older change rolled back under the newer) gets its own degrade-table row
+  and probe, read through the *older* behaviour's flip; a rung rename re-keys every log branch
+  and pin in the same commit; the re-applied older stem lands in a later batch, so only targeted
+  rollbacks. (2026-09-08)
+
 ## v4.6.55 — compound: seeding a row a UI can also create; wholesale emitters defeat "nothing reads this"
 
 ### Added
