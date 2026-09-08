@@ -12,6 +12,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.59 — compound: wire booleans through a truth table; invariant handlers under a programmatic set; the 100 % rename tell; a docs-only push SILENTs pass 2
+
+The consumer side of the v4.6.58 writer-rule reference, from the client that built against that contract: two reader disciplines the architect pass caught before they shipped, one staged-set tell, and one review-engine calibration. (2026-09-08)
+
+### Added
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` § 6 — **wire booleans through a truth table, never truthiness**: the producer casts `(bool) (int)` because its DB hands a `TINYINT` back as `"0"`, `!!"0"` is true, and a flag re-sent on every save persists the misread; one reader driven by the same field list every loop walks, string forms in the spec, the producer's serializer confirmed at the § 3 static read.
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` § 7 — **a programmatic multi-field set must never reach the invariant handler**: set under suspended events *and* hoist the set above any per-type branch (a branch-local idiom copied literally leaves the other type stale); prove it with an event spy across several loads plus a positive control — no single transition is set-order-independent with three or more fields, so a transition assertion is green on an unsuspended implementation.
+- `docs/rules/RULE_self-sweep-before-push-rationale.md` § "Staged-Set Verification — the Two Tells" — casing drift (one file short) and edit-after-`git mv` (a `(100%)` rename on a file you meant to change).
+
+### Changed
+
+- `rules/RULE_self-sweep-before-push.md` trigger 7 — the edit-after-`git mv` cause and its 100 % rename tell; `git add` the new path after any post-move edit.
+- `skills/plan/SKILL.md` References — the CONTRACT_CONSUMER_DISCIPLINE pointer names the two new disciplines.
+- `skills/review-loop/references/engine-claude.md` § "a docs-only wrap push fires a run that posts NOTHING" — the `synchronize` run on a pure paper-trail diff completes `success` in ~1 min with no summary (the incremental skip); a head-SHA check-run proves the trigger fired, not that a review happened, so the docs pass has a verdict only when a `claude[bot]` summary post-dates the push — fire the explicit retrigger once when the docs pass matters.
+
 ## v4.6.58 — compound: a writer rule stricter than storage needs a client exit; refusal-origin blindness in hostile-input tests
 
 A plan-stage reference for the trap where a write rule the DB does not enforce ("at least one flag on") composes with a faithful read-back and a legal storage state into a client that is refused on every save with nothing it can change — plus a curator heuristic for tests that are green because the refusal came from the wrong layer.

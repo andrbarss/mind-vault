@@ -311,6 +311,15 @@ The fix is usually one line in the divergent branch, mirroring a sibling (`$row[
 - Any "availability / dedup / filter is wrong only for mode X" report where mode X is one branch of such a family — a phantom/stale field from a missed finalization is the first hypothesis.
 - A review of a diff whose comment says "with X unset / cleared / defaulted" — verify the code in that branch actually does it.
 
+## Staged-Set Verification — the Two Tells
+
+Trigger 7 is one glance at the stat line git already printed. Two causes account for nearly every mismatch, and each has a tell that is visible in that same output:
+
+- **Casing drift** (case-insensitive filesystems): the stat line is one file *short*. Resolve tracked names from `git ls-files` before `git add`.
+- **Edit-after-`git mv`**: the count is right but a file you meant to *change* shows as `rename … (100%)`. Sequence that produces it: `git mv old new` (rename staged) → edit `new` in place → `git add old` fails with "pathspec did not match" (or is skipped because "it's already staged") → commit. The rename is committed, the edit is not; it survives in the working tree and is found one stage later — field case: a plan-stage IDEA move plus its frontmatter flip, commit said 3 files with the rename at 100 %, the flip was found by the next stage's clean-tree gate. Read a 100 % rename on an intentionally-edited file as "the edit did not stage" and `git add` the **new** path.
+
+Both are zero-cost to catch at commit time and expensive later: the lost edit resurfaces as unexplained dirt on another branch, and the intervening commits have already been reviewed against the wrong state.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
