@@ -12,6 +12,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.57 — compound: push-then-un-draft twins two Claude reviews on one SHA; finder prefers the completed twin
+
+### Changed
+
+- `skills/review-loop/references/engine-claude.md` § "push then immediate un-draft" — the draft no-op is decided when the run *starts*: a `synchronize` run that begins after `gh pr ready` does a full review, so push + immediate un-draft bills two reviews of one diff. Practice: wait for the push run's draft-skip comment before un-drafting. Rule for same-SHA twins: a completed run with a post-dated summary and zero inline findings is the verdict; never hold RUNNING on its sibling. (2026-09-08)
+- `skills/review-loop/SKILL.md` pre-flight — the sequencing sentence + the twin-run verdict rule, pointing at the reference. (2026-09-08)
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — run selection prefers a `completed` run when two head-SHA runs share a `run_started_at`; previously the tie fell through to the higher id, which was the twin still `in_progress` 13 minutes after its sibling had posted. (2026-09-08)
+
 ## v4.6.56 — compound: per-pair settings on child rows; a ladder step-down cannot name the column; example pins constrain the curation
 
 ### Added
