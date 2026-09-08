@@ -331,6 +331,22 @@ What this settles:
 - **Fix-before-loop is fine, but the loop still owns the verdict.** The finding here was fixed, replied to and its thread resolved *before* `/review-loop` was invoked; the loop's Phase 1 correctly saw a stale summary for the head, fired the retrigger once, and read CLEAN from the new run. Resolving a thread does not produce a verdict — only a run that post-dates the head commit does.
 
 
+## § calibration update — push then immediate un-draft: two full runs on ONE SHA, and the finder tracks the idle twin (downstream ExtJS project, 2026-09-08)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`), no `concurrency:` group. The docs-wrap push and `gh pr ready` landed within the same minute:
+
+| Event | Started | Run | Posted |
+| --- | --- | --- | --- |
+| `synchronize` (final wrap push while still draft) | 13:18:02 | `claude-code-review.yml`, **4 min**, `success` | `## Code review` — "No issues found." (0 inline) at 13:21:59 |
+| `ready_for_review` (`gh pr ready`, same head SHA) | 13:18:02 | `claude-code-review.yml`, **17 min**, `success` | a second identical clean summary at 13:35:10 |
+
+What this settles:
+
+- **The draft no-op is decided when the run starts, not when the push happened.** The `synchronize` run began *after* the un-draft, saw a ready PR, and did a full review. So "push to a draft ⇒ cheap skip" holds only if the push's run has already *started* (better: already posted its `Skipped — this pull request is currently a draft` comment) before the un-draft. Field cost here: **two billed full reviews of one diff** — the same shape as the `opened` + `ready_for_review` pair in the 2026-09-02 block, now reachable from a push too.
+- **Practice:** after the final push, wait for the push's run to post its draft-skip (≈90 s), *then* `gh pr ready`. `/review-loop`'s pre-flight now says so.
+- **Adapter tie-break.** `find_claude_comments.sh` picks the head-SHA run with the latest `run_started_at`; the twins tied to the second, and the sort fell through to the higher run id — the one that stayed `in_progress` for 13 minutes after its sibling had completed and posted. The loop therefore read `RUNNING` (no verdict) for three polls while a completed run + a post-dated summary + zero inline already existed. The sort key now prefers a **completed** run on a `run_started_at` tie. For non-tied twins (un-draft a few seconds after the push) the rule an operator should apply by hand: **if any head-SHA run is `completed` and the newest head-SHA summary post-dates the head commit with zero inline findings, that is the verdict — do not wait on a sibling run for the same SHA.** A sibling can only add a second summary (the 2026-09-02 pair) or a skip-no-op; it cannot retract a posted verdict, and the finder reads the newest summary anyway.
+- **What it does not settle:** why the second run took 17 min for a diff the first reviewed in 4 — the job log was unavailable while running. Not a hang (it completed and posted); treat a same-SHA twin's long tail as noise, not as a HUNG signal.
+
 The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
 - **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
