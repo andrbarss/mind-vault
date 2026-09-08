@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.58 — compound: a writer rule stricter than storage needs a client exit; refusal-origin blindness in hostile-input tests
+
+A plan-stage reference for the trap where a write rule the DB does not enforce ("at least one flag on") composes with a faithful read-back and a legal storage state into a client that is refused on every save with nothing it can change — plus a curator heuristic for tests that are green because the refusal came from the wrong layer.
+
+### Added
+
+- `skills/plan/references/STRICTER_WRITER_NEEDS_A_CLIENT_EXIT.md` — legal storage + refused write + faithful read = a retired / read-only row re-sent unchanged locks its parent record out of every save; decide the exit at plan time (a load-bearing seed rule in the consumer contract, disabled rows included, or a writer carve-out in the phase that knows the entry's class; never coerce) with a checklist, and the delta-with-pointers shape for amending a contract a sibling codebase already builds against (one authoritative delta, pointer lines in the amended file, no duplicated prose). Pointer added to the plan skill's References. (2026-09-08)
+
+### Changed
+
+- `agents/AGENT_curator.md` PASS 1 — **refusal-origin blindness**: a hostile-input test that asserts only the status code while its fixture cites a non-existent parent id stays green when the parser rule is deleted (the existence check refuses one layer later); require the assertion to pin the refusal's origin, and check the transport can carry the distinction (a JSON encoder that sends `1.0` as `1` makes an HTTP-level float-refusal row unfalsifiable — pin it at the service layer). (2026-09-08)
+
 ## v4.6.57 — compound: push-then-un-draft twins two Claude reviews on one SHA; finder prefers the completed twin
 
 ### Changed
