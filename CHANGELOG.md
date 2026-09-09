@@ -12,6 +12,16 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.61 — compound: sign-to-magnitude promotion verifies independently; keep-both seams carry the neighbour's heading
+
+Promoting a per-date availability boolean to the count behind it (2026-09) surfaced a verification trap the plan's own parity probe could not see, and the parallel wrap that shipped alongside it left a duplicate heading in a keep-both merge. Both are routed to the references that own them.
+
+### Added
+
+- `skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md` § "Sibling trap: sign-to-magnitude promotion" — a number only ever consumed as a sign (`sum > 0`) carries inflations nobody had to notice (synthetic aggregate rows, fan-out joins, deferred deductions); promoting it to a magnitude makes them reach the wire, and a parity probe against the sibling that shares the reducer is green on the inflated value and on every future inflation. Field case: 146 "free" on 137 physical rooms, the sibling agreeing at 146, the earlier notes carrying "138 suspended to reach 0" unremarked. Rule: audit the reduction's inputs for aggregate rows, verify with an **independent** count from a different source, re-read the sibling's verification notes with the magnitude in mind, argue and pin the boolean's invariance on the producer's real synthetic shape. Pointer line in `skills/plan/SKILL.md` updated. (2026-09-09)
+- `agents/AGENT_architect.md` PASS 3 — **sign-to-magnitude promotion**: the reviewer demands the aggregate-row audit (one exclusion seam, named), an independent derivation instead of sibling parity, and a real-shape unit test for the boolean's invariance. (2026-09-09)
+- `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § "Keep-both seams carry the neighbour's heading" — two parallel wraps inserting at the top of the same section conflict on "my entry + the neighbour heading the other side re-titled", so a mechanical keep-both leaves a bodiless duplicate heading and doubled / missing separators; check every heading once, the separators at both seams, ship order. Checklist line added. (2026-09-09)
+
 ## v4.6.60 — compound: vacuous truth + the helper's wrong arm; first-ever caller of a dormant branch; the fix run reviews while the tip run skips; only the app joins the parent network
 
 A verdict-style endpoint rebuild (list every row with restriction codes instead of filtering, then a contract revision after a clean review) surfaced two reviewer heuristics, one producer-audit sibling and one review-engine attribution trap. (2026-09-09)
