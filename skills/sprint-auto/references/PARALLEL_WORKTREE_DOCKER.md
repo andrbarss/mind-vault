@@ -156,6 +156,37 @@ works whether or not the generator is fixed. Static IPs are usually vestigial an
 — if nginx upstreams and inter-service calls use **service DNS names** (`web:8000`,
 not `172.x`), the pinned IPs serve no purpose and dropping them is safe everywhere.
 
+#### Reusing the parent's database: join ONLY the app container to the parent network
+
+A cheaper worktree stack than a full clone is "my own reverse proxy + app container, the parent's
+DB / cache" — the app container joins the parent stack's network so `db` / `redis` / `mysql`
+resolve there. Two rules:
+
+- **The reverse proxy stays on the worktree's private network.** If nginx / traefik joins the
+  parent network too and the app service carries the same name in both stacks (`php`, `web`,
+  `app`), Docker DNS returns **both** containers for `fastcgi_pass php:9000` /
+  `proxy_pass http://web:8000` and the proxy round-robins between the parent checkout and the
+  worktree — identical requests alternate between two code versions (field case: a strict
+  `200 400 200 400` alternation, one body per version, until the proxy was moved off the shared
+  network). Give the proxy only the private network; give the app container both.
+- **Declare the parent's network `external: true` under its real name** (`<project>_default` or
+  the parent's named network) — never a second network with the same subnet.
+
+```yaml
+services:
+  proxy:
+    networks: [wt]
+  app:
+    networks: [wt, parent]
+networks:
+  wt: {}
+  parent:
+    name: <parent-project>_default
+    external: true
+```
+
+Tear down with plain `down` (the parent's volumes are external; `-v` neither needed nor harmful).
+
 ### Common Gotchas
 
 | Symptom | Root cause | Fix |
