@@ -45,6 +45,16 @@ default branch may have moved during the wrap itself. `gh pr view <N> --json mer
 This is forward-sync per `RULE_git-safety` (feature tip moves, protected tip doesn't) and is
 always allowed.
 
+## Keep-both seams carry the neighbour's heading
+
+Two wraps that ran in parallel each insert an entry at the *top* of the same section (the ideas index's Implemented list, the month's devlog). The conflict hunk on each side spans "my new entry **plus whatever line the other side changed next to it**" — and the other wrap often *re-titled the neighbouring entry* (a backfilled PR number appended to a heading, a status marker flipped). So HEAD's hunk ends with the neighbour heading in its **old** wording, the incoming hunk ends with the same heading in its **new** wording, and a mechanical keep-both leaves **two headings for one entry**, the stale one orphaned between the two new entries with no body. The suite is green (markdown has no parser), a diff reviewer reads two plausible headings, and the devlog now lists the same entry twice.
+
+After every keep-both on an index / devlog / changelog:
+
+1. `grep -n '^## \|^### '` the resolved file and check that every heading appears **once** — a duplicate is the stale copy from the side that did not re-title it; drop the one without a body.
+2. Check the separators at both seams (the `---` between entries, the blank line before a heading): each side's hunk usually carried one separator, and the resolved file has either two in a row or none between the two inserted entries.
+3. Keep the two new entries in **ship order** (the later-merging IDEA above the earlier one) — the newest-first convention reads by merge date, not by the date the entry was authored.
+
 ## The second-order catch: a parallel module missed this IDEA's new convention
 
 When the forward-merge brings in a **sibling module** that was authored while this IDEA was
@@ -137,6 +147,7 @@ renumber with no explanation will assume it was a mistake.
 
 - [ ] `git fetch origin && git log --oneline HEAD..origin/<default>` — non-empty?
 - [ ] merge, resolve keep-both in ship order, lint/parse the resolved files, run the suite
+- [ ] after a keep-both on an index / devlog / changelog: every heading once, separators at both seams, entries in ship order (§ Keep-both seams)
 - [ ] commit the merge **before** any wrap edit
 - [ ] stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them)
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
