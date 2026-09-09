@@ -361,3 +361,35 @@ What it settles against the 2026-09-04 block (where the wrap push *did* auto-pos
 - **A check-run on the new SHA proves the trigger fired, not that a review happened.** The docs pass has a verdict only when a `claude[bot]` summary **post-dates the wrap push**. Read the comments, not the run list.
 - **Practice:** when the docs pass matters (index / devlog / reference-doc rewrites the engines are meant to sanity-check), let the push's run SILENT, then fire `claude_retrigger.sh` **once** and read the `claude.yml` run — the explicit `@claude review` re-review does post a positive verdict after a fix cycle (§ 2026-08-26). A human who merges on pass 1 plus the wrap's own doc-consistency sweep is making a judgement call, and the scratch file should say so.
 - **Cheap guard for the finder:** on a `completed` head-SHA run with the newest `claude[bot]` summary older than the head commit, the existing `CLAUDE_STALE_SUMMARY` path already refuses CLEAN — the operator error this block prevents is reading the *run's* green conclusion as the pass-2 result.
+
+## § calibration update — a fix push followed a minute later by a docs-only push: the FIX run re-reviews in full while the TIP run skips, and the finder attributes the summary to the tip (downstream PHP project, 2026-09-09)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). The PR had a clean first review
+on contract 1. A user-requested **contract revision** (three substantive commits) was pushed as
+SHA₂; its `synchronize` run completed in ~2 min and posted nothing (the deliberate post-clean skip
+— the mention workflow was read-only on that repo, so no explicit retrigger was possible, and the
+loop fell back to an independent reviewer per `CONTRACT_REVERSAL_AFTER_CLEAN.md`). The reviewer's
+nits were pushed as SHA₃ (comment-only, 9 files) and a plan check-off as SHA₄ (one doc file) a
+minute later. What happened next:
+
+- The run on **SHA₃ ran 12 minutes and posted a full clean summary** at 09:16 — the skip is
+  non-deterministic and a *substantive* diff after a prior review can get a full pass (the
+  2026-08-28 block, again). The run on **SHA₄ completed in 90 s and posted nothing** (docs-only
+  skip, the 2026-09-08 block).
+- `find_claude_comments.sh` selects the newest head-SHA run (SHA₄, `completed`) and the newest
+  summary (posted by SHA₃'s run), and — because the summary post-dates SHA₄'s commit — reports it
+  as SHA₄'s verdict. Structurally that is CLEAN; semantically the **reviewed SHA is SHA₃**. Accept
+  it only when `git diff SHA₃ SHA₄` is docs-only; otherwise treat the tip as unreviewed.
+- **Do not fire the explicit retrigger while any synchronize run on the branch is `in_progress`.**
+  The 2-minute skip-no-op on SHA₂ was the *tell* to wait, not to retrigger: the very next push got
+  a full review, and an `@claude review` fired at that moment would have twinned it (the 2026-09-08
+  block) or, on a read-only mention workflow, burned a run for nothing.
+- **Reconcile two verdicts, don't pick one.** When the independent-reviewer fallback already
+  ran, the engine's late full pass is a second CLEAN on the same code; record both in the scratch
+  cycle log (the reviewer's nits fixed *before* the engine looked is the ordering that matters
+  for "what did the engine actually see").
+
+Practice: after any push, wait for the head-SHA run to reach `completed` **and** for the settle
+window; then read the newest summary's `created_at` against the commit it could have reviewed —
+list the branch's runs with their durations (a ~90 s run never reviewed anything; a 10-minute run
+did) and map the summary to the long run's SHA before calling the tip clean.

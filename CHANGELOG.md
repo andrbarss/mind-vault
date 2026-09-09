@@ -12,6 +12,17 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.60 — compound: vacuous truth + the helper's wrong arm; first-ever caller of a dormant branch; the fix run reviews while the tip run skips; only the app joins the parent network
+
+A verdict-style endpoint rebuild (list every row with restriction codes instead of filtering, then a contract revision after a clean review) surfaced two reviewer heuristics, one producer-audit sibling and one review-engine attribution trap. (2026-09-09)
+
+### Added
+
+- `agents/AGENT_architect.md` PASS 3 — **vacuous truth on an empty domain + the helper's wrong arm**: a rule "every X satisfies P" that a plan turns into a gate or a restriction code is true when X is empty (a sold-out packet fired the min-nights code), so demand the non-empty precondition and the empty-domain test row; and derive a mirrored predicate from the arm the production caller reaches, not the helper's general arm (an empty scope bound *nothing* at the write path — the plan had copied the "binds everything" arm).
+- `skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md` § "Sibling: the first-ever caller of a dormant branch" — a shared producer's arm no caller has ever taken is new code that happens to be old: prove it dormant by grepping callers for the argument shape, read it for reads-before-writes and sibling divergence, run one request with warnings visible, gate on the producer's own preconditions, pin the initialiser.
+- `skills/review-loop/references/engine-claude.md` § "a fix push followed a minute later by a docs-only push" — the fix-push run re-reviewed in full (12 min) while the docs-tip run skipped (90 s); the finder attributes the newer summary to the tip. Accept only when the tip differs by docs-only from the reviewed SHA; never fire the explicit retrigger while a synchronize run is in flight; reconcile an independent-reviewer verdict with the engine's late pass rather than replacing it.
+- `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` § "Reusing the parent's database: join ONLY the app container to the parent network" — a proxy on the shared network round-robins between two same-named app containers (a `200 400 200 400` alternation); proxy on the private network, app on both, parent network `external: true` under its real name.
+
 ## v4.6.59 — compound: wire booleans through a truth table; invariant handlers under a programmatic set; the 100 % rename tell; a docs-only push SILENTs pass 2
 
 The consumer side of the v4.6.58 writer-rule reference, from the client that built against that contract: two reader disciplines the architect pass caught before they shipped, one staged-set tell, and one review-engine calibration. (2026-09-08)

@@ -52,6 +52,35 @@ A drawer's "open with prefix" routine used to push frames onto an empty stack wi
 
 The same pattern recurs across stacks: a guard added to a primitive unmasks a contract gap in the data the primitive consumes. The audit catches both halves in one PR.
 
+## Sibling: the first-ever caller of a dormant branch
+
+The same audit applies when your change does not *remove* a short-circuit but is the **first
+caller ever to take an existing branch** of a shared producer — a helper that accepts a scalar
+or an array, a mode flag every caller has left at its default, a fallback arm no fixture
+reaches. That branch has never executed in the repo's life; it is new code that happens to be
+old, and it carries the defects the review never had a chance to see.
+
+Field case: a stay-level consumer was the first to pass an *array* of codes to a pricing
+producer whose every existing caller passed a scalar. The array arm read a local
+(`$single_food`) that only the scalar arm assigned — one `E_WARNING` per cell, printed ahead of
+the JSON body on the dev image. The sibling producer for another channel had initialised it;
+the divergence was invisible per file. A second latent surfaced in the same arm: the producer
+loaded its packet cache with the *default* filter and dereferenced `null` for any packet the
+new caller listed but the default hid.
+
+How to apply, before the first commit that takes the arm:
+
+1. **Prove it is dormant.** Grep the producer's callers for the argument shape / mode you are
+   about to pass; zero hits = treat the arm as unreviewed code.
+2. **Read the arm for reads-before-writes and sibling divergence** (`RULE_self-sweep-before-push`
+   trigger 6: line the sibling arms / sibling producers up and diff their initialisations).
+3. **Run one request with warnings visible** (`display_errors`, `-W error`, strict mode) before
+   trusting the body — a warning-free body is the acceptance signal, not a 200.
+4. **Gate the new caller on the producer's own preconditions** (what its default filter would
+   have excluded) rather than letting the arm fault on inputs it never expected.
+5. **Pin the initialiser** with a source pin or an executed test so the next refactor cannot
+   reintroduce the read-before-write.
+
 ## Relationship to other rules and skills
 
 - [`rules/RULE_self-sweep-before-push`](../../../rules/RULE_self-sweep-before-push.md) — covers **structural** sweep (dead imports, unused locals, stale comments). This reference covers **behavioural** sweep (latent issues newly reachable). Both run pre-push but on different surfaces; one's pass-clean signal does not satisfy the other.
