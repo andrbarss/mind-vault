@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.65 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
+
+Single-PR section; provenance on this paragraph (2026-09-07).
+
+### Added
+
+- `skills/plan/references/PRODUCER_ARGUMENT_CONTRACTS.md` + `agents/AGENT_architect.md` PASS 2 bullet + `skills/plan/SKILL.md` pointer — when a plan reuses a shared producer with scoping arguments, classify each by reading the branch (additive / **narrowing** / defaulting / switching) and then trace it to the exact call site the plan uses: a loader that narrows on an argument is scope-independent when the call site never forwards it. Two review rounds on one plan reasoned from the loader's signature and got the residual's direction wrong twice; the prescribed subtraction was unnecessary and unimplementable. Every cost claim names the per-row baseline the reused loader itself costs.
+- `skills/work/references/EXECUTE_OVER_PIN.md` + `agents/AGENT_test-engineer.md` PASS 2 bullet + `skills/work/SKILL.md` pointer — a source-level pin on an *amended* method proves text, not behaviour. Bypass the constructor (`newInstanceWithoutConstructor` / `__new__`), seed the collaborator cache, trace every exercised branch away from the adapter, assert the exact output with inputs that discriminate the semantics (`'10'` not `'4'` for numeric comparison; exact bounds for inclusivity), cross-check against the extracted predicate dimension for dimension, and keep the pin for the shape. Surfaced by the user asking "have you written tests for it?" of a write-path method whose only coverage was pins.
+
+### Changed
+
+- `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § Stacked PR pairs + checklist — after the child PR merges into the base PR's branch, re-check the base PR's `mergeable` before handing it over: a sibling wrap can land on the default branch in the window and conflict the same devlog / index lines; repeat the docs-branch sync with keep-both in merge-time order.
+
 ## v4.6.64 — compound: one branch, one PR per IDEA — the docs-PR + stacked code-PR pair is retired
 
 A sprint (2026-09) that ran the stacked shape end to end — a docs PR opened at capture, the code PR cut from it — paid for it at every stage: a merge-order hazard that orphans the child PR, the default-branch forward-sync done twice, two PR bodies, and a draft docs PR that never got an engine review. The user decided: one PR per IDEA. The skills never mandated the pair (it lived in one wrap reference and in project practice); they now state the single-branch default explicitly. (Takes v4.6.64 because the open compound PRs #67 / #68 hold v4.6.62 / v4.6.63.)
