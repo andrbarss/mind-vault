@@ -107,6 +107,18 @@ on the docs branch, where it belongs; (b) the review engine that skip-no-ops pus
 first review will not re-review either branch's sync merge — read the test workflow for the
 merged tree, and retrigger explicitly if a docs pass-2 is wanted.
 
+**Re-sync after the child merges.** The wrap's sync makes both PRs `MERGEABLE` *at that
+moment*; the human then merges the feature PR into the docs branch and, minutes or hours later,
+the docs PR into the default branch. In that window a sibling wrap can land on the default
+branch and touch the same devlog / ideas-index lines — and the docs PR goes `CONFLICTING`
+again with no push of ours to warn us. So the stacked hand-back is not "both read MERGEABLE";
+it is "merge the child, then **re-check the base PR's `mergeable`** before its click". When it
+conflicts, repeat the docs-branch half of the recipe (fast-forward to the merged head, merge
+the default branch, keep-both in **merge-time** order — the entry whose PR merged later goes
+on top — run the suite and the artefact drift check on the merged tree, push). Field case: the
+feature PR merged 18 minutes after a sibling's wrap reached the default branch; the base PR
+had been `MERGEABLE` at wrap time and `CONFLICTING` at the human's click.
+
 ## An IDEA number is reserved at MERGE time, not at file-creation time
 
 `/wrap` files the follow-up IDEAs the sprint surfaced, and it picks their numbers by scanning
@@ -155,3 +167,4 @@ renumber with no explanation will assume it was a mistake.
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
 - [ ] IDEA numbers filed by this wrap re-scanned for collisions against the default branch **and every remote branch** — the loser (whoever hasn't merged) renumbers across all six surfaces
 - [ ] after the final wrap push: `gh pr view --json mergeable` is `MERGEABLE`
+- [ ] stacked pair, after the child PR merges: re-check the **base** PR's `mergeable` before handing it over — the default branch may have moved in the window; repeat the docs-branch sync if it did
