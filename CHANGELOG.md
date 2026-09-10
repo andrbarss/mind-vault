@@ -24,6 +24,14 @@ A sprint (2026-09) that ran the stacked shape end to end — a docs PR opened at
 
 - `skills/idea/SKILL.md` Phase B gains step 5 (branch + draft PR) and a References entry; `skills/work/SKILL.md` § 2 checks out the existing IDEA branch instead of cutting one from another IDEA's branch; `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § Stacked PR pairs is marked legacy-pairs-only with a pointer; `docs/guides/SPRINT_WORKFLOW.md` stage rows 1 and 3 name the single branch.
 
+## v4.6.63 — compound: a wholesale emitter is a leak surface once a contract points a consumer at it
+
+A name-keyed settings write (2026-09) whose allow-list admitted some rows by name whatever their stored type forced the consumer's load recipe off the filtered read and onto the unfiltered map — and the unfiltered map of a wholesale emitter is the whole table, credentials included. Nothing new was exposed; the contract was about to make a browser fetch it. The existing wholesale-emitter reference gains the other edge of the same property. (Takes v4.6.63 because the in-flight sibling compound PR #67 holds v4.6.62.)
+
+### Added
+
+- `skills/plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md` § "A wholesale emitter is also a leak surface" — before a plan, contract or README names a wholesale emitter as a consumer's data source: inventory the rows the recipe does **not** need (readonly / secret rows), put the merge server-side where the secrets already are (or behind a projecting proxy), and record the missing `names[]` filter as a follow-up rather than a workaround; the reviewer's one-question probe ("what does the unfiltered call return that the recipe does not need?").
+
 ## v4.6.61 — compound: sign-to-magnitude promotion verifies independently; keep-both seams carry the neighbour's heading
 
 Promoting a per-date availability boolean to the count behind it (2026-09) surfaced a verification trap the plan's own parity probe could not see, and the parallel wrap that shipped alongside it left a duplicate heading in a keep-both merge. Both are routed to the references that own them.
