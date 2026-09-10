@@ -77,7 +77,9 @@ not … yet") and offer the user the ~4-line follow-up explicitly. The point is 
 becomes **visible** the moment the two branches meet, instead of being discovered when someone
 wonders why module X never shows up in the audit log.
 
-## Stacked PR pairs — sync the base branch first, then the head
+## Stacked PR pairs — sync the base branch first, then the head (legacy pairs only)
+
+**The default is one branch and one PR per IDEA** — [`../../idea/references/ONE_BRANCH_ONE_PR.md`](../../idea/references/ONE_BRANCH_ONE_PR.md); new IDEAs do not start a pair. This section stays for the pairs still in flight on repos that used the older shape.
 
 When the feature PR is **stacked** on a docs PR (the idea + plan branch carries the archive dir
 and the feature branch was cut from it so the plan is updatable in place), the feature PR's
@@ -149,7 +151,7 @@ renumber with no explanation will assume it was a mistake.
 - [ ] merge, resolve keep-both in ship order, lint/parse the resolved files, run the suite
 - [ ] after a keep-both on an index / devlog / changelog: every heading once, separators at both seams, entries in ship order (§ Keep-both seams)
 - [ ] commit the merge **before** any wrap edit
-- [ ] stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them)
+- [ ] (legacy) stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them) — new IDEAs are single-branch
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
 - [ ] IDEA numbers filed by this wrap re-scanned for collisions against the default branch **and every remote branch** — the loser (whoever hasn't merged) renumbers across all six surfaces
 - [ ] after the final wrap push: `gh pr view --json mergeable` is `MERGEABLE`
