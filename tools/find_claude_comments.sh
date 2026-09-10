@@ -331,8 +331,13 @@ if head:
     runs = [r for r in runs if (r.get('head_sha') or '') == head]
 if not runs:
     sys.exit(0)
-# Latest by run_started_at (A7 dedup). Fall back to created_at then id.
-runs.sort(key=lambda r: (r.get('run_started_at') or r.get('created_at') or '', r.get('id') or 0), reverse=True)
+# Latest by run_started_at (A7 dedup). On a tie (synchronize + ready_for_review
+# twins started the same second — engine-claude.md § 2026-09-08) prefer the
+# COMPLETED run: it carries the posted verdict; the in_progress twin can only add
+# a second summary or a skip-no-op. Then created_at, then id.
+runs.sort(key=lambda r: (r.get('run_started_at') or r.get('created_at') or '',
+                         1 if (r.get('status') or '') == 'completed' else 0,
+                         r.get('id') or 0), reverse=True)
 latest = runs[0]
 rid = latest.get('id') or ''
 sha = latest.get('head_sha') or ''

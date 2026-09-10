@@ -331,7 +331,65 @@ What this settles:
 - **Fix-before-loop is fine, but the loop still owns the verdict.** The finding here was fixed, replied to and its thread resolved *before* `/review-loop` was invoked; the loop's Phase 1 correctly saw a stale summary for the head, fired the retrigger once, and read CLEAN from the new run. Resolving a thread does not produce a verdict — only a run that post-dates the head commit does.
 
 
+## § calibration update — push then immediate un-draft: two full runs on ONE SHA, and the finder tracks the idle twin (downstream ExtJS project, 2026-09-08)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`), no `concurrency:` group. The docs-wrap push and `gh pr ready` landed within the same minute:
+
+| Event | Started | Run | Posted |
+| --- | --- | --- | --- |
+| `synchronize` (final wrap push while still draft) | 13:18:02 | `claude-code-review.yml`, **4 min**, `success` | `## Code review` — "No issues found." (0 inline) at 13:21:59 |
+| `ready_for_review` (`gh pr ready`, same head SHA) | 13:18:02 | `claude-code-review.yml`, **17 min**, `success` | a second identical clean summary at 13:35:10 |
+
+What this settles:
+
+- **The draft no-op is decided when the run starts, not when the push happened.** The `synchronize` run began *after* the un-draft, saw a ready PR, and did a full review. So "push to a draft ⇒ cheap skip" holds only if the push's run has already *started* (better: already posted its `Skipped — this pull request is currently a draft` comment) before the un-draft. Field cost here: **two billed full reviews of one diff** — the same shape as the `opened` + `ready_for_review` pair in the 2026-09-02 block, now reachable from a push too.
+- **Practice:** after the final push, wait for the push's run to post its draft-skip (≈90 s), *then* `gh pr ready`. `/review-loop`'s pre-flight now says so.
+- **Adapter tie-break.** `find_claude_comments.sh` picks the head-SHA run with the latest `run_started_at`; the twins tied to the second, and the sort fell through to the higher run id — the one that stayed `in_progress` for 13 minutes after its sibling had completed and posted. The loop therefore read `RUNNING` (no verdict) for three polls while a completed run + a post-dated summary + zero inline already existed. The sort key now prefers a **completed** run on a `run_started_at` tie. For non-tied twins (un-draft a few seconds after the push) the rule an operator should apply by hand: **if any head-SHA run is `completed` and the newest head-SHA summary post-dates the head commit with zero inline findings, that is the verdict — do not wait on a sibling run for the same SHA.** A sibling can only add a second summary (the 2026-09-02 pair) or a skip-no-op; it cannot retract a posted verdict, and the finder reads the newest summary anyway.
+- **What it does not settle:** why the second run took 17 min for a diff the first reviewed in 4 — the job log was unavailable while running. Not a hang (it completed and posted); treat a same-SHA twin's long tail as noise, not as a HUNG signal.
+
 The §131 + §140 downstream blocks supersede the PR #167 first-run calibration — identity (`github-actions[bot]` → **`claude[bot]`**), the dead "zero-inline-only, no summary" posting model, and `CLAUDE_BODY_SIGNATURES` wording are all now confirmed. Two items survive it:
 
 - **Never calibrate "clean" off a read-only (`pull-requests: read`) run.** The PR #167 run read clean only because it had nothing to flag; read-only silently **cannot post**, so a *findings-bearing* read-only run would fail to post → false CLEAN. Fix is `pull-requests: write` + `issues: write` (§ Identity + onboarding reference).
 - **Still open:** **Q2** — the `claude_retrigger.sh` `@claude review once` fallback is unexercised (the action auto-runs on push); confirm if a future auto-run fails to fire. **Q1** — whether inline findings share a `pull_request_review_id` is unobserved; the anchor keys on comment id either way (§ Staleness), so safe regardless.
+
+## § calibration update — a docs-only wrap push fires a run that posts NOTHING; pass 2 of the doc chain is not a verdict (downstream ExtJS project, 2026-09-08)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). Pass 1 had posted a clean summary on the code SHA after the un-draft. The wrap push — a **docs-only** diff (IDEA frontmatter flip, ideas index, devlog entry, archive backrefs, a cross-repo note) plus a clean forward-sync merge of the default branch — fired a `synchronize` run that completed `success` in about a minute and posted **no second summary and no inline comment**. That is the incremental skip of § Incremental review, not a clean verdict: the plugin had reviewed the PR once and saw nothing it considered reviewable in the increment.
+
+What it settles against the 2026-09-04 block (where the wrap push *did* auto-post pass 2): that wrap diff carried doc changes adjacent to code (a harness guide, the project's `CLAUDE.md`); a pure paper-trail diff does not get the same treatment. So `SKILL.md`'s doc-heavy note (b) — "pass 2 will NOT auto-run on the wrap push; fire the explicit retrigger" — is right in *effect* even though the mechanism differs: the run **does** fire (a head-SHA check-run appears), it just posts nothing.
+
+- **A check-run on the new SHA proves the trigger fired, not that a review happened.** The docs pass has a verdict only when a `claude[bot]` summary **post-dates the wrap push**. Read the comments, not the run list.
+- **Practice:** when the docs pass matters (index / devlog / reference-doc rewrites the engines are meant to sanity-check), let the push's run SILENT, then fire `claude_retrigger.sh` **once** and read the `claude.yml` run — the explicit `@claude review` re-review does post a positive verdict after a fix cycle (§ 2026-08-26). A human who merges on pass 1 plus the wrap's own doc-consistency sweep is making a judgement call, and the scratch file should say so.
+- **Cheap guard for the finder:** on a `completed` head-SHA run with the newest `claude[bot]` summary older than the head commit, the existing `CLAUDE_STALE_SUMMARY` path already refuses CLEAN — the operator error this block prevents is reading the *run's* green conclusion as the pass-2 result.
+
+## § calibration update — a fix push followed a minute later by a docs-only push: the FIX run re-reviews in full while the TIP run skips, and the finder attributes the summary to the tip (downstream PHP project, 2026-09-09)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). The PR had a clean first review
+on contract 1. A user-requested **contract revision** (three substantive commits) was pushed as
+SHA₂; its `synchronize` run completed in ~2 min and posted nothing (the deliberate post-clean skip
+— the mention workflow was read-only on that repo, so no explicit retrigger was possible, and the
+loop fell back to an independent reviewer per `CONTRACT_REVERSAL_AFTER_CLEAN.md`). The reviewer's
+nits were pushed as SHA₃ (comment-only, 9 files) and a plan check-off as SHA₄ (one doc file) a
+minute later. What happened next:
+
+- The run on **SHA₃ ran 12 minutes and posted a full clean summary** at 09:16 — the skip is
+  non-deterministic and a *substantive* diff after a prior review can get a full pass (the
+  2026-08-28 block, again). The run on **SHA₄ completed in 90 s and posted nothing** (docs-only
+  skip, the 2026-09-08 block).
+- `find_claude_comments.sh` selects the newest head-SHA run (SHA₄, `completed`) and the newest
+  summary (posted by SHA₃'s run), and — because the summary post-dates SHA₄'s commit — reports it
+  as SHA₄'s verdict. Structurally that is CLEAN; semantically the **reviewed SHA is SHA₃**. Accept
+  it only when `git diff SHA₃ SHA₄` is docs-only; otherwise treat the tip as unreviewed.
+- **Do not fire the explicit retrigger while any synchronize run on the branch is `in_progress`.**
+  The 2-minute skip-no-op on SHA₂ was the *tell* to wait, not to retrigger: the very next push got
+  a full review, and an `@claude review` fired at that moment would have twinned it (the 2026-09-08
+  block) or, on a read-only mention workflow, burned a run for nothing.
+- **Reconcile two verdicts, don't pick one.** When the independent-reviewer fallback already
+  ran, the engine's late full pass is a second CLEAN on the same code; record both in the scratch
+  cycle log (the reviewer's nits fixed *before* the engine looked is the ordering that matters
+  for "what did the engine actually see").
+
+Practice: after any push, wait for the head-SHA run to reach `completed` **and** for the settle
+window; then read the newest summary's `created_at` against the commit it could have reviewed —
+list the branch's runs with their durations (a ~90 s run never reviewed anything; a 10-minute run
+did) and map the summary to the long run's SHA before calling the tip clean.

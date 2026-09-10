@@ -44,6 +44,44 @@ Three disciplines, in order:
 2. **The contract under-specifies without it.** `VARCHAR(100) NULL` is not a complete column definition on such a schema; the consumer building a form against the contract will validate length in characters that the column then cannot store. Treat charset/collation as part of the frozen DDL, like the type and the nullability.
 3. **The seed probe is the acceptance gate for the bytes, not just the arithmetic.** Seed at least one value with a non-ASCII letter and read back `HEX(col), CHAR_LENGTH(col), LENGTH(col)`: the bytes must be the UTF-8 sequence and `LENGTH > CHAR_LENGTH`. Run it before the first push, while rolling the stem back still costs nothing — a stem that has reached a tenant is content-hashed and gets a *second* migration instead of an edit. (Seed from a client set to utf8mb4; a latin1 *client* produces a different, double-encoded symptom that looks like the same bug.)
 
+## A per-pair setting stored on per-child rows — invariant, tolerance, and a two-direction probe
+
+A setting that is *one fact per (parent, item) pair* sometimes has no row of its own: the only
+table that carries the pair is a **child** table with N rows per pair (one row per selected
+option, per translation, per line). Display placements on a per-parent attachment whose values
+are multi-row is the field case: three boolean flags that mean "this attribute shows on the
+card for this room type" had to live on the values rows, N of them for a multi-select
+attribute. The contract then owes three things, and each of them is a distinct section:
+
+1. **Writer invariant — every row of the pair carries identical values.** The consumer's save
+   path (typically delete-all + reinsert per pair) writes the N rows from *one* form state;
+   "never update one row of a pair and leave the others". Say it as a numbered invariant, and
+   say that the reinsert must carry the columns on every row (a reinsert that omits them
+   silently resets the setting to the DDL defaults on every save — the same footgun as any
+   additive column on a delete-all + reinsert path).
+2. **Reader tolerance — which row is authoritative when they disagree.** Pick a deterministic
+   row and state it in the contract so both codebases read the same thing on a drifted pair.
+   The rule that survived review: **the first row the reader actually emits** — first by the
+   existing sort, *after* the reader's own validity filter (a dropped row's values never count).
+   Two rules are tempting and wrong: OR across rows (the setting then depends on which row a
+   lazy writer happened to touch) and drop-on-disagreement (harmless drift becomes a vanished
+   item on the public surface). One implementation trap goes with it: shapers often capture a
+   "head" row *before* sorting for the fields that are identical on every row; the first
+   per-row field that is *not* identical must be read from the post-sort, post-filter survivor,
+   never from that head.
+3. **A seed probe that discriminates the rule.** Clearing the setting on a *later* row and
+   seeing the item still present proves nothing — first-wins, OR-across-rows and OR-across-emitted
+   all answer the same. The only direction that separates first-wins from an OR is **clearing
+   the first row while setting a later one** and expecting the item *absent*. Put both
+   directions in the contract's seed section so the consumer's tests assert the same
+   arithmetic; and in the reader's unit fixtures put the row whose value must be *ignored* at
+   input index 0 with the lower sort key, so a head-based implementation fails the test.
+
+The absence of a per-pair row is also why "per-pair ordering" should be resisted here: an order
+column would have to be replicated across the N rows with the same disagreement problem, for an
+order the parent catalogue usually already provides. Say so in the contract's model section so
+the consumer does not invent one.
+
 ## Anti-patterns
 
 - ❌ Reconciling a deliberate reader-rule departure *back* toward the requesting contract because "the contract says so" — the request describes what the consumer assumed, not what the owner of the reader decided; check the mirror contract's departure note first.
@@ -51,6 +89,7 @@ Three disciplines, in order:
 - ❌ A contract without the DOWN DDL — the consumer needs to know what a rollback window does to their writes.
 - ❌ A seed example without expected output — un-checkable, so it decays into decoration.
 - ❌ A seed row whose expected output is identical under every candidate rule — it passes for the wrong reason (co-monotonic fixture data); swap two keys or label it no-regression.
+- ❌ A disagreement probe that only clears a *later* child row — every candidate tolerance rule answers it the same; clear the *first* row and set a later one, expecting absence.
 - ❌ "Empty input ⇒ NULL" on a numeric column without saying `=== ''` — `empty('0')` erases a legitimate zero.
 - ❌ `ADD COLUMN … VARCHAR(n)` with no `CHARACTER SET` against a table whose default you have not read — on a pre-utf8 schema the column lands latin1 and mangles text on write; the round trip and the DB-free suite stay green.
 - ❌ Writing the migration first and extracting the contract after — the review order inverts, and the consumer's blocked window extends through /work.

@@ -38,7 +38,7 @@ This skill is intentionally thin. It does not re-decide anything the plan alread
 
 Honour `RULE_git-safety` and `RULE_parallel-worktree-docker` at all times.
 
-- **Current branch check.** If the user is on `main` or `production`, refuse to commit. Create a feature branch: `git checkout -b <type>/<slug> origin/<base>` where `<type>` is `feat | fix | docs | refactor | chore` and `<slug>` matches the plan's slug.
+- **Current branch check.** If the user is on `main` or `production`, refuse to commit. If the IDEA's branch already exists (opened by `/idea`, carrying the capture and the plan), check it out and commit there — **one branch, one PR per IDEA** ([`../idea/references/ONE_BRANCH_ONE_PR.md`](../idea/references/ONE_BRANCH_ONE_PR.md)); never cut a second branch from it. Only when no IDEA branch exists: `git checkout -b <type>/<slug> origin/<default>` where `<type>` is `feat | fix | docs | refactor | chore` and `<slug>` matches the plan's slug — from the default branch, not from another IDEA's branch.
 - **Parallelism detection.** If the plan explicitly flags parallel work streams (multiple non-overlapping execution units), consult [`references/persona-dispatch.md`](references/persona-dispatch.md) for the worktree setup procedure. Otherwise execute serially on a single branch.
 - **Pre-existing worktrees.** Probe `git worktree list --porcelain` for the target branch before checking out. If found, attach instead of re-checking-out in the primary tree.
 - **Clean-tree gate.** `git status --porcelain` must be empty before starting, or the skill prompts the user to stash / commit / discard first.

@@ -12,7 +12,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.55 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
+## v4.6.65 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
 
 Single-PR section; provenance on this paragraph (2026-09-07).
 
@@ -24,6 +24,138 @@ Single-PR section; provenance on this paragraph (2026-09-07).
 ### Changed
 
 - `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § Stacked PR pairs + checklist — after the child PR merges into the base PR's branch, re-check the base PR's `mergeable` before handing it over: a sibling wrap can land on the default branch in the window and conflict the same devlog / index lines; repeat the docs-branch sync with keep-both in merge-time order.
+
+## v4.6.64 — compound: one branch, one PR per IDEA — the docs-PR + stacked code-PR pair is retired
+
+A sprint (2026-09) that ran the stacked shape end to end — a docs PR opened at capture, the code PR cut from it — paid for it at every stage: a merge-order hazard that orphans the child PR, the default-branch forward-sync done twice, two PR bodies, and a draft docs PR that never got an engine review. The user decided: one PR per IDEA. The skills never mandated the pair (it lived in one wrap reference and in project practice); they now state the single-branch default explicitly. (Takes v4.6.64 because the open compound PRs #67 / #68 hold v4.6.62 / v4.6.63.)
+
+### Added
+
+- `skills/idea/references/ONE_BRANCH_ONE_PR.md` — the default topology (`/idea` opens the IDEA's branch from the default branch and ONE draft PR; `/plan`, `/work`, `/wrap` commit onto it; `/review-loop` un-drafts it), the five costs of the retired pair, what each stage checks, and the one legitimate second branch (the post-merge wrap fallback).
+
+### Changed
+
+- `skills/idea/SKILL.md` Phase B gains step 5 (branch + draft PR) and a References entry; `skills/work/SKILL.md` § 2 checks out the existing IDEA branch instead of cutting one from another IDEA's branch; `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § Stacked PR pairs is marked legacy-pairs-only with a pointer; `docs/guides/SPRINT_WORKFLOW.md` stage rows 1 and 3 name the single branch.
+
+## v4.6.61 — compound: sign-to-magnitude promotion verifies independently; keep-both seams carry the neighbour's heading
+
+Promoting a per-date availability boolean to the count behind it (2026-09) surfaced a verification trap the plan's own parity probe could not see, and the parallel wrap that shipped alongside it left a duplicate heading in a keep-both merge. Both are routed to the references that own them.
+
+### Added
+
+- `skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md` § "Sibling trap: sign-to-magnitude promotion" — a number only ever consumed as a sign (`sum > 0`) carries inflations nobody had to notice (synthetic aggregate rows, fan-out joins, deferred deductions); promoting it to a magnitude makes them reach the wire, and a parity probe against the sibling that shares the reducer is green on the inflated value and on every future inflation. Field case: 146 "free" on 137 physical rooms, the sibling agreeing at 146, the earlier notes carrying "138 suspended to reach 0" unremarked. Rule: audit the reduction's inputs for aggregate rows, verify with an **independent** count from a different source, re-read the sibling's verification notes with the magnitude in mind, argue and pin the boolean's invariance on the producer's real synthetic shape. Pointer line in `skills/plan/SKILL.md` updated. (2026-09-09)
+- `agents/AGENT_architect.md` PASS 3 — **sign-to-magnitude promotion**: the reviewer demands the aggregate-row audit (one exclusion seam, named), an independent derivation instead of sibling parity, and a real-shape unit test for the boolean's invariance. (2026-09-09)
+- `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § "Keep-both seams carry the neighbour's heading" — two parallel wraps inserting at the top of the same section conflict on "my entry + the neighbour heading the other side re-titled", so a mechanical keep-both leaves a bodiless duplicate heading and doubled / missing separators; check every heading once, the separators at both seams, ship order. Checklist line added. (2026-09-09)
+
+## v4.6.60 — compound: vacuous truth + the helper's wrong arm; first-ever caller of a dormant branch; the fix run reviews while the tip run skips; only the app joins the parent network
+
+A verdict-style endpoint rebuild (list every row with restriction codes instead of filtering, then a contract revision after a clean review) surfaced two reviewer heuristics, one producer-audit sibling and one review-engine attribution trap. (2026-09-09)
+
+### Added
+
+- `agents/AGENT_architect.md` PASS 3 — **vacuous truth on an empty domain + the helper's wrong arm**: a rule "every X satisfies P" that a plan turns into a gate or a restriction code is true when X is empty (a sold-out packet fired the min-nights code), so demand the non-empty precondition and the empty-domain test row; and derive a mirrored predicate from the arm the production caller reaches, not the helper's general arm (an empty scope bound *nothing* at the write path — the plan had copied the "binds everything" arm).
+- `skills/work/references/AUDIT_NEWLY_REACHABLE_CODE.md` § "Sibling: the first-ever caller of a dormant branch" — a shared producer's arm no caller has ever taken is new code that happens to be old: prove it dormant by grepping callers for the argument shape, read it for reads-before-writes and sibling divergence, run one request with warnings visible, gate on the producer's own preconditions, pin the initialiser.
+- `skills/review-loop/references/engine-claude.md` § "a fix push followed a minute later by a docs-only push" — the fix-push run re-reviewed in full (12 min) while the docs-tip run skipped (90 s); the finder attributes the newer summary to the tip. Accept only when the tip differs by docs-only from the reviewed SHA; never fire the explicit retrigger while a synchronize run is in flight; reconcile an independent-reviewer verdict with the engine's late pass rather than replacing it.
+- `skills/sprint-auto/references/PARALLEL_WORKTREE_DOCKER.md` § "Reusing the parent's database: join ONLY the app container to the parent network" — a proxy on the shared network round-robins between two same-named app containers (a `200 400 200 400` alternation); proxy on the private network, app on both, parent network `external: true` under its real name.
+
+## v4.6.59 — compound: wire booleans through a truth table; invariant handlers under a programmatic set; the 100 % rename tell; a docs-only push SILENTs pass 2
+
+The consumer side of the v4.6.58 writer-rule reference, from the client that built against that contract: two reader disciplines the architect pass caught before they shipped, one staged-set tell, and one review-engine calibration. (2026-09-08)
+
+### Added
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` § 6 — **wire booleans through a truth table, never truthiness**: the producer casts `(bool) (int)` because its DB hands a `TINYINT` back as `"0"`, `!!"0"` is true, and a flag re-sent on every save persists the misread; one reader driven by the same field list every loop walks, string forms in the spec, the producer's serializer confirmed at the § 3 static read.
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md` § 7 — **a programmatic multi-field set must never reach the invariant handler**: set under suspended events *and* hoist the set above any per-type branch (a branch-local idiom copied literally leaves the other type stale); prove it with an event spy across several loads plus a positive control — no single transition is set-order-independent with three or more fields, so a transition assertion is green on an unsuspended implementation.
+- `docs/rules/RULE_self-sweep-before-push-rationale.md` § "Staged-Set Verification — the Two Tells" — casing drift (one file short) and edit-after-`git mv` (a `(100%)` rename on a file you meant to change).
+
+### Changed
+
+- `rules/RULE_self-sweep-before-push.md` trigger 7 — the edit-after-`git mv` cause and its 100 % rename tell; `git add` the new path after any post-move edit.
+- `skills/plan/SKILL.md` References — the CONTRACT_CONSUMER_DISCIPLINE pointer names the two new disciplines.
+- `skills/review-loop/references/engine-claude.md` § "a docs-only wrap push fires a run that posts NOTHING" — the `synchronize` run on a pure paper-trail diff completes `success` in ~1 min with no summary (the incremental skip); a head-SHA check-run proves the trigger fired, not that a review happened, so the docs pass has a verdict only when a `claude[bot]` summary post-dates the push — fire the explicit retrigger once when the docs pass matters.
+
+## v4.6.58 — compound: a writer rule stricter than storage needs a client exit; refusal-origin blindness in hostile-input tests
+
+A plan-stage reference for the trap where a write rule the DB does not enforce ("at least one flag on") composes with a faithful read-back and a legal storage state into a client that is refused on every save with nothing it can change — plus a curator heuristic for tests that are green because the refusal came from the wrong layer.
+
+### Added
+
+- `skills/plan/references/STRICTER_WRITER_NEEDS_A_CLIENT_EXIT.md` — legal storage + refused write + faithful read = a retired / read-only row re-sent unchanged locks its parent record out of every save; decide the exit at plan time (a load-bearing seed rule in the consumer contract, disabled rows included, or a writer carve-out in the phase that knows the entry's class; never coerce) with a checklist, and the delta-with-pointers shape for amending a contract a sibling codebase already builds against (one authoritative delta, pointer lines in the amended file, no duplicated prose). Pointer added to the plan skill's References. (2026-09-08)
+
+### Changed
+
+- `agents/AGENT_curator.md` PASS 1 — **refusal-origin blindness**: a hostile-input test that asserts only the status code while its fixture cites a non-existent parent id stays green when the parser rule is deleted (the existence check refuses one layer later); require the assertion to pin the refusal's origin, and check the transport can carry the distinction (a JSON encoder that sends `1.0` as `1` makes an HTTP-level float-refusal row unfalsifiable — pin it at the service layer). (2026-09-08)
+
+## v4.6.57 — compound: push-then-un-draft twins two Claude reviews on one SHA; finder prefers the completed twin
+
+### Changed
+
+- `skills/review-loop/references/engine-claude.md` § "push then immediate un-draft" — the draft no-op is decided when the run *starts*: a `synchronize` run that begins after `gh pr ready` does a full review, so push + immediate un-draft bills two reviews of one diff. Practice: wait for the push run's draft-skip comment before un-drafting. Rule for same-SHA twins: a completed run with a post-dated summary and zero inline findings is the verdict; never hold RUNNING on its sibling. (2026-09-08)
+- `skills/review-loop/SKILL.md` pre-flight — the sequencing sentence + the twin-run verdict rule, pointing at the reference. (2026-09-08)
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — run selection prefers a `completed` run when two head-SHA runs share a `run_started_at`; previously the tie fell through to the higher id, which was the twin still `in_progress` 13 minutes after its sibling had posted. (2026-09-08)
+
+## v4.6.56 — compound: per-pair settings on child rows; a ladder step-down cannot name the column; example pins constrain the curation
+
+### Added
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` § "A per-pair setting stored on per-child
+  rows" — when the only table carrying a (parent, item) pair is a child table with N rows per
+  pair, the contract owes a writer invariant (every row of the pair identical; the reinsert
+  carries the columns on every row), a reader tolerance rule (the **first emitted row** is
+  authoritative — post-sort, post-filter, never a pre-sort "head" row; OR-across-rows and
+  drop-on-disagreement both rejected with reasons), and a **two-direction** seed probe (only
+  clearing the *first* row while setting a later one separates first-wins from an OR). Plus an
+  anti-pattern bullet for the one-direction probe. (2026-09-08)
+- `skills/work/references/CAPTURE_FIRST_API_DOCS.md` — trap: the pins that already read a Map
+  example constrain the capture curated for it; grep the spec test's assertions over the example
+  before choosing the seed, keep every existing pin green, scope new per-placement assertions to
+  the first entry. (2026-09-08)
+
+### Changed
+
+- `agents/AGENT_architect.md` PASS 4 — new bullet: a ladder step-down cannot name the missing
+  column, so the log line names the rung *transition* and quotes the driver message; the
+  non-monotone state (older change rolled back under the newer) gets its own degrade-table row
+  and probe, read through the *older* behaviour's flip; a rung rename re-keys every log branch
+  and pin in the same commit; the re-applied older stem lands in a later batch, so only targeted
+  rollbacks. (2026-09-08)
+
+## v4.6.55 — compound: seeding a row a UI can also create; wholesale emitters defeat "nothing reads this"
+
+### Added
+
+- `skills/deployment/references/CONVERGENT_SEED_ROW_MIGRATION.md` — a guarded
+  `INSERT … WHERE NOT EXISTS` that seeds a row into a table an application UI can also write is
+  idempotent by **skip**, not convergent. When the reader deploys before the fleet migrates and an
+  operator hand-creates the row from a form, the create path produces a *differently shaped* row
+  (quick-create renders a different widget so the choice list lands NULL; provenance flags get
+  stamped; optional prose is absent) — and the migration then skips it permanently, with an applied
+  file that may never be edited to repair it. Prescribes a paired idempotent repair `UPDATE`, how to
+  enumerate the shape columns (every column a consumer *branches on* — the widget discriminator is
+  the one most often missed, and missing it can leave a requirement permanently unsatisfiable while
+  the repair's own provenance normalisation closes the delete-and-recreate escape hatch), the
+  repair-shape-never-intent rule, the down-file ownership asymmetry, and the malformed-row
+  verification case that a fresh-DB test cannot reach. Cross-linked with
+  `MIGRATION_STATEMENT_ORDERING.md` as the second axis of re-runnability.
+- `skills/plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md` — before writing "nothing
+  reads this data" into a plan or IDEA: a wholesale emitter (`SELECT *` → map, `fields = '__all__'`,
+  a settings dump) publishes rows it **never names**, so the symbol grep returns zero and the
+  negative is wrong. Grep the *container* for such readers too. Covers the two follow-on traps: the
+  same value carrying different types on a wholesale vs a curated surface, and a loosely-schema'd
+  emitter meaning a clean generated-spec diff is not evidence the surface didn't change.
+
+### Changed
+
+- `RULE_self-sweep-before-push` trigger 4 — **a docs-only commit can turn the suite RED.** When a
+  guard test's inputs are *files* rather than code (a glob-and-parse over committed artefacts, a
+  fixture linter, a link checker), adding a document is a code path; "no source changed, so the
+  suite is unaffected" is true of the count and false of the verdict. Re-run after any commit that
+  adds files under a directory a guard test walks.
+- `RULE_self-sweep-before-push` trigger 5(7) — negative-existence claims about *data* need the
+  container grep, pointing at the new plan reference.
 
 ## v4.6.54 — compound: seed probes must discriminate the rule under test; "blank ⇒ NULL" on numeric columns is `=== ''`, never `empty()`
 
