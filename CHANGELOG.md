@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.63 — compound: a wholesale emitter is a leak surface once a contract points a consumer at it
+
+A name-keyed settings write (2026-09) whose allow-list admitted some rows by name whatever their stored type forced the consumer's load recipe off the filtered read and onto the unfiltered map — and the unfiltered map of a wholesale emitter is the whole table, credentials included. Nothing new was exposed; the contract was about to make a browser fetch it. The existing wholesale-emitter reference gains the other edge of the same property. (Takes v4.6.63 because the in-flight sibling compound PR #67 holds v4.6.62.)
+
+### Added
+
+- `skills/plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md` § "A wholesale emitter is also a leak surface" — before a plan, contract or README names a wholesale emitter as a consumer's data source: inventory the rows the recipe does **not** need (readonly / secret rows), put the merge server-side where the secrets already are (or behind a projecting proxy), and record the missing `names[]` filter as a follow-up rather than a workaround; the reviewer's one-question probe ("what does the unfiltered call return that the recipe does not need?").
+
 ## v4.6.61 — compound: sign-to-magnitude promotion verifies independently; keep-both seams carry the neighbour's heading
 
 Promoting a per-date availability boolean to the count behind it (2026-09) surfaced a verification trap the plan's own parity probe could not see, and the parallel wrap that shipped alongside it left a duplicate heading in a keep-both merge. Both are routed to the references that own them.
