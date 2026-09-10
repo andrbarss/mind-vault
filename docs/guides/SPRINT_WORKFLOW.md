@@ -31,9 +31,9 @@ The optional `/ideate` stage sits above `/idea` — use it between sprints to di
 | Stage | Command | Input | Output |
 | --- | --- | --- | --- |
 | 0. Ideate (optional) | `/ideate` | Scoped area (project / app / layer) | Menu of ranked candidates; selected survivors promoted into `IDEA-NNN-<slug>.md` files |
-| 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` |
+| 1. Idea | `/idea [slug]` | Title (new) or slug (update) | `<project>/docs/ideas/IDEA-NNN-<slug>.md` on the IDEA's branch + ONE draft PR (one branch / one PR per IDEA — [`ONE_BRANCH_ONE_PR`](../../skills/idea/references/ONE_BRANCH_ONE_PR.md)) |
 | 2. Brainstorm / Plan | `/plan` or `/brainstorm` | IDEA file, or raw description | `<project>/docs/archive/YYYY-MM-idea-NNN-<slug>/YYYY-MM-DD-<slug>-plan.md` (co-located with the moved IDEA file per `RULE_ideas-location-status`) |
-| 3. Work | `/work` | Plan file | Code changes on a feature branch |
+| 3. Work | `/work` | Plan file | Code changes on the IDEA's branch (the same branch / PR the capture and plan ride on) |
 | 4a. Review — deliverables | `/review-loop <PR> bugbot` (Cursor Bugbot), `/review-loop <PR> copilot` (GitHub Copilot), `/review-loop <PR> claude` (Claude Code Review), or any subset, per project config; curator-only fallback if no external bot | Open PR | Cleared code findings + loop output file |
 | 4b. Wrap — finalize docs | `/wrap` (default `--scope=docs`); `--scope=full` to also merge | Deliverables-cleared PR | IDEA frontmatter `complete` + re-sorted index + devlog entry + downstream docs patched. Runs **before** the docs review (wrap-before-review) so engines see docs at merged shape. Default `docs` scope stops before merge; `--scope=full` additionally squash-merges non-protected targets (then post-merge teardown). Protected targets always hand back for human merge. |
 | 4c. Review — docs | `/review-loop <PR> <engine>` (same engines as 4a) | Wrapped PR | Cleared doc findings; PR ready to merge. Code-only PRs collapse this pass. |

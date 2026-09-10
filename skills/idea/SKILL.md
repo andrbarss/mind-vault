@@ -58,6 +58,7 @@ ls docs/ideas/IDEA-*.md docs/archive/*/IDEA-*.md 2>/dev/null \
 2. Write to `<project>/docs/ideas/IDEA-NNN-<slug>.md` per [`RULE_ideas-location-status`](references/IDEAS_LOCATION_STATUS.md) — `status: idea` always starts in `docs/ideas/`. Create the directory if missing.
 3. Append an index line to `<project>/docs/ideas/README.md` under the matching priority heading. Create the index file with the standard skeleton if missing (see [Index maintenance](#3-index-maintenance)).
 4. Print the created path + the index line for user verification.
+5. **One branch, one PR per IDEA.** Commit the capture on the IDEA's own branch (`feat/idea-NNN-<slug>`, cut from the default branch — `docs/…` when the IDEA is docs-only) and open ONE draft PR against the default branch. `/plan`, `/work` and `/wrap` commit onto that same branch; there is no separate docs PR with a code PR stacked on it. Rationale + the per-stage checks: [`references/ONE_BRANCH_ONE_PR.md`](references/ONE_BRANCH_ONE_PR.md).
 
 ### 2. Updating an existing idea
 
@@ -152,6 +153,7 @@ Rebuild the index from scratch if it gets out of sync: scan both dirs, read each
 
 - [assets/idea-template.md](assets/idea-template.md) — the verbatim template written to disk
 - [references/update-semantics.md](references/update-semantics.md) — detailed rules for editing an existing IDEA file
+- [references/ONE_BRANCH_ONE_PR.md](references/ONE_BRANCH_ONE_PR.md) — the default branch / PR topology: one branch and one PR per IDEA, every stage committing onto it; why the docs-PR + stacked code-PR pair was retired
 - [skills/idea/references/IDEAS_LOCATION_STATUS.md](references/IDEAS_LOCATION_STATUS.md) — location-by-status routing contract, including the `git mv` semantics for status transitions
 - [docs/guides/SPRINT_WORKFLOW.md](../../docs/guides/SPRINT_WORKFLOW.md) — full sprint-workflow explainer with authoritative schemas
 - [skills/plan/SKILL.md](../plan/SKILL.md) — next stage; consumes the IDEA file and triggers `idea` → `in-progress` move
