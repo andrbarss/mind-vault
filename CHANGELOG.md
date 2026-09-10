@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.64 — compound: one branch, one PR per IDEA — the docs-PR + stacked code-PR pair is retired
+
+A sprint (2026-09) that ran the stacked shape end to end — a docs PR opened at capture, the code PR cut from it — paid for it at every stage: a merge-order hazard that orphans the child PR, the default-branch forward-sync done twice, two PR bodies, and a draft docs PR that never got an engine review. The user decided: one PR per IDEA. The skills never mandated the pair (it lived in one wrap reference and in project practice); they now state the single-branch default explicitly. (Takes v4.6.64 because the open compound PRs #67 / #68 hold v4.6.62 / v4.6.63.)
+
+### Added
+
+- `skills/idea/references/ONE_BRANCH_ONE_PR.md` — the default topology (`/idea` opens the IDEA's branch from the default branch and ONE draft PR; `/plan`, `/work`, `/wrap` commit onto it; `/review-loop` un-drafts it), the five costs of the retired pair, what each stage checks, and the one legitimate second branch (the post-merge wrap fallback).
+
+### Changed
+
+- `skills/idea/SKILL.md` Phase B gains step 5 (branch + draft PR) and a References entry; `skills/work/SKILL.md` § 2 checks out the existing IDEA branch instead of cutting one from another IDEA's branch; `skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md` § Stacked PR pairs is marked legacy-pairs-only with a pointer; `docs/guides/SPRINT_WORKFLOW.md` stage rows 1 and 3 name the single branch.
+
 ## v4.6.62 — compound: a folded minimum names its source — carry the winner, pin the tie-break in the reducer, state the unenforced uniqueness
 
 Making a verdict endpoint report *which* candidate produced its from-price (2026-09) surfaced the three facts a "keep the winner beside the number" change silently depends on — the tie-break becomes wire-visible the moment a name is attached and a loader without `ORDER BY` decides it in engine order; two minima can come from two candidates; and a resolved id emitted through a `(a, b) → id` join is only "the" id when `(a, b)` is unique, which the schema did not enforce — plus a commit-split trap from a guard test that pins a constant against a committed example. (2026-09-10, [#67](https://github.com/infohata/mind-vault/pull/67))
