@@ -12,6 +12,15 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.62 — compound: a folded minimum names its source — carry the winner, pin the tie-break in the reducer, state the unenforced uniqueness
+
+Making a verdict endpoint report *which* candidate produced its from-price (2026-09) surfaced the three facts a "keep the winner beside the number" change silently depends on — the tie-break becomes wire-visible the moment a name is attached and a loader without `ORDER BY` decides it in engine order; two minima can come from two candidates; and a resolved id emitted through a `(a, b) → id` join is only "the" id when `(a, b)` is unique, which the schema did not enforce — plus a commit-split trap from a guard test that pins a constant against a committed example. (2026-09-10, [#67](https://github.com/infohata/mind-vault/pull/67))
+
+### Added
+
+- `skills/plan/references/WINNER_IDENTITY_THROUGH_A_MIN_FOLD.md` — the trap, the rule (carry the winner per minimum, `null` iff the minimum is null; sort candidates on a by-construction-unique tuple in the reducer so every price mode shares the tie-break; state and probe the unenforced uniqueness instead of widening the producer; verify with an independent derivation, never sibling parity; say when a tie cannot be observed), the pinned-example sibling trap, and a plan checklist. Pointer added to the plan skill's References list.
+- `agents/AGENT_architect.md` PASS 3 — **an identity added to the wire rides on a uniqueness the schema does not enforce**: the reviewer demands the invariant stated, a duplicate probe as a verification row, and no producer widening; companions: reducer-pinned tie-break, guard-test pins grepped before the commit split.
+
 ## v4.6.61 — compound: sign-to-magnitude promotion verifies independently; keep-both seams carry the neighbour's heading
 
 Promoting a per-date availability boolean to the count behind it (2026-09) surfaced a verification trap the plan's own parity probe could not see, and the parallel wrap that shipped alongside it left a duplicate heading in a keep-both merge. Both are routed to the references that own them.
