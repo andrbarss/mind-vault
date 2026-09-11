@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.68 — compound: a gated clearing key survives a failed save; with no contract yet, a consumer note and a provisioning-probe route; a 2xx partial-success envelope
+
+Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 because #70 took v4.6.66 and the open compound PR #71 also holds v4.6.66, so it renumbers to v4.6.67 at merge. Consumer-side only: the mutation-check and skipped-mention-run lessons from the same work are already covered by #71 (`MUTATION_PASS_DISCIPLINE.md`, the engine-claude calibration) and are not duplicated here.
+
+### Changed
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`:
+  - § 1 gains a fourth part. A dirty-tracking model commits only on success, so a gated key set on an earlier failed save rides along on the next save after the gate closes. Restore the original, and spec the whole sequence on one record.
+  - New § 8: with no contract yet, send the producer's `/plan` a consumer note, gate `/work` on a contract table, and ask for a dedicated list route that doubles as a provisioning probe. An older producer then 404s and the gate stays shut. The producer side (reading that note before emitting the contract) lands in `SCHEMA_CONTRACT_HANDOFF.md` with #71.
+  - New § 9: a 2xx `{success:false}` partial-success envelope. Handle it before the generic failure handler; close or reload only when the body proves the row exists (an `id` on create); never decide by message text; ask for a discriminator.
+  - Three new anti-patterns, and updated pointer lines in `skills/plan/SKILL.md` and `skills/work/SKILL.md`.
+
 ## v4.6.66 — compound: a compare-and-set guards every input it priced from; a rejected key hides the default rows; walk every branch of a moved method; negated passed-check lines are not findings
 
 A write path that re-prices an existing record behind a compare-and-set (2026-09) passed a design pass, an architect review, source pins and a green review engine, and still had four holes an independent post-implementation review found: the guard pinned only the column the write changed, a post-update hook re-selecting with the guarded `WHERE` never fired, forwarding a key the new target rejected dropped its automatic discounts too, and a before / after regression walk reached only one branch of the moved method. The review loop's own parser also read the engine's clean verdict as findings. Single-PR section; provenance on this paragraph (2026-09-11).

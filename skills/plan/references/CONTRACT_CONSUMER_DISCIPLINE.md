@@ -1,6 +1,6 @@
-# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, the claims the contract makes about *your* codebase, wire booleans, and invariant handlers under a programmatic set
+# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, the claims the contract makes about *your* codebase, wire booleans, invariant handlers under a programmatic set, the failed-save residue of a gated key, a provisioning-probe route, and a partial-success envelope the client cannot decide
 
-Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Seven disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
+Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Nine disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
 
 ## 1. A `[]`-means-clear write key is a positive statement — gate it on the reference list having loaded
 
@@ -15,6 +15,26 @@ The rule: a key whose emptiness is destructive must never be computed from a lis
 Spec the three empties separately, because one green row hides the other two: loaded-with-zero-rows → `[]`; load answered `success:false` → `undefined` and the host's writer payload has **no** key; load never answered → `undefined`, then present once it resolves. Add one runtime row that throttles the reference request and Saves immediately — the body must carry no key and the values must survive a reopen.
 
 The tell in a draft plan or spec: any row that asserts `[]` as the *expected* output of an empty list. Treat it as a finding, not a test.
+
+
+**A fourth part: undo the residue of a failed save.** A dirty-tracking client model commits only on a
+successful save. After a validation failure, or a partial-success answer that keeps the edit open, the
+value set while the gate was open is still *modified*, so the next save carries it. That holds even
+after the gate has closed and the UI has told the user the values will not be saved.
+
+Field case:
+
+1. Tick two targets, then save. The save fails with a 400 on an unrelated field.
+2. Untick one target.
+3. Reload the reference list, and the reload fails.
+4. Save again. The body still carries both ids, and re-adds the one the user removed.
+
+When the builder returns "absent", the host must *restore* the key's original value, which drops the
+modified entry. Merely skipping the set is not enough. Spec it as one sequence on one record: open
+gate, failed save, closed gate, save, and no key on the wire.
+
+The same field case showed a second reason never to harvest the reference list: a filter hides rows
+and the producer may exclude ids, so a harvest silently un-ticks both.
 
 ## 2. The contract is a moving target until its owner's `/wrap` — re-read it at the end of `/work`
 
@@ -76,6 +96,55 @@ Two parts to the fix, and the second is the one that gets missed:
 
 Proof — **never a transition assertion.** With three or more fields no single transition is set-order-independent: set the last field first and `(on, off, on) → (off, off, on)` never passes through all-off, so a spec that asserts "load this over that, map unchanged" is green on an implementation with no suspension at all, which still misfires on other transitions. Assert the signal the behaviour uniquely produces: attach a spy to **every** field's `change` event, drive several loads across record types, expect **zero** calls; then perform one real user tick and expect exactly **one** — the positive control that stops the zero from passing vacuously. Spy on the event, not on the handler's method name: string-resolved listeners may bind at registration time, so a spy installed later on the controller method sees nothing either way, and the zero would be meaningless.
 
+## 8. No contract yet — write the consumer's expectations first, and ask for a route that doubles as a provisioning probe
+
+When the consumer is planned before the producer's contract exists, neither wait nor guess silently.
+
+- Emit a paste-ready **note to the producer's `/plan`**, the consumer side of
+  [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md).
+- Gate the consumer's `/work` on a **contract table**: one row per claim the plan builds on (endpoint,
+  envelope, read-back type, write format, absent-vs-`[]`, create path, degrade state). Each row gives
+  the plan's default and the file to verify it in.
+
+Field case: the producer adopted the note wholesale. Every row resolved to its default, and the one
+flip, a display list the producer added, cost one model field. Earlier that morning a different draft
+of the same contract had described an upstream-proxied tree endpoint with a server-computed `checked`
+flag. It was superseded before any consumer code existed, and the table made that a non-event.
+
+What to put in the note, beyond shapes:
+
+- **A dedicated read route for the gated list, not the grid endpoint.** On an older producer the route
+  404s, the reference load fails, the gate stays shut and the destructive key is never built, on create
+  as well as update. The route *is* the provisioning probe, so deploy order stops mattering for that key.
+  Reusing a generic list endpoint loses this: the endpoint exists on the old producer, so the gate opens
+  and the key is sent. Safety then rests on the old writer ignoring an unknown key. Verify that
+  separately, including any framework edge case where it does not.
+- **No server-computed selection flag** (`checked`) on the list. The record's read-back is then the only
+  source of the selection, so create needs no special case and the two sources can never disagree.
+- **Types the client can read without guessing**, such as a JSON boolean rather than a raw `TINYINT`.
+  Say the client coerces anyway, so the producer is not blocked on it.
+- **Acceptance rows the client can physically produce** (§ 5), written into the note so they land in the
+  producer's contract.
+
+## 9. A partial-success envelope that also means "nothing saved" cannot be decided by the client
+
+A producer that writes a parent row and then a nested list often answers "row saved, list not" with a
+failure envelope on a 2xx status: `{success:false, msg}`, plus the new `id` on create. That creates two
+consumer traps.
+
+- **The generic failure handler has nothing to read.** A handler that branches on 4xx / 5xx shows a
+  generic message for a 2xx failure, and the producer's text is swallowed. Handle the envelope before
+  delegating.
+- **Reload-vs-retry is decidable only when the body proves the row exists.**
+  - On create, the returned `id` proves it. Close or reload; otherwise the user's retry creates a
+    duplicate row.
+  - On update, check whether the producer's generic exception path emits the *same* envelope when the
+    row did **not** save. In the field case it did, so the edit stayed open (a retry is an idempotent
+    PUT) and the list view reloaded either way.
+  - Never decide by matching the message text. Ask the producer for a discriminator such as
+    `"saved": true` in the note back to its owner.
+  - Spec a 4xx sent **through the save path**, so the new branch cannot silently swallow every failure.
+
 ## Anti-patterns
 
 - ❌ "Empty picker ⇒ send `[]`, the degraded tenant accepts it" — the harmless case is the only one you thought about.
@@ -87,3 +156,6 @@ Proof — **never a transition assertion.** With three or more fields no single 
 - ❌ Correcting a contract's mistake only in your own plan. The sentence stays wrong for the next consumer until its owner fixes it.
 - ❌ `!!row.flag` on a value the producer casts from a DB integer — the string `"0"` is true, and a flag re-sent on every save persists the misread.
 - ❌ Proving "a load never fires the invariant handler" with one transition; only an event spy across several loads plus a positive control is set-order-independent.
+- ❌ Skipping the gated key when the gate is closed, but leaving the value a failed save set on the record — the next save sends it anyway.
+- ❌ Pointing a gated reference list at a generic list endpoint when a dedicated route would have made an older producer fail closed.
+- ❌ Closing an edit on a 2xx failure envelope without proof the row exists — or keeping it open on create, where the retry duplicates the row.
