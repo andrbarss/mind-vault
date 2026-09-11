@@ -12,7 +12,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.66 — compound: set replaces under empty-range locks deadlock instead of queueing; requesting contracts with a suite-checked mirror; mutation-pass discipline
+## v4.6.67 — compound: set replaces under empty-range locks deadlock instead of queueing; requesting contracts with a suite-checked mirror; mutation-pass discipline
 
 Single-PR section; provenance on this paragraph (2026-09-11).
 
@@ -29,6 +29,25 @@ Single-PR section; provenance on this paragraph (2026-09-11).
 - `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md` — the lenses may run in parallel with the engine's run on the same SHA (read-only instructions), batched into one fix cycle; field case of six real defects behind an engine's clean summary.
 - `skills/review-loop/references/engine-claude.md` — calibration: a substantive fix push after a clean first review still skip-no-ops (`num_turns: 2`); one explicit retrigger posted the verdict; the finder's open adapter gap observed again; replies without the mention start runs that complete `skipped`.
 - `rules/RULE_self-sweep-before-push.md` trigger 7 + rationale — a third silent-staging cause: zsh does not word-split `$FILES`, so `git add $FILES` stages nothing and a `set -e` chain can run on to a no-op commit and push.
+
+## v4.6.66 — compound: a compare-and-set guards every input it priced from; a rejected key hides the default rows; walk every branch of a moved method; negated passed-check lines are not findings
+
+A write path that re-prices an existing record behind a compare-and-set (2026-09) passed a design pass, an architect review, source pins and a green review engine, and still had four holes an independent post-implementation review found: the guard pinned only the column the write changed, a post-update hook re-selecting with the guarded `WHERE` never fired, forwarding a key the new target rejected dropped its automatic discounts too, and a before / after regression walk reached only one branch of the moved method. The review loop's own parser also read the engine's clean verdict as findings. Single-PR section; provenance on this paragraph (2026-09-11).
+
+### Added
+
+- `skills/plan/references/COMPARE_AND_SET_GUARD_SCOPE.md` + `agents/AGENT_architect.md` PASS 3 bullet + `skills/plan/SKILL.md` pointer — a compare-and-set protecting a computed write must guard **every column the computation read** (enumerated from the quote / gates, including reads a shared helper makes), not only the column the write changes; a NULL expectation is `IS NULL` (a builder quoting `null` as `''` turns every NULL-input write into a false "changed"); an after-update hook that re-selects with the caller's `WHERE` never sees the moved row, so fire it by key after a matched write; rows changed ≠ rows matched; keep the domain's constants out of the table gateway; verify the guard with an executed double and say the stale-input race is not timeable from outside.
+- `tests/test_claude_clean_classification.sh` + `make test-claude-classifier` — pins the claude summary classification both ways (a clean enumeration of passed checks reads clean; a mixed review's `Docstrings missing`, "No issues found except X is missing", a trailing real finding after a negated clause and a count line still surface), and that the tool's classify pass applies the negation strip.
+
+### Changed
+
+- `skills/plan/references/PRODUCER_ARGUMENT_CONTRACTS.md` § "The third error: forwarding a key the new target rejects" — a selecting argument (a promo code, a coupon, a price-list code) often excludes the *unkeyed* default rows too; re-running the producer for another target with a key that target rejects loses both. Validate against the new target first (same scope rules), call without the key when rejected, make the pre-check the only validity answer (a second remote validation can disagree on a transient failure), and verify with a target that has a default row.
+- `skills/work/references/EXECUTE_OVER_PIN.md` — § live corollary: walk **every** write branch of an extracted compute-and-write method and read which branch a capture reached from what it wrote; new § "Doubles and pins that discriminate": seed a double's two sources to disagree so only the override passes, quote in a recording adapter double exactly as the driver does, pin a guarded block as one contiguous normalised string plus `substr_count === 1` per side effect (a positional "appears after the guard" pin passes when a call leaves the block).
+- `skills/review-loop/references/engine-claude.md` § clean detection — negated passed-check lines are not markers.
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — a genuinely clean claude summary that enumerated its passed checks (`- No map schemas missing captured examples`) matched the finding marker `\bmissing\b` and was reported `CLEAN=false FINDINGS=true`. New `CLAUDE_FINDING_NEGATIONS` strips a line or list item that opens with no / none / zero (up to the first `.` `;` `:`, never across found / except / but / however) before the marker search; it can only remove a marker, hence the tight anchoring.
 
 ## v4.6.65 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
 

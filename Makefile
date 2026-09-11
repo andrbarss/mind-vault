@@ -168,3 +168,6 @@ release: ## Tag + push + GH-release the current version (VERSION=v<N> overrides 
 
 test-release: ## Run the version-extraction test harness against fixture files
 	@bash tests/test_release_extraction.sh
+
+test-claude-classifier: ## Run the claude review-summary clean-vs-findings classification tests
+	@bash tests/test_claude_clean_classification.sh

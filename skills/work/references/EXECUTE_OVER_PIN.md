@@ -69,6 +69,33 @@ probe is safe even where the full write cannot complete — and record the byte-
 message plus "0 rows written". It costs a minute and turns "the test says so" into "the
 system says so".
 
+**Walk every branch of a moved method.** When the amendment is an *extraction* of a
+compute-and-write method (its head moved into a pure quote, the legacy tail still writing), a
+before / after walk proves the move only for the branches it reached. List the method's write
+branches (applies a discount / drops it / price unchanged — whatever its `if` ladder is) and walk
+**each**, above all the branch that writes the most columns; read which branch a capture reached
+from what it wrote. A capture showing "discount 0, message empty, free-text column untouched"
+reached the no-discount branch, whatever the plan asked for — report it as that branch, not as
+"the regression walk". Field case: the first walk was reported green, and the branch that rewrites
+the free-text column was walked only after a review read the capture.
+
+## Doubles and pins that discriminate
+
+- **Make a double's two sources disagree.** When the code under test overrides a value a
+  collaborator also computes (a pre-check's verdict replacing the collaborator's own), a double that
+  returns the *same* value from both is green with or without the override. Seed them to disagree —
+  pre-check true / collaborator false, and the reverse — so only the override line produces the
+  asserted result.
+- **Quote the way the real adapter does.** A recording adapter double that quotes ints (`id = '42'`)
+  where the driver leaves them bare pins text production never emits; copy the driver's quoting
+  rules for the types the code passes.
+- **Pin a guarded block as one contiguous, whitespace-normalised string**, plus
+  `substr_count(call) === 1` for each side-effecting call. "Each write call appears after
+  `if (!$dryRun) {`" still passes when a call moves below the block's closing brace or the guard's
+  condition changes — a positional pin checks order, not containment. Where the method's exact
+  statements *are* the contract (a post-commit method whose side effects each sit in their own
+  `try`), `assertSame` the whole normalised method: brittle on purpose.
+
 ## Related
 
 - `agents/AGENT_test-engineer.md` PASS 2 — the reviewer-side bullet that points here.
