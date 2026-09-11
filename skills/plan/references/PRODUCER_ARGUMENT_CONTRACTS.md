@@ -64,6 +64,33 @@ The test for steps 2–3 is one question: *"if I delete this argument from the c
 of which function changes behaviour?"* If the answer is "none, because the call site never
 passes it", the argument is not a contract on this path.
 
+## The third error: forwarding a key the new target rejects
+
+A **selecting** argument — a discount or promo code, a coupon, a campaign or affiliate id, a
+price-list code — is compared against every candidate row, and the loop skips each row whose key
+differs from the one it was given. Rows that carry **no** key (the automatic, default offers) are
+often skipped by the same comparison. Callers written for the original target never notice: the
+key was valid there. A plan that **re-runs the producer for a different target** (an upgrade, a
+re-quote on another product, a transfer) and forwards the caller's key gets, when the new target
+rejects that key, neither the keyed rows (the key is invalid there) nor the default rows (the key
+excluded them). The price silently loses every automatic discount — and the response still
+truthfully reports "code dropped", so nothing looks wrong.
+
+1. When the plan forwards a caller-held key to a producer for a **different** target, read the
+   comparison and state what the producer does with **unkeyed** rows when a key is given.
+2. **Validate the key against the new target first**, with the same scope rules the producer
+   applies (a consumed single-use code the caller owns, a channel) — and when it is rejected,
+   **call the producer without it**, exactly as for a caller that never had one.
+3. **The pre-check is the only validity answer.** The producer usually re-validates internally.
+   When validation can call a remote service (a partner-validated code, a licensing server), two
+   independent calls can disagree on a transient failure: the price is computed with the key while
+   the result reports it invalid, and the key is dropped from a price that used it. Take validity
+   from the check that decided what the producer was given, and override the producer's verdict
+   with it.
+4. **Verify with a target that has a default row and rejects the key.** Before the fix the price
+   equals the undiscounted price; after it, the no-key price. A fixture target without a default
+   row answers the same on both implementations — phantom verification.
+
 ## Why the architect must do this, not just the author
 
 The author reads the producer through the plan's intent ("we need the superset") and sees the

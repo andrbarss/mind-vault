@@ -14,7 +14,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 ## v4.6.68 — compound: a gated clearing key survives a failed save; with no contract yet, a consumer note and a provisioning-probe route; a 2xx partial-success envelope
 
-Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 because the open compound PRs #70 and #71 both hold v4.6.66; one of them renumbers to v4.6.67 at merge. Consumer-side only: the mutation-check and skipped-mention-run lessons from the same work are already covered by #71 (`MUTATION_PASS_DISCIPLINE.md`, the engine-claude calibration) and are not duplicated here.
+Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 because #70 took v4.6.66 and the open compound PR #71 also holds v4.6.66, so it renumbers to v4.6.67 at merge. Consumer-side only: the mutation-check and skipped-mention-run lessons from the same work are already covered by #71 (`MUTATION_PASS_DISCIPLINE.md`, the engine-claude calibration) and are not duplicated here.
 
 ### Changed
 
@@ -23,6 +23,25 @@ Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 beca
   - New § 8: with no contract yet, send the producer's `/plan` a consumer note, gate `/work` on a contract table, and ask for a dedicated list route that doubles as a provisioning probe. An older producer then 404s and the gate stays shut. The producer side (reading that note before emitting the contract) lands in `SCHEMA_CONTRACT_HANDOFF.md` with #71.
   - New § 9: a 2xx `{success:false}` partial-success envelope. Handle it before the generic failure handler; close or reload only when the body proves the row exists (an `id` on create); never decide by message text; ask for a discriminator.
   - Three new anti-patterns, and updated pointer lines in `skills/plan/SKILL.md` and `skills/work/SKILL.md`.
+
+## v4.6.66 — compound: a compare-and-set guards every input it priced from; a rejected key hides the default rows; walk every branch of a moved method; negated passed-check lines are not findings
+
+A write path that re-prices an existing record behind a compare-and-set (2026-09) passed a design pass, an architect review, source pins and a green review engine, and still had four holes an independent post-implementation review found: the guard pinned only the column the write changed, a post-update hook re-selecting with the guarded `WHERE` never fired, forwarding a key the new target rejected dropped its automatic discounts too, and a before / after regression walk reached only one branch of the moved method. The review loop's own parser also read the engine's clean verdict as findings. Single-PR section; provenance on this paragraph (2026-09-11).
+
+### Added
+
+- `skills/plan/references/COMPARE_AND_SET_GUARD_SCOPE.md` + `agents/AGENT_architect.md` PASS 3 bullet + `skills/plan/SKILL.md` pointer — a compare-and-set protecting a computed write must guard **every column the computation read** (enumerated from the quote / gates, including reads a shared helper makes), not only the column the write changes; a NULL expectation is `IS NULL` (a builder quoting `null` as `''` turns every NULL-input write into a false "changed"); an after-update hook that re-selects with the caller's `WHERE` never sees the moved row, so fire it by key after a matched write; rows changed ≠ rows matched; keep the domain's constants out of the table gateway; verify the guard with an executed double and say the stale-input race is not timeable from outside.
+- `tests/test_claude_clean_classification.sh` + `make test-claude-classifier` — pins the claude summary classification both ways (a clean enumeration of passed checks reads clean; a mixed review's `Docstrings missing`, "No issues found except X is missing", a trailing real finding after a negated clause and a count line still surface), and that the tool's classify pass applies the negation strip.
+
+### Changed
+
+- `skills/plan/references/PRODUCER_ARGUMENT_CONTRACTS.md` § "The third error: forwarding a key the new target rejects" — a selecting argument (a promo code, a coupon, a price-list code) often excludes the *unkeyed* default rows too; re-running the producer for another target with a key that target rejects loses both. Validate against the new target first (same scope rules), call without the key when rejected, make the pre-check the only validity answer (a second remote validation can disagree on a transient failure), and verify with a target that has a default row.
+- `skills/work/references/EXECUTE_OVER_PIN.md` — § live corollary: walk **every** write branch of an extracted compute-and-write method and read which branch a capture reached from what it wrote; new § "Doubles and pins that discriminate": seed a double's two sources to disagree so only the override passes, quote in a recording adapter double exactly as the driver does, pin a guarded block as one contiguous normalised string plus `substr_count === 1` per side effect (a positional "appears after the guard" pin passes when a call leaves the block).
+- `skills/review-loop/references/engine-claude.md` § clean detection — negated passed-check lines are not markers.
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — a genuinely clean claude summary that enumerated its passed checks (`- No map schemas missing captured examples`) matched the finding marker `\bmissing\b` and was reported `CLEAN=false FINDINGS=true`. New `CLAUDE_FINDING_NEGATIONS` strips a line or list item that opens with no / none / zero (up to the first `.` `;` `:`, never across found / except / but / however) before the marker search; it can only remove a marker, hence the tight anchoring.
 
 ## v4.6.65 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
 
