@@ -393,3 +393,22 @@ Practice: after any push, wait for the head-SHA run to reach `completed` **and**
 window; then read the newest summary's `created_at` against the commit it could have reviewed —
 list the branch's runs with their durations (a ~90 s run never reviewed anything; a 10-minute run
 did) and map the summary to the long run's SHA before calling the tip clean.
+
+
+## § calibration update — a `skipped` mention-workflow run at the verdict minute is not a retrigger (downstream ExtJS project, 2026-09-11)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). The push that ended `/work` ran while
+the PR was a draft and posted no review. The PR was un-drafted **90 minutes later**, so the
+`ready_for_review` run was the only review of that SHA. It took ~6 minutes and posted a clean
+`## Code review` summary with 0 inline comments, exactly as the 2026-09-08 practice predicts.
+
+A later re-invocation of the loop met one false signal. The run list showed a `claude.yml`
+(`issue_comment`) run for the PR, created **five seconds after** the clean summary, with conclusion
+`skipped`. `claude[bot]`'s own summary comment fired that run, and the workflow's job condition skipped
+it. It was not an explicit retrigger, and it reviewed nothing.
+
+- Read `skipped` mention-workflow runs as noise. A retrigger is only a `claude.yml` run that
+  `completed` with a task-format comment dated after the head commit.
+- With no new push and no new comment, a re-invoked loop hands back the standing CLEAN without
+  retriggering. An explicit `@claude review` on an unchanged SHA buys a deduped, billed no-op
+  (§ Incremental review).

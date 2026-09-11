@@ -12,6 +12,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.66 — compound: a gated clearing key survives a failed save; with no contract yet, a consumer note and a provisioning-probe route; a 2xx partial-success envelope; guard mutation check
+
+Single-PR section; provenance on this paragraph (2026-09-11). If an in-flight compound claims v4.6.66 first, renumber this section at merge.
+
+### Added
+
+- `skills/work/references/GUARD_MUTATION_CHECK.md` + a `skills/work/SKILL.md` pointer — prove each new spec row is load-bearing before push. Break one guard at a time in a committed file: back it up, apply one multi-line perl substitution, confirm with `cmp` that it applied, count the suite, restore. Every mutation must fail at least one spec. Run it alone, never while committing or while a reviewer reads the working tree. Field run: 14 mutations over two rounds on a client-side load gate, all caught.
+
+### Changed
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`:
+  - § 1 gains a fourth part. A dirty-tracking model commits only on success, so a gated key set on an earlier failed save rides along on the next save after the gate closes. Restore the original, and spec the whole sequence on one record.
+  - New § 8: with no contract yet, send the producer's `/plan` a consumer note, gate `/work` on a contract table, and ask for a dedicated list route that doubles as a provisioning probe. An older producer then 404s and the gate stays shut.
+  - New § 9: a 2xx `{success:false}` partial-success envelope. Handle it before the generic failure handler; close or reload only when the body proves the row exists (an `id` on create); never decide by message text; ask for a discriminator.
+  - Three new anti-patterns, and updated pointer lines in `skills/plan/SKILL.md` and `skills/work/SKILL.md`.
+- `skills/review-loop/references/engine-claude.md` — a new calibration:
+  - un-drafting long after the push's run settled gives exactly one review;
+  - a `skipped` `claude.yml` run seconds after the summary is the bot's own comment tripping the job condition, not a retrigger;
+  - a re-invoked loop with no new push hands back the standing CLEAN without retriggering.
+
 ## v4.6.65 — compound: scoping arguments — classify at the branch, verify at the call site; a source pin is not a test; stacked base PR re-sync after the child merges
 
 Single-PR section; provenance on this paragraph (2026-09-07).
