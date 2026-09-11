@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.68 — compound: a gated clearing key survives a failed save; with no contract yet, a consumer note and a provisioning-probe route; a 2xx partial-success envelope
+
+Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 because #70 took v4.6.66 and the open compound PR #71 also holds v4.6.66, so it renumbers to v4.6.67 at merge. Consumer-side only: the mutation-check and skipped-mention-run lessons from the same work are already covered by #71 (`MUTATION_PASS_DISCIPLINE.md`, the engine-claude calibration) and are not duplicated here.
+
+### Changed
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`:
+  - § 1 gains a fourth part. A dirty-tracking model commits only on success, so a gated key set on an earlier failed save rides along on the next save after the gate closes. Restore the original, and spec the whole sequence on one record.
+  - New § 8: with no contract yet, send the producer's `/plan` a consumer note, gate `/work` on a contract table, and ask for a dedicated list route that doubles as a provisioning probe. An older producer then 404s and the gate stays shut. The producer side (reading that note before emitting the contract) lands in `SCHEMA_CONTRACT_HANDOFF.md` with #71.
+  - New § 9: a 2xx `{success:false}` partial-success envelope. Handle it before the generic failure handler; close or reload only when the body proves the row exists (an `id` on create); never decide by message text; ask for a discriminator.
+  - Three new anti-patterns, and updated pointer lines in `skills/plan/SKILL.md` and `skills/work/SKILL.md`.
+
 ## v4.6.67 — compound: set replaces under empty-range locks deadlock instead of queueing; requesting contracts with a suite-checked mirror; mutation-pass discipline
 
 Single-PR section; provenance on this paragraph (2026-09-11).
@@ -29,6 +41,7 @@ Single-PR section; provenance on this paragraph (2026-09-11).
 - `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md` — the lenses may run in parallel with the engine's run on the same SHA (read-only instructions), batched into one fix cycle; field case of six real defects behind an engine's clean summary.
 - `skills/review-loop/references/engine-claude.md` — calibration: a substantive fix push after a clean first review still skip-no-ops (`num_turns: 2`); one explicit retrigger posted the verdict; the finder's open adapter gap observed again; replies without the mention start runs that complete `skipped`.
 - `rules/RULE_self-sweep-before-push.md` trigger 7 + rationale — a third silent-staging cause: zsh does not word-split `$FILES`, so `git add $FILES` stages nothing and a `set -e` chain can run on to a no-op commit and push.
+
 
 ## v4.6.66 — compound: a compare-and-set guards every input it priced from; a rejected key hides the default rows; walk every branch of a moved method; negated passed-check lines are not findings
 

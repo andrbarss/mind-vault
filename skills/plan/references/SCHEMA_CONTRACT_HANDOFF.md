@@ -72,7 +72,7 @@ note file in its own archive directory, on its feature branch — before your `/
   reference list.** A server-computed `checked` flag on a picker is a second source of the same
   selection, and it invites building the write payload from the list store — which is empty before
   it loads, so the save sends `[]` and wipes the set. Emit the list without selection; the record
-  carries the selection. (The consumer side of the same trap: `CONTRACT_CONSUMER_DISCIPLINE.md` § 1.)
+  carries the selection. (The consumer side of the same trap: `CONTRACT_CONSUMER_DISCIPLINE.md` § 1; how the consumer writes the note and asks for a list route that doubles as a provisioning probe: § 8.)
 - **A change after the consumer's re-read owes a delta note.** When your review cycle amends the
   contract after the consumer verified it, write each change and whether it needs consumer code as
   paste-ready text in your archive.
