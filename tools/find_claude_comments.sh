@@ -298,6 +298,15 @@ export CLAUDE_CLEAN_PATTERNS='no issues found|no bugs found|no problems found|no
 # found." + "### `file`", downstream posted "#### 1." numbered; the catch-everything
 # default is what makes an unseen 3rd format safe.)
 export CLAUDE_FINDING_MARKERS='\bmissing\b|\bviolation\b|❌|#### |### [0-9]|### `|[0-9]+ (issue|bug|problem|finding)s? found|(one|two|three|four|five|six|seven|eight|nine|ten) (issue|bug|problem|finding)s? found'
+# Negated passed-check lines — stripped from the body BEFORE the marker search, so a clean
+# summary that enumerates what it checked ("- No map schemas missing captured examples")
+# does not trip \bmissing\b / violation (field false positive 2026-09-11: FINDINGS=true on
+# a clean review). Anchored to a line or list item that OPENS with no / none / zero, ends at
+# the first . ; : or newline, and never spans found / except / but / however — so "No issues
+# found except X is missing" and a mixed review's own "Docstrings missing" line still mark.
+# It can only remove a marker (move a review toward clean), which is why it is this tight;
+# tests/test_claude_clean_classification.sh pins both directions.
+export CLAUDE_FINDING_NEGATIONS='(?m)^[ \t]*(?:[-*][ \t]+)?(?:no|none|zero)\b(?:(?!\b(?:except|but|however|found)\b)[^.;:\n])*?\b(?:missing|violations?)\b'
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
 # skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
 # matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
@@ -443,8 +452,11 @@ at = c.get('created_at') or ''
 body = c.get('body') or ''
 clean_re = re.compile(os.environ.get('CLAUDE_CLEAN_PATTERNS', 'a^'), re.IGNORECASE)
 finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
+neg_re = re.compile(os.environ.get('CLAUDE_FINDING_NEGATIONS', 'a^'), re.IGNORECASE)
 has_clean_phrase = bool(clean_re.search(body))
-has_finding_marker = bool(finding_re.search(body))
+# Negated passed-check lines (- No X missing Y) are not findings: strip them first.
+marker_body = neg_re.sub(' ', body)
+has_finding_marker = bool(finding_re.search(marker_body))
 # WHOLE-REVIEW clean: a positive clean phrase AND no finding marker anywhere.
 # Mixed reviews (one section clean, another flags 'missing'/'violation') → NOT clean.
 is_clean = has_clean_phrase and not has_finding_marker
