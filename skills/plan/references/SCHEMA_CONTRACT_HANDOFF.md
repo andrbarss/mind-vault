@@ -34,6 +34,49 @@ The contract flows both ways. When *this* repo is the one asked for a column (th
 
 Also **split the ALTER honestly**: when one requested `ALTER` lands as two stems on this side (the first column shipped before the second was planned, and applied migration files are content-hashed — never re-opened), the mirror contract records both stems, the identical end state, and the one rollback-topology difference (both pending ⇒ one batch ⇒ a bare `rollback` reverts both; otherwise `--migration=<stem>`), so the consumer's degrade table still maps one-to-one.
 
+## Writing the *requesting* contract — when the table's owner has not planned yet
+
+The section above covers the owner receiving a request. The other direction comes up when your
+repo is the **writer** of a table another repo will own, and the owner has only *captured* its
+idea. Waiting blocks both teams; guessing their DDL builds your fixture on sand. Write the request:
+
+- **Author the DDL you need as a requesting contract** — the same five sections, a banner that
+  names the direction ("requesting; the owner's contract governs once it exists"), and an *owed*
+  list the owner's `/plan` can adopt item by item. Field case: the owner adopted the DDL unchanged
+  except an optional `CHECK` — dropped because servers below MySQL 8.0.16 parse and ignore it, and a
+  constraint that holds on some tenants and not others is a false guarantee (the rule stayed
+  writer-owned).
+- **Gate the scaffolding commit on a re-read at `/work` start.** If the owner has emitted theirs by
+  then, mirror it verbatim *before* building the fixture and drift guard, and conform to it.
+- **Mirror every revision until the owner merges.** Body byte-identical; the banner carries the
+  source commit, the md5 of the body, and a change list across mirrors. The owner's file can move
+  several times — plan, architect review, PR review, wrap (field case: four mirrors in one day,
+  every change reader-side).
+- **Make the mirror checkable by the suite.** The drift guard parses the UP statement *out of the
+  mirrored markdown* (comments and whitespace stripped) and compares it with the fixture's DDL, and
+  a second test re-hashes the body after the banner's separator against the banner's md5 — so an
+  in-place edit of the mirror, or a fixture that drifts from it, goes red. The guard cannot see the
+  owner's repo moving: re-read at the end of `/work` and at `/wrap`.
+- **Corrections flow back as paste-ready text in the banner** (for example, a lock claim measured
+  false); the owner adopting one closes it, and the next mirror's change list records the closure.
+
+## Read the consumer's note before emitting the build contract
+
+A parallel consumer's `/plan` can run first and write down what it needs from *your* contract — a
+note file in its own archive directory, on its feature branch — before your `/plan` exists.
+
+- **Before emitting, look for it**: list the sibling repo's branches for your idea and grep their
+  trees, e.g. `git -C <sibling> ls-tree -r --name-only origin/<branch> | grep -i note`. Field case:
+  the note was found at the end of `/work` and cost a reshape commit.
+- **When the consumer seeds editable state from the record, do not also emit that state from the
+  reference list.** A server-computed `checked` flag on a picker is a second source of the same
+  selection, and it invites building the write payload from the list store — which is empty before
+  it loads, so the save sends `[]` and wipes the set. Emit the list without selection; the record
+  carries the selection. (The consumer side of the same trap: `CONTRACT_CONSUMER_DISCIPLINE.md` § 1.)
+- **A change after the consumer's re-read owes a delta note.** When your review cycle amends the
+  contract after the consumer verified it, write each change and whether it needs consumer code as
+  paste-ready text in your archive.
+
 ## Charset and collation are part of the DDL — pin them on `ADD COLUMN` against a legacy table
 
 A column added with `ALTER TABLE … ADD COLUMN x VARCHAR(100) NULL` takes the **table's** default character set — not the database's, not the neighbouring columns'. On a schema that grew up before utf8 (MySQL `latin1` defaults are the common case), a table can default to latin1 while every one of its text columns carries its own `CHARACTER SET utf8mb4 COLLATE …` — readable, and a trap: the next additive column silently lands as latin1, and every non-Latin-1 letter is mangled **on write**, under HTTP 200, on every tenant. Nothing in a DB-free suite can see it; the migration round trip is clean; only real data exposes it. Field case: an eight-locale display-name family shipped latin1 on the first cut and stored `Š` as one byte; the seed read-back caught it before the first push.
@@ -93,3 +136,6 @@ the consumer does not invent one.
 - ❌ "Empty input ⇒ NULL" on a numeric column without saying `=== ''` — `empty('0')` erases a legitimate zero.
 - ❌ `ADD COLUMN … VARCHAR(n)` with no `CHARACTER SET` against a table whose default you have not read — on a pre-utf8 schema the column lands latin1 and mangles text on write; the round trip and the DB-free suite stay green.
 - ❌ Writing the migration first and extracting the contract after — the review order inverts, and the consumer's blocked window extends through /work.
+- ❌ Building the fixture from your *requesting* contract after the owner has emitted theirs.
+- ❌ A mirror whose body can be edited in place without a failing test.
+- ❌ A picker that ships its own selection flag next to a record that already carries the selection.

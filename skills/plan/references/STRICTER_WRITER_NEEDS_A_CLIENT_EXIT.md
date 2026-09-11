@@ -36,13 +36,14 @@ contract and the read-back).
 ## The exit, decided at plan time
 
 Every write rule that is stricter than storage owes the plan an answer to one question: **when a
-client reads back a state this rule refuses, how does it get out?** Three shapes; pick one and
+client reads back a state this rule refuses, how does it get out?** Four shapes; pick one and
 write it into the contract the consumer builds against, not into a comment.
 
 | Exit | Where it lives | When it fits |
 | --- | --- | --- |
 | **Seed rule on the consumer** — "if a seeded value violates the rule, normalise it at seed time and mark the entry dirty, disabled rows included" | the consumer-facing contract's UI-guidance section, marked *load-bearing* | the refused state is rare, storage-only, and the writer wants exactly one rule (the field case: tick the default placement on an all-`false` seed) |
 | **Carve-out at the writer** — exempt the class of entries the client cannot edit (retired / read-only rows carry their value through as sent) | the writer, in the phase that already knows the entry's class (the existence/status check, not the DB-free parser) | the consumer is not yours, or several consumers exist and one seed rule per consumer is worse than one branch |
+| **Hide at the reader** — the read-back omits the refused state, and the next save drops it | the writer's read-back, with a contract bullet naming what is omitted | the refused state carries no user intent this API could produce (a self-reference in a set that forbids self, stored by hand), the consumer seeds its payload from the read-back, **and every other reader already ignores that state** — so hiding it creates no disagreement |
 | **Coerce** — silently repair the refused state on write | almost never | the rule is a *storage* invariant with no user intent behind it; a client's explicit value must not become silently untrue |
 
 Record the chosen exit **and** the fallback: "closed on the UI side by contract § N; a writer-side
