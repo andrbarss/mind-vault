@@ -69,3 +69,13 @@ This is a **hand-back-time escalation**, not a replacement for the engine loop. 
 independent pass before declaring the PR merge-ready. The independent findings re-enter the loop as a
 fresh fix cycle (commit → push → re-trigger engines on the new SHA), so the engines still get a final
 look at the fixes.
+
+**Launching the lenses in parallel with the engine's run on the same SHA is fine**, and saves a whole
+wait: give both lenses read-only instructions (`git show` / `git diff` only, no checkout, no test runs,
+no database), then batch their findings with the engine's verdict into one fix cycle. Field case: the
+engine posted a clean summary while the lenses found six real defects on the same SHA — a non-UTF-8
+input echoed into an error body that then failed to encode (a 500), an uncapped id list past the
+database's placeholder limit (a 500), a duplicate-key error escaping under a non-default isolation
+level, a deadlock inside a caller's transaction reported as "saved", an error message blaming the
+wrong record, and a leading-zero id silently ignored — plus a stale mirrored contract and a test sweep
+that missed a parked table.

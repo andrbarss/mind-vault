@@ -24,6 +24,25 @@ Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 beca
   - New § 9: a 2xx `{success:false}` partial-success envelope. Handle it before the generic failure handler; close or reload only when the body proves the row exists (an `id` on create); never decide by message text; ask for a discriminator.
   - Three new anti-patterns, and updated pointer lines in `skills/plan/SKILL.md` and `skills/work/SKILL.md`.
 
+## v4.6.67 — compound: set replaces under empty-range locks deadlock instead of queueing; requesting contracts with a suite-checked mirror; mutation-pass discipline
+
+Single-PR section; provenance on this paragraph (2026-09-11).
+
+### Added
+
+- `skills/plan/references/SET_REPLACE_UNDER_EMPTY_RANGE_LOCKS.md` + `skills/plan/SKILL.md` pointer — a delete + reinsert of a child set "serialised" by `FOR UPDATE` fails two ways on real schemas: a parent row on a non-transactional engine (MyISAM) is a plain read, and an empty InnoDB range takes a shared gap lock, so two writers that both insert deadlock (1213) rather than queue — or collide on a duplicate key under READ COMMITTED; on a sparse index even different parents share the gap. Field measurements, the two-inserter probe (a one-inserter probe reads as serialised), timing on the database host, and the design that works: retry the whole replace, re-check inside each attempt, translate only residual conflicts, never inside a caller's transaction, with one attempt as a test seam.
+- `skills/work/references/MUTATION_PASS_DISCIPLINE.md` + `skills/work/SKILL.md` pointer — one mutation per guard, planned first (it exposed fifteen status-only assertions on an API whose post-save failure is also HTTP 200, and hostile-id rows that coercive typing could not discriminate); run against committed code with a git restore and an unmutated baseline; never batch the script with a staging command; a same-fatal-every-time run is void; a mutation that reproduces its defect can strand shared data, cleaned by the defect's own signature.
+
+### Changed
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` — two new sections. Writing a *requesting* contract when the table's owner has not planned (adopted unchanged upstream except an optional `CHECK`, which servers below MySQL 8.0.16 ignore), gating the scaffolding on a re-read, mirroring every revision with a banner md5 and a drift guard that parses the DDL out of the mirror (four mirrors in one day). Reading the consumer's note on its branch before emitting a build contract, never shipping a selection flag next to a record that already carries the selection, and owing a delta note for changes after the consumer's re-read.
+- `skills/plan/references/STRICTER_WRITER_NEEDS_A_CLIENT_EXIT.md` — a fourth exit: hide a meaningless refused row (a self-reference stored by hand) at the reader when every other reader already ignores it.
+- `skills/review-loop/references/VERIFY_BOT_API_CLAIMS.md` — a PHP runtime-claim example: check `ReflectionFunction::isInternal()` / `getExtensionName()` before and after the autoloader, in the production-equivalent container; refute without the bot's trigger mention.
+- `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md` — the lenses may run in parallel with the engine's run on the same SHA (read-only instructions), batched into one fix cycle; field case of six real defects behind an engine's clean summary.
+- `skills/review-loop/references/engine-claude.md` — calibration: a substantive fix push after a clean first review still skip-no-ops (`num_turns: 2`); one explicit retrigger posted the verdict; the finder's open adapter gap observed again; replies without the mention start runs that complete `skipped`.
+- `rules/RULE_self-sweep-before-push.md` trigger 7 + rationale — a third silent-staging cause: zsh does not word-split `$FILES`, so `git add $FILES` stages nothing and a `set -e` chain can run on to a no-op commit and push.
+
+
 ## v4.6.66 — compound: a compare-and-set guards every input it priced from; a rejected key hides the default rows; walk every branch of a moved method; negated passed-check lines are not findings
 
 A write path that re-prices an existing record behind a compare-and-set (2026-09) passed a design pass, an architect review, source pins and a green review engine, and still had four holes an independent post-implementation review found: the guard pinned only the column the write changed, a post-update hook re-selecting with the guarded `WHERE` never fired, forwarding a key the new target rejected dropped its automatic discounts too, and a before / after regression walk reached only one branch of the moved method. The review loop's own parser also read the engine's clean verdict as findings. Single-PR section; provenance on this paragraph (2026-09-11).

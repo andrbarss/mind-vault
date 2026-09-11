@@ -45,6 +45,23 @@ name; Modern uses `Ext.grid.plugin.GridFilters`."* Both halves were false for th
 The bot reasoned from mainstream/Classic Ext knowledge; the project used Modern. The finding was
 dismissed with an evidence-based rebuttal on the thread; **no code change**.
 
+## Second worked example — a language-runtime claim (PHP)
+
+A clean review of a PHP 8.0 project flagged, as a "note, not a fix request", that `mb_scrub()` is a
+PHP ≥ 8.2 function and that the code therefore silently depends on `symfony/polyfill-mbstring`
+staying in the lock file. Both halves were false: `mb_scrub()` has been part of ext-mbstring since
+PHP 7.2. The check takes one command in the production-equivalent container — not on the host's PHP:
+
+```bash
+php -r '$f = new ReflectionFunction("mb_scrub"); var_dump($f->isInternal(), $f->getExtensionName());
+        require "vendor/autoload.php"; var_dump((new ReflectionFunction("mb_scrub"))->isInternal());'
+```
+
+`true` / `"mbstring"` before and after the autoloader means the native function is in use.
+Polyfills guard their definitions with `function_exists`, so they cannot shadow it. The refutation
+went on the PR as a plain comment — **without the bot's trigger mention**, which would have started
+another billed review.
+
 ## The adjacent case: the finding is right but the suggestion is wrong
 
 The sections above cover a bot whose **diagnosis** is false. The commoner and sneakier variant is

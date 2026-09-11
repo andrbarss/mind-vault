@@ -393,3 +393,23 @@ Practice: after any push, wait for the head-SHA run to reach `completed` **and**
 window; then read the newest summary's `created_at` against the commit it could have reviewed —
 list the branch's runs with their durations (a ~90 s run never reviewed anything; a 10-minute run
 did) and map the summary to the long run's SHA before calling the tip clean.
+
+## § calibration update — a substantive fix push after a clean first review still skip-no-ops; the explicit review is the verdict, and the finder still cannot see it (downstream PHP project, 2026-09-11)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). Cycle 0 posted a clean first
+full-diff summary; the independent lenses then drove a fix commit of about two hundred lines of code
+plus eight tests.
+
+- The `synchronize` run on the fix commit completed in **57 s** and posted nothing. Its result JSON:
+  `num_turns: 2`, `total_cost_usd: 0.07`, `permission_denials_count: 0`, `is_error: false` — the
+  deduped/incremental no-op of § Incremental review, on a substantive diff, not a small one.
+- One `claude_retrigger.sh` ran the `claude.yml` (`issue_comment`) workflow for **3 m 40 s** and
+  posted a task-format comment: every box ticked, "**No blockers found**", five observations. Four
+  were confirmations; one was a false language-runtime claim, refuted with the
+  [`VERIFY_BOT_API_CLAIMS.md`](VERIFY_BOT_API_CLAIMS.md) PHP recipe.
+- `find_claude_comments.sh` kept emitting `CLAUDE_STALE_SUMMARY=true` and `CLAUDE_REVIEW_SILENT` after
+  that comment existed — the **adapter follow-up (open)** above, observed again. Read the comment by
+  hand, as § Push-triggered model's mitigation says.
+- A plain refutation comment (no mention) and the bot's own comment each started a `claude.yml` run
+  that completed `skipped` — the author-association and mention gates hold, so replies on the PR do
+  not bill a review.

@@ -320,6 +320,20 @@ Trigger 7 is one glance at the stat line git already printed. Two causes account
 
 Both are zero-cost to catch at commit time and expensive later: the lost edit resurfaces as unexplained dirt on another branch, and the intervening commits have already been reviewed against the wrong state.
 
+### Third tell — an unsplit variable under zsh
+
+Field case: a wrap-style commit collected eleven paths in a variable and ran
+`git add $F && git commit -F - <<'EOF' … && git push`. The session shell was zsh, which — unlike bash —
+does not word-split an unquoted `$F`, so `git add` received one pathspec made of eleven paths joined by
+spaces and answered `fatal: pathspec '…' did not match any files`. The chain did not stop where the
+author expected: `git commit` printed "no changes added to commit", `git push` pushed nothing, and the
+command's final `echo` reported the old HEAD as "pushed". Nothing looked broken until the PR head was
+compared with the intended commit.
+
+Detection is the same one-glance check: no `N files changed` line at all, or a HEAD that did not move.
+Prevention: name the paths literally, or use an array (`files=(a b c); git add "${files[@]}"`), and
+guard each step with `|| exit 1` rather than relying on `set -e` in a shell you did not choose.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
