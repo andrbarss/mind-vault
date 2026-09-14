@@ -18,6 +18,7 @@ The contract carries five sections:
 4. **What the reading side will expose** — the response fields the consumer's data will surface, so the writer team sees the round trip, not just the tables.
 5. **A seed / probe example with expected output arithmetic** — concrete INSERTs plus the exact derived result ("rows so-configured ⇒ list A = [1,2], list B = [3,1], list C = [2]"). This one section does triple duty: the architect pass can verify the arithmetic against the model, the implementing side's live verification curls it as its acceptance check, and the consuming side can seed the same rows and assert its UI. If the two codebases ever disagree, the seed example is the arbitration record.
    - **The seed must be able to *discriminate* the rule under test.** A probe row whose expected output is the same under every candidate rule proves "nothing regressed", not the rule. The trap is *co-monotonic* fixture data: when the new ordering column, the foreign key, the primary key and the physical insertion order all agree (the smaller key always sits on the smaller id — the normal shape of rows that were inserted in sequence), "order by key", "order by id" and "no ORDER BY at all" return identical rows, so the all-NULL and equal-position rows of an order-by contract verify nothing about the tie-break they claim to verify. Either break the coincidence on purpose (one reversible `UPDATE … CASE` that swaps two rows' foreign keys, restored afterwards) and expect the *different* order, or label those rows as no-regression rows and cite the DB-free pin as the actual evidence for the rule. Ask of every seed row: *which candidate rule would make this row come out differently?* If the answer is "none", the row is decoration. Architect-caught on a plan whose five verification rows all agreed under three different orderings.
+   - **Every acceptance row must be producible by the client your own contract shapes.** A UI contract that specifies a client-side guard in one section (`maxLength: N` on the field) and, two sections later, an acceptance row that expects the *server's* over-length message for the same input has written a row the form cannot reach: the framework fails `isValid()` before any request is issued, and what the clerk sees is the field's own marker plus a generic dialog. Field-caught by the consumer's note, after the contract shipped. Per row, name the signal and ask which side produces it; when a client-side rule short-circuits the server's, split the row — the client gets "N+1 ⇒ field invalid and **zero** requests, N ⇒ one request" (a request spy makes the zero-requests clause the discriminating part), and the server's refusal goes into *your* suite (a fake upstream answering the exact refusal body, asserted byte-identical) and the owner's walk. The consumer-side mirror of this rule is `CONTRACT_CONSUMER_DISCIPLINE.md` § 5.
 
 ## Why plan-time, not work-time
 
@@ -46,8 +47,21 @@ idea. Waiting blocks both teams; guessing their DDL builds your fixture on sand.
   except an optional `CHECK` — dropped because servers below MySQL 8.0.16 parse and ignore it, and a
   constraint that holds on some tenants and not others is a false guarantee (the rule stayed
   writer-owned).
+- **"Not planned yet" is a fact about the owner's branch *right now* — re-read it immediately before
+  you emit, not at session start.** The owner's `/plan` can run in the same hour as yours. Field
+  case: the owner's contract landed on its branch seven minutes *before* the requesting draft was
+  written; the requesting `/plan` had checked the branch at session start, wrote a `VARCHAR(32)`
+  request, and only the architect's re-read found the owner's `VARCHAR(64)` file — every plan
+  section, both contracts and the fixture's length then changed. The check is one command on the
+  sibling checkout — `git fetch origin && git log -1 --format='%H %ci' origin/<branch> --
+  docs/archive/<idea-dir>/schema-contract.md` — run as the last thing before writing the banner.
 - **Gate the scaffolding commit on a re-read at `/work` start.** If the owner has emitted theirs by
   then, mirror it verbatim *before* building the fixture and drift guard, and conform to it.
+- **The owner planning first does not end the moving target.** A contract on a draft PR keeps
+  moving through the owner's own `/work` and verification (field case: three revisions after the
+  plan, all prose — an engine note, a third channel's error shape, a verification line). Re-read
+  at `/plan`-emit, `/work` start, `/work` end **and `/wrap`**; the banner's per-revision change list
+  is what tells the next reader "DDL, invariants and the hand-off never moved" without a diff.
 - **Mirror every revision until the owner merges.** Body byte-identical; the banner carries the
   source commit, the md5 of the body, and a change list across mirrors. The owner's file can move
   several times — plan, architect review, PR review, wrap (field case: four mirrors in one day,
@@ -57,6 +71,14 @@ idea. Waiting blocks both teams; guessing their DDL builds your fixture on sand.
   a second test re-hashes the body after the banner's separator against the banner's md5 — so an
   in-place edit of the mirror, or a fixture that drifts from it, goes red. The guard cannot see the
   owner's repo moving: re-read at the end of `/work` and at `/wrap`.
+  **Write the banner in the guard's shape, and compute the hash with the guard's own slicing.** A
+  copied guard does `preg_match('/md5 ([0-9a-f]{32})/')` and hashes everything after the first
+  `"\n---\n\n"`. A banner that reads "md5 of the body below the rule:" with the hash on the next
+  line fails the regex before it ever compares, and a hash computed over "the file I pasted" is
+  not the hash of the sliced body — field case: both, on one requesting banner, caught by the
+  architect before the first suite run. Put `md5 <hash>` on one line, produce the hash by running
+  the guard's slice (a one-liner through the project's own runtime), then run the guard once
+  before committing the mirror.
 - **Corrections flow back as paste-ready text in the banner** (for example, a lock claim measured
   false); the owner adopting one closes it, and the next mirror's change list records the closure.
 
@@ -169,3 +191,6 @@ amending IDEA's backref.
 - ❌ A mirror whose body can be edited in place without a failing test.
 - ❌ A picker that ships its own selection flag next to a record that already carries the selection.
 - ❌ A second reader added with a paragraph in its own docs but no revision of the mirrored contract — the consumer copies "the only place this table is read" as still true.
+- ❌ Emitting a *requesting* contract on a "the owner has only captured" claim verified at session start — the owner's `/plan` can land in the same hour; re-read the owner's branch as the last step before writing the banner.
+- ❌ A mirror banner the copied guard cannot parse — the md5 phrase split across lines, or a hash computed over anything but the guard's own slice of the body.
+- ❌ An acceptance row that expects the server's message for an input your own contract told the client to refuse first — unreachable from that form; give the client a zero-requests row and pin the server refusal in your suite.
