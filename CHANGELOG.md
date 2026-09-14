@@ -28,6 +28,14 @@ Single-PR section; provenance on this paragraph (2026-09-14). Routed from a down
   - § The pattern, item 5 — every acceptance row must be producible by the client the contract shapes: a `maxLength` the contract itself specifies makes "the server's over-length message" unreachable from that form; split the row (zero-requests clause for the client, the refusal pinned in your own suite). Producer-side mirror of `CONTRACT_CONSUMER_DISCIPLINE.md` § 5.
   - Three new anti-patterns.
 
+## v4.6.70 — compound: an additive column through allow-listed writers — inventory the gates, normalise at the sink, one error shape per writer
+
+Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream nullable-column addition to a legacy row with five write gates and four wholesale readers, planned with an architect pass and shipped clean on the first review cycle.
+
+### Added
+
+- **New `skills/plan/references/ADDITIVE_COLUMN_THROUGH_ALLOW_LISTED_WRITERS.md`** — when a column joins a row that several actions write through explicit allow-lists: inventory every gate before the plan (shared form, per-action lists that are copies of each other, the placeholder row a reader fabricates for not-yet-created entries, a channel projection list) and pin the copied lists identical; normalise once at the shared save sink as a pure static, because `isValid($data)` sets filtered values on the form's elements and leaves the caller's array untouched — an action that writes the raw params after validating stores `''`, padding or an array despite the declared filters; choose the blank filter's mode deliberately (the all-types default also nulls the literal `'0'`); state the error shape per writer / proxy in the schema contract (nested map, flattened `"field: message"` string, code-only string) with one over-length value walked through each; add the key to the capture redaction guard in the tests commit, ahead of any capture; land every spec annotation in one commit when a drift guard compares the committed artefact with a fresh scan; read the table's charset and engine from `information_schema` at step 0 (a dump a sweep cited did not exist in the tree); and say per probe whether a surface was walked, fixture-reached, or stands on a pin plus the shared-sink argument. Pointer added to the plan skill's References.
+
 ## v4.6.69 — compound: a list endpoint over a single-target evaluator, the absorbed remote failure, the undiscriminated forwarded argument, a second reader on a mirrored contract
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream listing endpoint built over a shipped single-target action, reviewed by one engine plus two independent passes.
