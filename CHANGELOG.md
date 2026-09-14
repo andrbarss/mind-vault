@@ -12,6 +12,22 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.70 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
+
+Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream admin API adding one proxied field to two wholesale reads and a pass-through write, planned the same morning as the owning service and the consuming UI — three contract mirrors in one day.
+
+### Added
+
+- **New `skills/plan/references/PASS_THROUGH_PROXY_CONTRACT.md`** — a field on a write an intermediate service forwards without reshaping: the validator's location is decided by what the client's failure renderer can render (a proxy-side "house shape" rendered worse than the upstream's flattened one), "verbatim relay" holds only for the status classes the HTTP client relays (no error passthrough ⇒ every non-2xx becomes the proxy's own 500 — state it, pin both halves with a recording fake, never flip the shared client in passing), and the field inherits the path's gate, allow-list and loggers — name the exposure. Pointer line in `skills/plan/SKILL.md`.
+
+### Changed
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md`:
+  - § Writing the requesting contract — "not planned yet" is a fact about the owner's branch *right now*: re-read it as the last step before emitting (the owner's file landed seven minutes before a `VARCHAR(32)` request that its `VARCHAR(64)` then superseded), and the owner planning first does not end the moving target (three prose revisions on a draft PR; re-read at `/plan`-emit, `/work` start and end, `/wrap`).
+  - § Make the mirror checkable — write the banner in the guard's shape (`md5 <hash>` on one line) and compute the hash with the guard's own slice; a prose banner fails the regex before it compares.
+  - § The pattern, item 5 — every acceptance row must be producible by the client the contract shapes: a `maxLength` the contract itself specifies makes "the server's over-length message" unreachable from that form; split the row (zero-requests clause for the client, the refusal pinned in your own suite). Producer-side mirror of `CONTRACT_CONSUMER_DISCIPLINE.md` § 5.
+  - Three new anti-patterns.
+
 ## v4.6.69 — compound: a list endpoint over a single-target evaluator, the absorbed remote failure, the undiscriminated forwarded argument, a second reader on a mirrored contract
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream listing endpoint built over a shipped single-target action, reviewed by one engine plus two independent passes.
