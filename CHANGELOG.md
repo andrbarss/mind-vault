@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.71 — compound: an additive column through allow-listed writers — inventory the gates, normalise at the sink, one error shape per writer
+
+Single-PR section; provenance on this paragraph (2026-09-14). Takes v4.6.71: it merged as #74 eleven minutes after #75, which holds v4.6.70 — both PRs computed their bump against v4.6.69, so this section is renumbered at merge (the v4.6.68 precedent). Routed from a downstream nullable-column addition to a legacy row with five write gates and four wholesale readers, planned with an architect pass and shipped clean on the first review cycle.
+
+### Added
+
+- **New `skills/plan/references/ADDITIVE_COLUMN_THROUGH_ALLOW_LISTED_WRITERS.md`** — when a column joins a row that several actions write through explicit allow-lists: inventory every gate before the plan (shared form, per-action lists that are copies of each other, the placeholder row a reader fabricates for not-yet-created entries, a channel projection list) and pin the copied lists identical; normalise once at the shared save sink as a pure static, because `isValid($data)` sets filtered values on the form's elements and leaves the caller's array untouched — an action that writes the raw params after validating stores `''`, padding or an array despite the declared filters; choose the blank filter's mode deliberately (the all-types default also nulls the literal `'0'`); state the error shape per writer / proxy in the schema contract (nested map, flattened `"field: message"` string, code-only string) with one over-length value walked through each; add the key to the capture redaction guard in the tests commit, ahead of any capture; land every spec annotation in one commit when a drift guard compares the committed artefact with a fresh scan; read the table's charset and engine from `information_schema` at step 0 (a dump a sweep cited did not exist in the tree); and say per probe whether a surface was walked, fixture-reached, or stands on a pin plus the shared-sink argument. Pointer added to the plan skill's References.
+
 ## v4.6.70 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream admin API adding one proxied field to two wholesale reads and a pass-through write, planned the same morning as the owning service and the consuming UI — three contract mirrors in one day.
@@ -27,14 +35,6 @@ Single-PR section; provenance on this paragraph (2026-09-14). Routed from a down
   - § Make the mirror checkable — write the banner in the guard's shape (`md5 <hash>` on one line) and compute the hash with the guard's own slice; a prose banner fails the regex before it compares.
   - § The pattern, item 5 — every acceptance row must be producible by the client the contract shapes: a `maxLength` the contract itself specifies makes "the server's over-length message" unreachable from that form; split the row (zero-requests clause for the client, the refusal pinned in your own suite). Producer-side mirror of `CONTRACT_CONSUMER_DISCIPLINE.md` § 5.
   - Three new anti-patterns.
-
-## v4.6.70 — compound: an additive column through allow-listed writers — inventory the gates, normalise at the sink, one error shape per writer
-
-Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream nullable-column addition to a legacy row with five write gates and four wholesale readers, planned with an architect pass and shipped clean on the first review cycle.
-
-### Added
-
-- **New `skills/plan/references/ADDITIVE_COLUMN_THROUGH_ALLOW_LISTED_WRITERS.md`** — when a column joins a row that several actions write through explicit allow-lists: inventory every gate before the plan (shared form, per-action lists that are copies of each other, the placeholder row a reader fabricates for not-yet-created entries, a channel projection list) and pin the copied lists identical; normalise once at the shared save sink as a pure static, because `isValid($data)` sets filtered values on the form's elements and leaves the caller's array untouched — an action that writes the raw params after validating stores `''`, padding or an array despite the declared filters; choose the blank filter's mode deliberately (the all-types default also nulls the literal `'0'`); state the error shape per writer / proxy in the schema contract (nested map, flattened `"field: message"` string, code-only string) with one over-length value walked through each; add the key to the capture redaction guard in the tests commit, ahead of any capture; land every spec annotation in one commit when a drift guard compares the committed artefact with a fresh scan; read the table's charset and engine from `information_schema` at step 0 (a dump a sweep cited did not exist in the tree); and say per probe whether a surface was walked, fixture-reached, or stands on a pin plus the shared-sink argument. Pointer added to the plan skill's References.
 
 ## v4.6.69 — compound: a list endpoint over a single-target evaluator, the absorbed remote failure, the undiscriminated forwarded argument, a second reader on a mirrored contract
 
