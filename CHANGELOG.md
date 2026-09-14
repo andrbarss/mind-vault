@@ -12,6 +12,19 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.72 — compound: cross-spec UI leakage, the reviewer who runs the harness, the public writer behind a raw cell
+
+Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream ExtJS admin project adding one contract-driven field to a legacy guest form and grid, where the architect pass ran the unit harness against the drafted spec rows and the first green suite hid an order-dependent leak.
+
+### Added
+
+- **New `skills/work/references/CROSS_SPEC_UI_LEAKAGE.md`** — a floating artefact the component does not own (a toast, a wait box, a mask, focus, scroll) outlives its spec and breaks a sibling pointer- or geometry-driven spec only when the leaking file runs first under random suite order; no single row reproduces it because two or more artefacts are needed. Diagnosis: A/B the suite with and without the new file, fix the order with the suspect first, bisect by `describe` then `it`; fix: stub the artefact and turn the stub into a positive assertion, never pin suite order. Pointer line in `skills/work/SKILL.md`.
+
+### Changed
+
+- `skills/plan/references/architect-handoff.md` — new § *Spec-heavy plans — ask the reviewer to run the harness and probe, not read*: when a plan's value is in its verification rows, the handoff names the harness entry point and the framework behaviours the rows depend on, and the reviewer probes them empirically. Field calibration: three rows that read true and ran false (render-gated bind delivery, a deferred submit action, a wait box shown before the request), an untyped-field row made assertable, and a shared fixture that let every submit row pass the negative row's signal.
+- `agents/AGENT_architect.md` PASS 3 — new bullet *Public writer → raw-cell render path*: a value an unauthenticated or external writer can set, with no character rule at the sink, rendered into a cell that writes raw markup by design, is stored script inside an authenticated session; demand an escaping renderer on the new cell with a `<b>x</b>` spec, and capture the sibling sweep as a follow-up idea rather than widening the plan.
+
 ## v4.6.71 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream admin API adding one proxied field to two wholesale reads and a pass-through write, planned the same morning as the owning service and the consuming UI — three contract mirrors in one day.

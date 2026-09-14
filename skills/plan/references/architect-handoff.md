@@ -87,6 +87,35 @@ If the host doesn't expose subagent dispatch, or `agents/AGENT_architect.md` isn
 
 Do not skip the review for medium+large plans. Inline-applied is acceptable; unreviewed is not.
 
+## Spec-heavy plans — ask the reviewer to run the harness and probe, not read
+
+When a plan's value is mostly in its **verification rows** — a small code delta whose correctness is
+pinned by spec rows written against a UI framework and a test harness — the four passes calibrate the
+same way the docs-only recalibration above does, but the claim-vs-code check has a stronger form
+available: the reviewer can **run the harness and probe the framework**. Say so in the handoff prompt,
+name the harness entry point and the classes under test, and list the framework behaviours the rows
+depend on so the reviewer checks each one empirically.
+
+Field calibration for why this pays: a one-field UI plan came back 🟡 with three verification rows
+that could not execute as written, and every one was a **framework belief that reads true and runs
+false** — bindings that are created only at render (an unrendered window never receives a viewmodel
+value, so every "set the viewmodel, read the field" row would have read the constructor default), a
+form-submit action that runs 100 ms after the handler returns (a synchronous "exactly one request"
+assertion would have counted zero), and a wait box the submit pipeline shows *before* the request (a
+"dialog shown once" assertion would have counted two). Each was caught by a ten-line probe against the
+real harness, none by reading the framework source, and the plan's author had cited the right source
+lines for all three. A fourth probe turned an "untyped field, no `type`" row into the assertable
+truth (`type === 'auto'`, `convert === null`), and a fifth showed that the fixture the rows shared
+left an unrelated required field empty, so every submit row would have passed the negative row's
+zero-request signal.
+
+Handoff-prompt addition for spec-heavy plans: "This plan's correctness lives in its spec rows —
+run the harness at `<path>` against the classes under test and probe each framework behaviour the
+rows rely on (bind timing, action deferral, dialog ordering, serialisation shape, fixture
+completeness); report what the probe observed, not what the source implies." Ask the reviewer to
+leave the worktree as found (no committed probes, servers stopped) and to say what the baseline
+count was.
+
 ## Architect amendments can be imprecisely-phrased — separate intent from mechanics
 
 Architect amendments to a drafted plan sometimes pair a CORRECT structural intent with a WRONG-DERIVED consequent mechanic. The intent describes *what invariant must hold*; the mechanic describes *where in the code to put a particular construct to achieve it*. Field-observed example: "empty-state moves OUTSIDE the cotton so the inner items container is always present as the OOB swap target" — the structural intent ("items container always present") was correct and survived the implementation, but the consequent mechanic ("therefore empty-state must move outside") was wrong because the architect had conflated two swap targets (OOB pager wrapper vs. beforeend items container). Applying the mechanic verbatim shipped a regression that the manual-eval walk caught immediately.
