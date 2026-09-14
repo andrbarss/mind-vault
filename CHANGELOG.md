@@ -12,7 +12,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.70 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
+## v4.6.71 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream admin API adding one proxied field to two wholesale reads and a pass-through write, planned the same morning as the owning service and the consuming UI — three contract mirrors in one day.
 
