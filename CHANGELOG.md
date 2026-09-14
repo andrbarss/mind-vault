@@ -25,7 +25,7 @@ Single-PR section; provenance on this paragraph (2026-09-14). Routed from a down
 - `skills/plan/references/architect-handoff.md` — new § *Spec-heavy plans — ask the reviewer to run the harness and probe, not read*: when a plan's value is in its verification rows, the handoff names the harness entry point and the framework behaviours the rows depend on, and the reviewer probes them empirically. Field calibration: three rows that read true and ran false (render-gated bind delivery, a deferred submit action, a wait box shown before the request), an untyped-field row made assertable, and a shared fixture that let every submit row pass the negative row's signal.
 - `agents/AGENT_architect.md` PASS 3 — new bullet *Public writer → raw-cell render path*: a value an unauthenticated or external writer can set, with no character rule at the sink, rendered into a cell that writes raw markup by design, is stored script inside an authenticated session; demand an escaping renderer on the new cell with a `<b>x</b>` spec, and capture the sibling sweep as a follow-up idea rather than widening the plan.
 
-## v4.6.70 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
+## v4.6.71 — compound: the stale requesting contract, the banner in the guard's shape, the acceptance row the client cannot produce, the pass-through proxy
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream admin API adding one proxied field to two wholesale reads and a pass-through write, planned the same morning as the owning service and the consuming UI — three contract mirrors in one day.
 
