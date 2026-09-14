@@ -96,6 +96,20 @@ the free-text column was walked only after a review read the capture.
   statements *are* the contract (a post-commit method whose side effects each sit in their own
   `try`), `assertSame` the whole normalised method: brittle on purpose.
 
+## A forwarded argument needs a fixture where the wrong source answers differently
+
+An extracted method takes a `$timestamp` (or an id, a locale, a tenant key) and forwards it to a
+gate. Every executed test passes fixtures whose rows make the gate indifferent to the value — rows
+with no time window, a single tenant — so the argument is *forwarded* but never *discriminated*: swap
+the forwarding for `time()` (or the request's value for the process default) and the whole suite
+stays green. Reviewers find this by asking, per forwarded argument, "which test goes red if the
+callee reads the ambient source instead?"; if none, add one whose fixture pins the ambient source and
+the argument to opposite answers — a window that closed a year before the given timestamp, refused
+at that timestamp and accepted at the fixture's own instant. Mutation-test it once by hand (make
+the swap, run the class, watch exactly that test fail) before trusting it. Such a test ages: the
+ambient-clock branch flips when the calendar passes the fixture's window, so put the window far
+out and say so in the docblock.
+
 ## Related
 
 - `agents/AGENT_test-engineer.md` PASS 2 — the reviewer-side bullet that points here.

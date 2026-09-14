@@ -125,6 +125,35 @@ column would have to be replicated across the N rows with the same disagreement 
 order the parent catalogue usually already provides. Say so in the contract's model section so
 the consumer does not invent one.
 
+## Adding a second reader to a contract another repo mirrors
+
+A contract that says "the only place this table is read" stops being true the day a listing, a report
+or a sync job reads it too — and if the consumer mirrors the file verbatim with a checksum banner,
+every stale sentence is now *their* stale sentence. The new reader is a **revision of the contract**,
+not a footnote. Walk the file for every claim the first reader's exclusivity made true, and amend
+each with a dated marker:
+
+- the audience / provenance banner ("read by …");
+- any departure that reasoned from the first reader's order ("the reader refuses X *before*
+  consulting the table" — a listing with no requested target reads the table *first* and applies X
+  per row);
+- the model table's "Read by" cell (one statement per request of *either* reader; say whether a
+  per-request memo exists and that it is not a cross-request cache);
+- the reader-rules section: the second reader's own gates, in the shared order, what it answers
+  when the entity-level gates refuse (and which rows never read the table at all — an entity with no
+  key), its only 400, its 500 rule;
+- the seed / probe table: at least one row only the second reader discriminates (a self-referencing
+  row it must omit; the accepted set in ascending key order) — and re-read the existing rows'
+  letters against the walk mapping, because "`[B, C]` ascending" is false the moment C < B;
+- the rollback / degrade line (which requests the missing table now breaks);
+- the hand-off list: retire any "no companion reader ships" item, and add an **open re-mirror item**
+  stating "reader-side only — no DDL, writer-invariant or cache change" so the consumer knows the
+  scope of what it copies.
+
+A reviewer that mirrors the file will flag every sentence you missed, one round later; the cheap
+version is the walk above at `/plan`, with the exact section list in the commit trailer and the
+amending IDEA's backref.
+
 ## Anti-patterns
 
 - ❌ Reconciling a deliberate reader-rule departure *back* toward the requesting contract because "the contract says so" — the request describes what the consumer assumed, not what the owner of the reader decided; check the mirror contract's departure note first.
@@ -139,3 +168,4 @@ the consumer does not invent one.
 - ❌ Building the fixture from your *requesting* contract after the owner has emitted theirs.
 - ❌ A mirror whose body can be edited in place without a failing test.
 - ❌ A picker that ships its own selection flag next to a record that already carries the selection.
+- ❌ A second reader added with a paragraph in its own docs but no revision of the mirrored contract — the consumer copies "the only place this table is read" as still true.

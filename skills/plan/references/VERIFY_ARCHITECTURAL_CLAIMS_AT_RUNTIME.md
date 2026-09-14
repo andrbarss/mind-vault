@@ -89,8 +89,28 @@ Field case (2026-09): a per-date availability boolean (`Σ free rooms > 0`) was 
 
 Pairs with the phantom-verification sibling above (same disease, different symptom) and with the mock-fixture guard in `RULE_self-sweep-before-push` trigger 3 (a guard validated against a shape you invented passes by construction).
 
+## Sibling trap: an absorbed remote failure — the 500 you observed is the dev image's, not the code's
+
+A plan says "a dry run calls an external pricing service, so a failure there answers 500", a decision
+is taken on that basis ("any failure fails the whole list"), the description is written, and the live
+walk *confirms* it: the external host is unreachable from the dev image and the request answers 500.
+Every signal agrees, and the claim is wrong. The caller of the remote lookup **catches** the failure,
+mails support and returns `false`; the pipeline then prices the row without that offer and answers
+200. The 500 on the dev image came from the *mail* failing too (no outbound mail there) — a second
+failure the production path never has. In production the same outage answers 200, priced differently,
+plus one support mail per failed lookup per request.
+
+The tell is the same as the other sibling traps: the claim was verified only where its premise and
+the environment's quirk coincide. Discharge it by **reading the catch**, not by reproducing the
+failure: find the remote call, walk up to the nearest `catch`, and write down what the caller returns
+and what the pipeline does with that value. Then word the contract for *that* — "an offer whose
+external price cannot be obtained is left out" — and keep the decision as "any *escaping* throwable
+answers 500", which is what the code actually does. If the dev-image reproduction is the only one
+available, label it in the transcript as the mail failure it is, and note the wall-time (remote
+timeouts run before the absorb), which is the real production cost the outage carries.
+
 ## Anchor case (2026-06)
 
 Documenting an unfamiliar door-lock subsystem in a multi-tenant legacy PHP (Zend Framework 1) app. The guide asserted **"vendor selection is GLOBAL per deployment — one instance = one vendor"**, citing the exact line where a registry key is set from an env var (`Registry::set('locks_factory_class', env('LOCKS_FACTORY_CLASS'))`). That line was real and correctly cited. But the bootstrap loads a **per-tenant env file** (keyed off the request `Host`'s first label) *and then* requires the config file — so the registry is set **per request, from each org's own env**. The true architecture was the opposite: **per-org multi-tenant** — every organisation on the one instance picks its own vendor. The inverted claim cleared a 5-agent fan-out map, a self source-verification pass, and **3 rounds of review-bot review** (which fixed type-name fidelity and an undefined snippet var around the claim while never questioning it). The maintainer caught it in one read. The fix added the host→env→config load-order trace to the doc and reframed per-org selection as the key feature.
 
-**Last Updated**: 2026-09-09 (added the sign-to-magnitude sibling trap — a boolean promoted to a count exposes every inflation the sign absorbed; verify with an independent count, never with parity against the sibling that shares the reducer). Previous: 2026-08-28 (added the time-anchored-branch sibling trap — a future-dated probe never executes a `== today` path, so "constant query count" was verified on the one axis the product never sends; 2026-07-16: mid-flight-producer sibling trap)
+**Last Updated**: 2026-09-14 (added the absorbed-remote-failure sibling trap — a 500 observed on the dev image was the support mail failing after the remote failure was caught; read the catch before writing a failure mode into a contract). Previous: 2026-09-09 (added the sign-to-magnitude sibling trap — a boolean promoted to a count exposes every inflation the sign absorbed; verify with an independent count, never with parity against the sibling that shares the reducer). Previous: 2026-08-28 (added the time-anchored-branch sibling trap — a future-dated probe never executes a `== today` path, so "constant query count" was verified on the one axis the product never sends; 2026-07-16: mid-flight-producer sibling trap)

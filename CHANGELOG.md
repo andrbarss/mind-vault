@@ -12,6 +12,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.69 — compound: a list endpoint over a single-target evaluator, the absorbed remote failure, the undiscriminated forwarded argument, a second reader on a mirrored contract
+
+Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream listing endpoint built over a shipped single-target action, reviewed by one engine plus two independent passes.
+
+### Added
+
+- **New `skills/plan/references/LIST_ENDPOINT_OVER_A_SINGLE_TARGET_EVALUATOR.md`** — when a read lists what an entity can do next to an action that does one of those things: extract the action's per-target evaluator and call it from both (parity by construction, never two pinned copies); split the entity-level gates from the per-target gate; build the evaluator's collaborators lazily so the action's refusal paths keep their load profile (an eager pricing service turns a 400 into a 500); one instant per list, with a fixture that discriminates it; per-request memos under a normalised key; parity proven per candidate from fresh requests (the only way a cross-candidate cache leak can show); the per-candidate cost measured — statements, wall time, remote calls — before any cap; the empty-list contract written into the status-code rule; the disclosure the listing adds named in scope. Pointer line in `skills/plan/SKILL.md`.
+
+### Changed
+
+- `skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md` — new sibling trap: an absorbed remote failure. "A failure there answers 500" was decided, described and *confirmed live* — on a dev image whose support mail also fails; the caller catches the remote failure, mails and returns `false`, so production answers 200 priced without the offer. Read the catch before writing a failure mode into a contract; label a dev-only reproduction as the second failure it is.
+- `skills/work/references/EXECUTE_OVER_PIN.md` — a forwarded argument (timestamp, id, locale) needs a fixture where the ambient source and the argument answer differently, or `time()` passes every test; mutation-test it once by hand; note that such a test ages.
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md` — adding a second reader to a contract another repo mirrors is a revision, not a footnote: the banner, any departure reasoned from the first reader's order, the "Read by" cell, the reader rules (empty-key rows never read the table), a probe row only the second reader discriminates (re-read the existing rows' letters against the mapping), the rollback line, and an open re-mirror item scoped "reader-side only". One new anti-pattern.
+
 ## v4.6.68 — compound: a gated clearing key survives a failed save; with no contract yet, a consumer note and a provisioning-probe route; a 2xx partial-success envelope
 
 Single-PR section; provenance on this paragraph (2026-09-11). Takes v4.6.68 because #70 took v4.6.66 and the open compound PR #71 also holds v4.6.66, so it renumbers to v4.6.67 at merge. Consumer-side only: the mutation-check and skipped-mention-run lessons from the same work are already covered by #71 (`MUTATION_PASS_DISCIPLINE.md`, the engine-claude calibration) and are not duplicated here.
