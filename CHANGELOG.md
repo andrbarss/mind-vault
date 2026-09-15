@@ -12,6 +12,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.73 — compound: the join row that types the record, the presence-keyed arm, the CLI seed that hides its own mojibake
+
+Single-PR section; provenance on this paragraph (2026-09-15). Routed from a downstream PHP coupon-sales API that had to sell one product for a customer-chosen amount: the obvious "send no parent" route reused a writer branch that existed, but the record's *type* was derived from a join row the writer inserts only for a parent, so the variant would have been refused as reservation payment and printed with the wrong template; the shipped design kept a real, tenant-designated parent, added a presence-keyed price arm to the shared writer, and an independent two-lens review on the merge-base diff then found an infinite price passing every comparison and a capture double-encoded by the seed session.
+
+### Added
+
+- **New `skills/plan/references/ROUTE_A_VARIANT_THROUGH_A_SHARED_WRITER.md`** — grep the record's type classifier before choosing the "no parent" route (it may key on a join row, not a column); key the new arm on the *presence* of the new field so the shared writer's siblings are untouched by construction, and pin the caller count (the plan said three, the review found a fourth); return an arm's value untouched when a hash / idempotency key derives from its text (`assertSame` on the DECIMAL string); pass the decision's DB facts as lazy callables so the legacy row reads nothing; gate numeric strings on finiteness + a ceiling (`is_numeric('1e999')` is true and casts to `INF`); "listed ⇔ sellable" needs one shared gate and an explicit list of the filters the sale does not share.
+- **New `skills/work/references/CLI_SEED_CHARSET_HIDES_MOJIBAKE.md`** — a `mysql` client without `--default-character-set=utf8mb4` double-encodes non-ASCII seeds, the same session's read-back transcodes them back and hides it, and only the wire or `HEX()` shows `Å³`; seed with the charset set, verify on the wire, repair in place, quote docs from the capture.
+
+### Changed
+
+- `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md` — new § *The threshold is a floor, not a gate*: an 11-commit money-path PR under both size thresholds still yielded one MEDIUM correctness and three MEDIUM convention findings after an engine CLEAN; add a surface trigger (public money field, write gate, capture-backed spec) alongside the size thresholds.
+- `agents/AGENT_curator.md` PASS 2 — new bullet *Numeric-string gates — finiteness and a ceiling*.
+- `skills/plan/SKILL.md`, `skills/work/SKILL.md` — References pointers for the two new files.
+
 ## v4.6.72 — compound: cross-spec UI leakage, the reviewer who runs the harness, the public writer behind a raw cell
 
 Single-PR section; provenance on this paragraph (2026-09-14). Routed from a downstream ExtJS admin project adding one contract-driven field to a legacy guest form and grid, where the architect pass ran the unit harness against the drafted spec rows and the first green suite hid an order-dependent leak.
