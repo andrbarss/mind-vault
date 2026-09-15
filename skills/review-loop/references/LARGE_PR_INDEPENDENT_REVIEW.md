@@ -79,3 +79,20 @@ database's placeholder limit (a 500), a duplicate-key error escaping under a non
 level, a deadlock inside a caller's transaction reported as "saved", an error message blaming the
 wrong record, and a leading-zero id silently ignored — plus a stale mirrored contract and a test sweep
 that missed a parked table.
+
+## The threshold is a floor, not a gate — a mid-size money-path PR earned the pass too
+
+A second field case moves the trigger: an 11-commit / ~1.2k-line PR (well under both numeric
+thresholds) that added one public money field to a coupon-sales API got an engine CLEAN, then the
+user asked for the two lenses anyway. Correctness found a **MEDIUM** the engine and the author had both
+missed — a numeric-string gate that let `1e999` through as an infinite price all the way to the INSERT
+— and the convention lens found three **MEDIUM** gaps: a spec pin the plan had ticked but never written,
+a committed capture carrying double-encoded UTF-8 from a latin1 seed session (invisible to the CLI
+read-back the guide was transcribed from), and a migration missing from the migrations index; plus five
+low doc / comment items. One fix commit, one engine re-run, CLEAN again.
+
+So add a **surface trigger** alongside the size thresholds: run the pass on any PR that adds or changes
+a **public money field** (price, amount, quantity, discount), a **write gate** (validation, refusal
+table) or a **capture-backed spec** — regardless of commit count. The lenses cost two background
+agents; the miss costs a coupon sold for `INF`.
+
