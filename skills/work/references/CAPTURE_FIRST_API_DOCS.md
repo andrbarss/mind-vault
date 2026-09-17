@@ -147,6 +147,47 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   assertion that a call is **absent** (`assertStringNotContainsString('getPacket(', $body)`)
   fails on the action's own comment that names the call it deliberately omits. Strip
   line comments before negative assertions; whitespace-normalise before pinning SQL text.
+  **At file scope — one invariant across many sites and several files — a regex stripper is not
+  enough.** Annotation docblocks in the same file *describe the key being pinned*, so tokenise the
+  source with the language's own lexer and drop every comment token (line, block, doc); read
+  files as text so a class with an unloadable parent is pinned like any other. **Unescape the
+  host language before matching embedded SQL**: a literal such as `''` is spelled `\'\'` inside a
+  single-quoted host string and `''` inside a double-quoted one, so a raw-source pin matches only
+  some of the sites and the count comes out wrong (and forbid the tempting `""` — an identifier
+  under `ANSI_QUOTES`). Pair a **repo-wide negative** (no handler file mentions the retired
+  column — catches the *next* read added in a new file) with a **per-file count** of the required
+  expression (catches one site "simplified" back), assert the glob actually found the handler
+  set, keep a positive control that the stripped text still contains a known SQL fragment, and
+  count occurrences instead of using a not-contains assertion whose failure message dumps the
+  whole file.
+- **A key that is `null` in every capture is a finding, not a schema fact.** Capture-first
+  documents what the wire carries, and a key that is `null` (or `""`, or `0`) in every one of a
+  hundred captures gets documented, faithfully, as `nullable` — which is how a reader sitting on
+  a **dead column** survives a full documentation pass. Field case: a category `image` key fed
+  from a column nothing had written for years, while the upload stored the file name in a
+  sibling column; the docs said "nullable string", every client saw nothing, and the defect was
+  reported by a user, not by the pass that had 109 nulls in front of it. Before blessing such a
+  key: grep its **writer** and sniff the data (`COUNT(*) WHERE col <> ''`). No named writer plus
+  zero non-empty rows = register a finding. The grep alone is not evidence either way — a
+  wholesale insert from request data names no column (→ `../../plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md`).
+- **Examples chosen while a field was dead cannot show its fix.** When the fix later lands, the
+  natural move — "re-capture the same ids the examples already use" — is a probe that cannot
+  fail: those rows were picked when the field was empty everywhere, so they are indifferent to
+  it, and most will answer `null` before *and* after. Pick the rows by a data query on the
+  changed field, write **one non-null proof per read site** (a `null` answer proves nothing),
+  and check *reachability*: a row that has the value may be unreachable through an inner-joined
+  read (no child rows on the dev data), in which case a recorded, reversible seed row is the
+  only way that site can show the change. Close with a count that does not go through the
+  endpoint (SQL count of qualifying rows = non-null values on the wire). Same family as
+  phantom verification (→ `../../plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`).
+- **A documented recipe for a probe beats a fresh judgment that the probe is impossible.** An
+  authenticated sibling surface was written off as "token-gated, only real partners' tokens on
+  the dev clone" and evidenced by a pin plus a read-only SQL run — while the project's own
+  probe-recipes doc named the test channel whose token is meant for exactly this (read inside
+  the command, never printed). Before recording a read site as unprobeable, grep the project's
+  probe recipes / solution docs for the surface's name; record "not probed" only with the
+  recipe's absence stated. The late probe also paid twice: its body carried a secret-bearing
+  field the redaction guard then caught under a second key name.
 - **A `$ref` with siblings loses the siblings on OpenAPI 3.0.** The 3.0 spec ignores every
   key next to `$ref`, and generators honour that at serialisation — swagger-php emits
   `{"$ref": …}` alone for a `ref=` property or response and silently drops the `description`
@@ -173,6 +214,7 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
 - ✅ Write the guide section, capture, reconcile, *then* annotate.
 - ✅ Say "not observed — derived from the code" in the guide and the PR body.
 - ❌ Transcribe a column list into a schema and mark the endpoint done.
+- ❌ Document a key that is `null` in every capture as merely `nullable` without grepping its writer.
 - ❌ Put "captured", "code-read", "verified on the dev stack" or the sprint's ids into the published
   description (→ `GENERATED_ARTEFACT_HYGIENE.md`).
 - ❌ Fix the bugs the probes surface inside the docs PR — register them, file them, keep the docs
