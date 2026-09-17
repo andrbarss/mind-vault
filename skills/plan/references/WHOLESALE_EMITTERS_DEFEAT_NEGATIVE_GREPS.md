@@ -67,6 +67,21 @@ The reviewer's probe is one question: *"what does the unfiltered call return tha
 need?"* The architect pass that caught this asked exactly that; the plan's author had only checked
 that the recipe **worked**.
 
+**Second field case — inspecting the emitter for your new column is not inspecting what it already
+publishes.** A plan added an ownership flag to a shared lookup table, found the two wholesale
+emitters by grepping the container (correct), asked of each "will the new column appear here?"
+(it would, the user accepted it) — and stopped. One of them was an **unauthenticated** endpoint
+that copies every non-empty column of every row, and one of those columns was an audit field in
+which a side-effect writer stored the **full request URL** of whatever request first touched the
+key: API tokens from query strings, at rest, published to anyone. Nothing the plan did caused it;
+the plan was about to make it worse twice over — by pointing clients at that endpoint as *the* way
+to see which rows they own, and by adding write actions whose credentials *must* travel in the
+query string (`RAW_BODY_ENDPOINT_HARDENING.md` § 2). The column inventory is the missing step:
+for every wholesale emitter the plan touches or recommends, list **all** columns it emits, and for
+each free-text / audit column ask who writes it and with what. `SELECT COUNT(*) … WHERE col LIKE
+'%token=%'` (and `password`, `secret`, `key=`) on real data takes a minute. Record what you find as
+its own high-priority work item — do not widen the plan to fix it, and do not leave it unsaid.
+
 ## Cost of getting it wrong
 
 A false "nothing consumes it" is cheap to write and expensive to unwind: it propagates from capture into the plan, into the shipped doc, into the migration's header comment, and into the cross-repo contract other teams build against — each copy re-asserting it without re-verifying, which is exactly the propagation trigger 5(7) exists to stop. Re-verify the negative **at every copy**, and when the answer changes, correct every copy including the one that reads as a settled decision.
