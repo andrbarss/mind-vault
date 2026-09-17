@@ -110,6 +110,43 @@ the swap, run the class, watch exactly that test fail) before trusting it. Such 
 ambient-clock branch flips when the calendar passes the fixture's window, so put the window far
 out and say so in the docblock.
 
+## Orchestration behind a gateway — ordering guarantees become unit tests
+
+The extreme case of "a pin proves text": a controller action whose *sequence* is the contract —
+validate → read → authorize → write A → read back → write B → read back → side effect only on
+success. String-order pins (`strpos(writeA) < strpos(writeB)`) cannot prove "after a failed
+read-back of A, B never runs", "no side effect after a refusal" or "a throwing side effect keeps
+the success" — and the live walk cannot reach them either without a **patched build** (a debug hook
+that injects the race between two statements). A verification step that says "temporary hook, not
+committed" is the tell: the build being verified is not the build being shipped.
+
+Move the sequence into a pure function and hand it its collaborators:
+
+```php
+interface WriteGateway { function getRowsByKeys(array $keys); function insertOwned(array $items);
+                         function updateOwned(array $items);  function deleteOwned(array $keys); }
+
+// pure: returns ['status' => int, 'body' => array, 'log' => string[]]
+static function runSave($contentLength, $raw, $flagParam, WriteGateway $gateway, callable $sideEffect)
+```
+
+The model class `implements` the gateway (each method = one builder statement through the
+adapter, source-pinned as before); the action shrinks to transport — read the request, call
+`runSave()`, write the log lines, set status and body. The tests drive the orchestrator with a
+**scripted fake**: a queue of row sets for the reads, every call recorded as `[name, argument]`,
+an exception on any unscripted read so call-order assertions are real, and a spy for the side
+effect. Cases that are now one assertion each: a row appears between the authorize read and
+write A → 500, write B **not in the call list**, spy untouched; refusal → one read, no write; the
+side effect throws → 200 stands and a log line comes back; keys that do not exist never reach the
+delete call; the partial-write outcome the client contract warns about answers with **empty**
+result lists. Keep one thin source pin on the action (it calls the orchestrator, reads the raw
+body, maps the status) — that is all that is left to pin.
+
+Check the interface's blast radius before adding `implements` to a hot class: if the model is
+loaded on every request, confirm every entry point (web bootstrap, CLI runner, cron bootstrap)
+registers an autoloader that can resolve the interface the same way it resolves the class's other
+dependencies.
+
 ## Related
 
 - `agents/AGENT_test-engineer.md` PASS 2 — the reviewer-side bullet that points here.
