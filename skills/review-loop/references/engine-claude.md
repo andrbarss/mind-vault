@@ -463,3 +463,25 @@ What this adds to the sections above:
   `FINDINGS=true` with zero inline comments, read the summary body before opening a fix cycle** —
   the classifier fails toward "surface it", by design.
 
+## § calibration update — the code push on a DRAFT PR was skipped this time; `ready_for_review` produced the only review; every later push skipped (downstream PHP project, 2026-09-18, second PR of the day)
+
+Same repository, same workflow file and the same day as the calibration above — the opposite outcome
+on the draft question. A PR opened as draft at the capture stage received its whole implementation
+(nine commits, ~2k lines) in **one push**: the `synchronize` run finished in ~2 minutes and posted
+nothing. `gh pr ready` (no new commit) then fired a ~10-minute run that posted the clean summary with
+its own test / generator / drift output. Two fix pushes and two docs pushes afterwards each got a
+~100-second run and no new comment.
+
+What to take from the pair:
+
+- **Whether a draft push is reviewed is not predictable** from the workflow file. Never infer a
+  verdict from "the run completed": compare the newest summary's timestamp with the head commit's.
+  If no summary postdates the code push, un-draft and wait for *that* run before anything else.
+- **The first posted review may be the only one.** Plan the loop around it: run the independent
+  lenses ([`LARGE_PR_INDEPENDENT_REVIEW.md`](LARGE_PR_INDEPENDENT_REVIEW.md)) in parallel with the
+  engine's single pass, batch their fixes into one push after the engine is DONE, and give each
+  skipped increment (fix commit, wrap commit) one independent pass. Here the lenses found seven
+  low-severity items the clean engine pass had not, one of them a fix-induced over-strictness.
+- **Write the verdict with its SHA.** "Engine: clean" in a PR body, an archive README or a devlog
+  must name the commit it covers and say which later pushes were skipped — the docs pass caught an
+  archive status line that credited the engine with code it never saw.
