@@ -304,9 +304,15 @@ export CLAUDE_FINDING_MARKERS='\bmissing\b|\bviolation\b|❌|#### |### [0-9]|###
 # a clean review). Anchored to a line or list item that OPENS with no / none / zero, ends at
 # the first . ; : or newline, and never spans found / except / but / however — so "No issues
 # found except X is missing" and a mixed review's own "Docstrings missing" line still mark.
+# Second arm (field false positive 2026-09-18): a whole PARENTHETICAL that opens with
+# no / none / zero — "`additionalProperties` prohibition (no violation), map-schema example
+# requirement (no violation)" — a passed check written mid-line, which the line-anchored arm
+# cannot see. Only the parenthetical itself is stripped, never the rest of the line, so
+# "X (no violation), but Y is missing its example" still marks on the second clause, and a
+# parenthetical containing except / but / however / found is left alone.
 # It can only remove a marker (move a review toward clean), which is why it is this tight;
 # tests/test_claude_clean_classification.sh pins both directions.
-export CLAUDE_FINDING_NEGATIONS='(?m)^[ \t]*(?:[-*][ \t]+)?(?:no|none|zero)\b(?:(?!\b(?:except|but|however|found)\b)[^.;:\n])*?\b(?:missing|violations?)\b'
+export CLAUDE_FINDING_NEGATIONS='(?m)(?:^[ \t]*(?:[-*][ \t]+)?(?:no|none|zero)\b(?:(?!\b(?:except|but|however|found)\b)[^.;:\n])*?\b(?:missing|violations?)\b|\((?:no|none|zero)\b(?:(?!\b(?:except|but|however|found)\b)[^()\n])*?\b(?:missing|violations?)\b(?:(?!\b(?:except|but|however|found)\b)[^()\n])*?\))'
 # Signature-matching bodies that are claude NO-OPs, never verdicts. Anchored to the
 # skip-preamble SHAPE — the "## Code review" heading immediately followed by skip prose —
 # matched with re.MULTILINE so `^` is a line start. claude phrases the skip BOTH ways:
