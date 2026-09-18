@@ -334,6 +334,44 @@ Detection is the same one-glance check: no `N files changed` line at all, or a H
 Prevention: name the paths literally, or use an array (`files=(a b c); git add "${files[@]}"`), and
 guard each step with `|| exit 1` rather than relying on `set -e` in a shell you did not choose.
 
+### Fourth tell — one file too many: the user's pre-staged file
+
+Field case: a long-lived checkout carried a file the *user* had staged days earlier (`AM` in
+`git status` — added to the index, modified since). Every commit of the session named its paths —
+except one, a docs commit written as `git add <two files> && git commit -m …`. With no pathspec on
+the `commit`, git took the whole index: the stat line said `3 files changed` where two were
+intended, and the user's file went to the remote on a feature branch with an open PR.
+
+Prevention: in a checkout you did not start clean, read `git diff --cached --name-status` before
+each commit and pass the paths to `git commit` itself (`git commit -m … -- "${files[@]}"`), so the
+index's other entries cannot ride along. New (untracked) files still need a `git add` first —
+`commit -- <path>` only knows tracked or staged paths.
+
+### Fifth tell — `git commit -- <path>` commits the working tree, so it cannot remove
+
+The obvious repair of the fourth tell makes it worse. `git rm --cached <file>` followed by
+`git commit -m "drop it" -- <file>` looks like "commit only this removal". A pathspec on `commit`
+means `--only`: git re-reads the **working-tree** content of the path and commits *that*. The file
+is on disk, so the "removal" commit **added the user's working copy** — 13 lines where the first
+accident had carried the index's empty blob. The stat line said so (`1 file changed, 13
+insertions(+)`) and was not read until after the push.
+
+The sequence that works, without rewriting pushed history:
+
+```bash
+entry=$(git ls-files -s -- "$f")          # remember the user's index entry: <mode> <blob> <stage>
+git update-index --force-remove -- "$f"   # drop it from the index only (git rm --cached refuses when
+                                          # index, HEAD and working tree all differ)
+git diff --cached --name-status           # must show exactly:  D  <file>
+git commit -m "remove <file> from the branch"          # NO pathspec — commit the index as it is
+git update-index --add --cacheinfo "$mode,$blob,$f"    # give the user their staged entry back
+git status --short -- "$f"                # back to what it was (e.g. AM)
+```
+
+Then look at the file's content before deciding whether the history needs rewriting: a secret
+does, a routine script does not — and a force-push over an open PR needs the human's word first.
+Tell the human either way; the branch carries an add / remove pair a squash merge hides.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.

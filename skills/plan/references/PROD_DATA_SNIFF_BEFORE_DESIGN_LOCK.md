@@ -64,6 +64,18 @@ When reviewing a plan that drops/tightens whitelists, indexes, defaults, or any 
 
 The check costs ~30s per claim and prevents a class of "the test passed but prod broke" bugs that surface days after merge when an operator hits the stale-bookmark / surprise-shape path.
 
+## Cardinality claims read from the writers — sniff the stored rows
+
+A plan that says "before event E an order is exactly one row" usually derived it from the code
+that *creates* orders today. The table is older than that code. Field case: three creators each
+insert one row and mint the per-item copies only at payment — and a count on the stored data
+showed ~200 keys with two or three **unpaid** rows each, written a decade earlier by a flow that no
+longer exists, plus a few keys mixing an expired and an open row. The design survived because its
+eligibility rule was "exactly one row under the key" rather than "no *paid* copies under the key";
+the reviewer's `GROUP BY key HAVING COUNT(*) > 1` over the unpaid statuses is what turned the
+assumption into a rule and added the truth-table row, the refusal capture and the corrected
+sentence in the plan. One query per "exactly one" / "always" / "never" in the Context section.
+
 ## What does NOT fire this rule
 
 - Plans whose design works correctly for any data shape (the implementation handles all valid inputs uniformly).

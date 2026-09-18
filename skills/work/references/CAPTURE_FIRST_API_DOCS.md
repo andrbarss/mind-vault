@@ -209,11 +209,28 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   catalogue-label exemptions must match *any* key segment, not only a numeric list index —
   a keyed map's `title` leaves otherwise read as personal data.
 
+- **A forced-failure capture is only a capture if the fault was armed.** The recipe for a real
+  5xx (rename a column, arm a trigger that raises) runs through a DB CLI helper, and such helpers
+  routinely send stderr to `/dev/null` to drop the password warning. A `CREATE TRIGGER … BEGIN … END`
+  passed through `mysql -e` is split by the client at the first `;`, fails, and says nothing — the
+  request then succeeds and the script writes a **success body into the file named `…500.json`**.
+  Two assertions, in the script, before the write: the fault exists (`SHOW TRIGGERS`, `SHOW
+  COLUMNS`) and the HTTP status is the one the capture is named for. Compound statements need the
+  client's `--delimiter`; clean up in a shell `trap` and show the untouched path alive while the
+  fault is armed.
+- **The redaction guard matches keys, not values.** A capture of throwaway rows with obviously fake
+  identifiers still fails a guard that lists the *key* (`…code`, `token`, `link`) as secret-bearing —
+  and a capture commit is a docs-only commit, the kind after which the suite is assumed green.
+  Redact in the capture script, by the guard's own key list, and re-run the suite after adding
+  captures (→ `RULE_self-sweep-before-push` trigger 4). Keep non-JSON evidence (hash lists, tables)
+  under an extension the capture glob does not walk.
+
 ## ✅ DO / ❌ DON'T
 
 - ✅ Write the guide section, capture, reconcile, *then* annotate.
 - ✅ Say "not observed — derived from the code" in the guide and the PR body.
 - ❌ Transcribe a column list into a schema and mark the endpoint done.
+- ❌ Write a failure capture without asserting the fault is armed and the status matches the file's name.
 - ❌ Document a key that is `null` in every capture as merely `nullable` without grepping its writer.
 - ❌ Put "captured", "code-read", "verified on the dev stack" or the sprint's ids into the published
   description (→ `GENERATED_ARTEFACT_HYGIENE.md`).

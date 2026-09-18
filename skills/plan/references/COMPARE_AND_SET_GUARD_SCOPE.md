@@ -59,6 +59,44 @@ compare-and-set whose payload can equal the stored values reads as "changed by s
 Either guarantee the payload always changes a guarded column (a state transition does), or read the
 row back instead of counting.
 
+## 4. Two reads, one truth — re-check the object that computes, and map the miss
+
+When the decision runs early (a pre-flight that validates and builds the guard) and the write runs
+later in code that loads the row *again*, the guard and the payload come from different reads: the
+expectations from the first, the computed value from the second. Before computing, assert that the
+second read's **raw** columns equal the guard — and treat a mismatch exactly like a missed write.
+Take the raw columns through an accessor that bypasses the model's getters: getters normalise (a
+stored 0 read as 1, a non-numeric price read as 0) and a guard built from normalised values never
+matches the row.
+
+Decide **what a miss answers** at plan time. "0 rows → the caller's generic failure" is the
+default nobody chose: on an endpoint whose new path reports outcomes differently from its legacy
+paths (see [`NEW_PARAMETER_ON_A_LEGACY_ENDPOINT.md`](NEW_PARAMETER_ON_A_LEGACY_ENDPOINT.md) § 8)
+the miss must carry the *new* path's error status. A probe cannot reach the mapping — pin it.
+
+Decide the **no-op before building the guard**. A guard builder that (rightly) throws on a missing
+or NULL column turns "nothing to change" into a server error on any deployment whose schema has
+drifted, for a request that needed no write at all.
+
+## 5. A generic guard builder must refuse what a cast would repair
+
+Extracting the `WHERE` builder (key + expectations + eligible statuses) is right the second time
+the shape appears. The extraction is also where input stops being "a DB id and a constant list":
+
+- `(int)` on the key or a status turns garbage into a **usable number** — `'908401abc'` becomes a
+  real row id, `'abc'` becomes status `0` (often an eligible one), a float truncates, and a digit
+  string longer than the platform integer becomes `INT_MAX` — *a different number*, silently.
+  Require a whole number (an int, or a digit string within the integer's safe length) and throw
+  otherwise; throw on a non-positive key (`WHERE id = 0` matches nothing and reads as "changed by
+  someone else").
+- Identifiers go through the adapter's identifier quoting, values through its value quoting — the
+  builder takes column names from callers, so say in its docblock that they must be constants.
+- Keep the domain out: the builder knows nothing about which statuses are eligible or which
+  columns a feature guards. Name existing inline copies as *later adopters* instead of refactoring
+  them in passing.
+- Test it with an adapter double that quotes exactly as the real one does (ints bare, strings
+  quoted), including the `IS NULL` arm even when the first caller's columns are all NOT NULL.
+
 ## Verification
 
 - An executed unit test through a recording double of the table: the `WHERE` equals the expected
@@ -68,6 +106,9 @@ row back instead of counting.
   otherwise the pin asserts text production never emits.
 - Live: one write on a row with a NULL input (proves `IS NULL` against the real driver), one with a
   non-NULL input, and two identical writes fired together → exactly one success and one "changed".
+- One stale expectation **per guarded column** against the real database (the clause text is what
+  the executed unit test pins): each must change 0 rows, a fresh guard 1 — this is also what proves
+  a DECIMAL column compares equal to the text the driver handed over.
 - The stale-input race itself usually cannot be timed from outside the action. Say so in the plan
   and rely on the executed guard test — a "concurrent edit" probe that never lands inside the
   window is phantom verification.

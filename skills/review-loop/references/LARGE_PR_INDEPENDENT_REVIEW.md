@@ -96,6 +96,20 @@ a **public money field** (price, amount, quantity, discount), a **write gate** (
 table) or a **capture-backed spec** — regardless of commit count. The lenses cost two background
 agents; the miss costs a coupon sold for `INF`.
 
+## "Read-only" in a reviewer prompt must name the generators
+
+A lens told only "READ-ONLY: do not edit, stage, commit or push" ran the project's spec generator
+while checking a description's length — the command rewrites a committed artefact. The output was
+byte-identical, so nothing was lost; on a day the annotations and the artefact had drifted, the
+reviewer would have silently "fixed" the very drift it was there to report, in the orchestrator's
+working tree, mid-loop.
+
+Name the project's writers in the prompt: *do not run* the spec / client / lockfile generators,
+formatters with write flags, migrations, or anything that makes HTTP or DB writes — and list what
+**is** allowed (the diff, `git show`, the test runner with a filter, small interpreter one-liners).
+Ask the reviewer to declare any file it created outside the repo. After the lenses return, a
+`git status` on the tracked tree is the orchestrator's own check before it starts editing.
+
 ## Review the fix increment too — fixes regress, and rewordings stay inexact
 
 A third field case (a ~4k-line PR adding a bulk write API over a shared legacy table; engine CLEAN on

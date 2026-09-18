@@ -110,6 +110,59 @@ immediate, justified objection. Say it in this order:
 3. the residual: a client that *already* sent an ignored parameter of that name — unlikely for a
    name invented today; grep the client repos you can reach and say which you could not.
 
+## 8. When the new parameter is a *write* — it cannot leave the action
+
+Section 3's "branch out before the first legacy statement" is exact for a read filter: the new
+path builds its own answer and the legacy statements never run. A parameter that **adds columns to
+the row the action already writes** (a quantity, a flag, a recomputed total) has no such exit —
+the other fields of the request still have to be written, by the legacy code, in the same request.
+Each obvious composition is wrong in a way no test of the new path shows:
+
+- **A separate `UPDATE` before the legacy write.** The legacy write then stores identical stamps in
+  the same second, the driver reports 0 *changed* rows, and the action answers its own legacy
+  refusal on a request that succeeded.
+- **A write after the legacy loop.** When the new parameter is refused, the other fields are already
+  committed — "on a refusal nothing is written" is false.
+- **Extracting the payload build into a shared method.** That edits the legacy statements the rule
+  exists to protect.
+
+The shape that holds:
+
+1. **Decide first, in a method of its own** — the first statement of the action. It validates the
+   value and every precondition and answers the new statuses itself. It hands back a *plan*, or
+   `null` when the parameter is absent / empty / asks for nothing new — and with `null` every later
+   hook is inert, so the legacy path is untouched by construction.
+2. **Check the plan against the action's own read.** The decision read the rows once; the legacy
+   code reads them again. A planned row that is missing from the second read must answer the new
+   error status *before anything is written* — otherwise the request ends as a legacy success with
+   the new parameter silently unapplied. This is the one path where "requested, not refused, not
+   written" is possible, and no executed test of the policy can see it.
+3. **One routed write statement.** The legacy write becomes `planned row ? guardedWrite(...) :
+   legacyWrite(...)` — the legacy call is the else-arm, verbatim. The guarded write re-checks,
+   computes, merges the new columns into the legacy payload and writes **inside its own widest
+   catch**, and answers the new statuses itself (a sentinel return tells the action to stop).
+   Nothing of the new path — not even the arithmetic — runs bare in the legacy loop.
+4. **Every refusal of the new parameter is on the status, including the race.** A compare-and-set
+   that matched nothing must map to the new error status, never fall through to the action's
+   legacy always-200 refusal: a client told to read the status would show a value that was never
+   stored. Pin the mapping at source level — no HTTP walk reaches it
+   (see [`COMPARE_AND_SET_GUARD_SCOPE.md`](COMPARE_AND_SET_GUARD_SCOPE.md) § 4).
+5. **Refusals that are not about the new parameter keep their legacy answer** (a missing or unknown
+   key of the action). Then — when the legacy 200 is itself a `success` envelope — section 2's
+   "status is the only discriminator" no longer holds: say in the operation text that a client
+   sending the new parameter reads the status **and** the envelope, and amend the project's rule
+   text with this case, or its two bullets read as a contradiction.
+6. **Evaluation order is part of the contract** when refusals carry different texts — state it in
+   the spec, and pin the rows whose order is load-bearing (an unknown key evaluated *before* a
+   sibling-parameter refusal keeps the legacy answer; swap them and every test stays green).
+
+Source pins for this variant: the planning call precedes the first legacy statement; every legacy
+statement still present and in order; exactly one row write in the loop, the legacy call as its
+else-arm; no status-setting call, no `catch`, no computation of the new path in the action body;
+the rule's literals in the new methods. When hashing legacy answers before / after, space requests
+on the same row by more than the stamp's resolution — a rows-changed verdict flips on a same-second
+identical write.
+
 ## Plan checklist
 
 - [ ] Invalid / absent / empty decided per parameter by the user; the literal `null` decided.
@@ -120,3 +173,7 @@ immediate, justified objection. Say it in this order:
 - [ ] Real 5xx through something only the new path names; untouched path shown alive meanwhile.
 - [ ] Earlier hand-off documents grepped for sentences this change makes false.
 - [ ] Hand-back leads with "nothing changes unless you send it".
+- [ ] Write parameter: decided first in its own method; plan checked against the action's own read;
+      one routed write with the legacy call as else-arm; compute + write inside the new catch; a
+      missed guarded write mapped to the new status and pinned; status-**and**-envelope stated when
+      the legacy 200 is an envelope; load-bearing evaluation order pinned.
