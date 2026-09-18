@@ -12,6 +12,24 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.76 — compound: filtering a derived structure, a new parameter on a legacy endpoint, the clean-summary classifier
+
+Single-PR section; provenance on this paragraph (2026-09-18). Routed from a downstream PHP booking API whose "return the whole key → text map" endpoint gained two optional filters — by an ownership flag that lives on table rows, and by key prefix — while the map itself is a cached fold over a remote catalogue and a table with duplicate keys. The architect review of the plan caught that the published map is not the fold the adapter documents (a merge helper renumbers integer keys after the fold); the user corrected an "empty means invalid" default to "empty means absent"; the review engine reviewed the draft PR in full, skipped both docs pushes, and its clean summary read `FINDINGS=true` in the finder.
+
+### Added
+
+- `skills/plan/references/FILTER_A_DERIVED_STRUCTURE_BY_SELECTING_FROM_IT.md` — call the unfiltered path's own producer and remove entries (the *subset invariant*, true by construction) instead of a second SQL derivation that must re-implement every fallback; storage shrinks to a membership list, key filters are matched in code; complement semantics as a user-decided partition; **the published structure is not the fold you read** — trace to the emitter, never match a key that did not survive a post-fold transform against storage, build fixtures through the producer's own call; encoder parity with one forced shape exception; both staleness directions; verification by independent derivation; sniff counts vs walk counts.
+- `skills/plan/references/NEW_PARAMETER_ON_A_LEGACY_ENDPOINT.md` — invalid / absent / **empty** decided per parameter and written into the project's rule text; a bare success body makes the HTTP status the only discriminator; branch before the first legacy statement into a non-routable method; source pins for both halves plus a before / after response hash (empty-parameter variants included); a real 5xx through something only the new path names; earlier hand-off contracts grepped for sentences the change falsifies; the hand-back leads with what does not change.
+
+### Fixed
+
+- `tools/find_claude_comments.sh` — `CLAUDE_FINDING_NEGATIONS` gains a parenthetical arm: a clean summary whose checklist says "… prohibition (no violation), … requirement (no violation)" mid-line no longer reads `CLEAN=false FINDINGS=true`. Only the parenthetical is stripped, so a real finding later in the same line still marks, and a parenthetical containing except / but / however / found is left alone. `tests/test_claude_clean_classification.sh` +3 rows (11 pass).
+
+### Changed
+
+- `skills/review-loop/references/engine-claude.md` — calibration update: a `synchronize` push on a draft PR received a full review (no draft guard, no concurrency group in the workflow — draft is not a billing lever), docs-only pushes skipped, `ready_for_review` re-reviewed the final head; the finder cannot read a verdict on a draft PR (read the API); un-draft after the wrap push has settled; the independent docs reviewer as the fallback for a skipped docs pass.
+- `skills/plan/SKILL.md` — pointer lines for the two new references.
+
 ## v4.6.75 — compound: API-owned rows in a shared legacy table, the raw-body endpoint, reviewing the fix increment
 
 Single-PR section; provenance on this paragraph (2026-09-17). Routed from a downstream PHP booking API that gained a bulk create / update / delete path into a legacy key → text table other writers already own (an admin screen, and an auto-logger that inserts a row for every string the application merely looks up). The table had duplicate keys, a collation that folds what the readers' hash map keeps apart, one column with a different collation than its siblings, a driver that returns native ints, and a connection charset wider than the columns — so every predicate the design evaluated twice had to be pinned on both seams. The finished PR read CLEAN on the engine; an independent two-lens review of the same SHA, and then of the fix commit, found nineteen real items.

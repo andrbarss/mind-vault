@@ -413,3 +413,53 @@ plus eight tests.
 - A plain refutation comment (no mention) and the bot's own comment each started a `claude.yml` run
   that completed `skipped` — the author-association and mention gates hold, so replies on the PR do
   not bill a review.
+
+## § calibration update — a `synchronize` push on a DRAFT PR got a full review; docs-only pushes skipped; `ready_for_review` re-reviewed the final head; an inline "(no violation)" read FINDINGS=true (downstream PHP project, 2026-09-18)
+
+One PR, created as draft and kept draft through capture → plan → code, on the canonical workflow
+(no draft guard in the job's `if:`, no `concurrency` group — check both before reasoning about
+billing). Seven runs:
+
+| Push | State | Run | Posted |
+| --- | --- | --- | --- |
+| 3 docs-only pushes (idea, plan, plan revision) | draft | short | nothing |
+| the `/work` push (code + spec + tests) | **draft** | ~8 min | **a full clean summary with its own test / artefact output** |
+| the `/wrap` docs push | draft | 96 s | nothing |
+| a docs fix push | draft | 104 s | nothing |
+| `gh pr ready` (`ready_for_review`, no new commit) | ready | ~7 min | **a second full clean summary on the same head** |
+
+What this adds to the sections above:
+
+- **"Draft = no review" is not a lever you can rely on.** § *DRAFT PRs get NO posted review* and
+  the 2026-09-02 update both hold for the runs they watched; here a plain `synchronize` push on an
+  already-draft PR was reviewed in full. The engine appears to decide per *content* (a code push
+  was reviewed, four docs-only pushes were not), not per draft flag. Keep opening PRs as draft —
+  it costs nothing — but **do not plan billing or cadence around it**, and after every push read
+  what the head-SHA run actually posted.
+- **`find_claude_comments.sh` cannot see a verdict on a draft PR.** Its up-front draft probe emits
+  `CLAUDE_DRAFT_NOOP=true` and exits, even when a verdict-bearing summary newer than the head commit
+  exists. Read the verdict from the API (head-SHA check-runs, issue comments, `pulls/<N>/comments`)
+  — structural clean still means *run completed + zero inline comments + a summary with no
+  findings, posted after the head commit*.
+- **Un-draft timing.** With a verdict already in hand for the code, un-drafting immediately buys a
+  second review of the *same* SHA. Prefer: leave it draft, run the `/wrap` docs pass, wait for the
+  docs push's run to settle, *then* `gh pr ready` — the `ready_for_review` run reviewed the
+  **final head** in full, which is the verdict worth having before a human merge. (It is still a
+  second billed review; it is just spent on the final state instead of a duplicate.)
+- **The docs pass was skipped both times** — consistent with the 2026-09-08 update. The fallback
+  that worked: an independent read-only reviewer over `git diff <last-reviewed-sha>..HEAD`,
+  calibrated to claim-vs-code and cross-document consistency (it found four real wording /
+  count nits: a miscounted "fifth reader", a sentence describing a future un-draft as done, a
+  sniff-time count that differed from the walk's count, a section reference made ambiguous by the
+  amendment itself).
+- **False FINDINGS on a clean summary, second shape.** The clean summary's checklist said
+  "`additionalProperties` prohibition (no violation), map-schema example requirement (no
+  violation)". The 2026-09-11 negation strip is anchored to a line *opening* with no / none / zero,
+  so a **mid-line parenthetical** still tripped `\bviolation\b` → `CLEAN=false FINDINGS=true`.
+  Fixed in the finder with a second, parenthetical-only arm (the rest of the line is never
+  stripped, so "X (no violation), but Y is missing …" still marks; a parenthetical containing
+  except / but / however / found is left alone); three rows in
+  `tests/test_claude_clean_classification.sh`. The standing rule is unchanged: **on
+  `FINDINGS=true` with zero inline comments, read the summary body before opening a fix cycle** —
+  the classifier fails toward "surface it", by design.
+

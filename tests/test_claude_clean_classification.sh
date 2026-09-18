@@ -89,6 +89,28 @@ assert_class "negated clause followed by a real finding in the same line" findin
 No issues found.
 - Zero handlers missing auth; 2 routes missing tests'
 
+assert_class "clean summary whose checklist says '(no violation)' mid-line" clean \
+'## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+
+### What was checked
+
+- **CLAUDE.md compliance**: `additionalProperties` prohibition (no violation), map-schema example requirement (no violation), one verb per path.
+- **Bugs**: the integer-key guard, the empty-array path (none missing). All correct.'
+
+assert_class "a negated parenthetical does not hide a real finding later in the line" findings \
+'## Code review
+
+No issues found.
+- `additionalProperties` prohibition (no violation), but `PriceMap` is missing its captured example'
+
+assert_class "a parenthetical with an exception is not a passed check" findings \
+'## Code review
+
+No issues found.
+- status-code rule (no violation except in `fooAction`)'
+
 assert_class "count line" findings \
 '## Code review
 
