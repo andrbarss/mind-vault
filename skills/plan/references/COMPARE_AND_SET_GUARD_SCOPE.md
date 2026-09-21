@@ -115,6 +115,8 @@ the shape appears. The extraction is also where input stops being "a DB id and a
 
 ## Related
 
+- [`CLAIM_BEFORE_SIDE_EFFECTS_NEEDS_A_WAY_BACK.md`](CLAIM_BEFORE_SIDE_EFFECTS_NEEDS_A_WAY_BACK.md) — when the
+  compare-and-set is a *claim* placed ahead of the work it gates: the release, the lock, the walk.
 - [`PRODUCER_ARGUMENT_CONTRACTS.md`](PRODUCER_ARGUMENT_CONTRACTS.md) § "The third error" — the
   computation's other half: which key the re-quote is allowed to forward.
 - [`UNIQUE_KEY_TWO_LAYER_WRITER.md`](UNIQUE_KEY_TWO_LAYER_WRITER.md),
