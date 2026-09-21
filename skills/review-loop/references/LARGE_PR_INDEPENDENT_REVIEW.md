@@ -96,6 +96,36 @@ a **public money field** (price, amount, quantity, discount), a **write gate** (
 table) or a **capture-backed spec** — regardless of commit count. The lenses cost two background
 agents; the miss costs a coupon sold for `INF`.
 
+## Run it while the engine runs — and let the doc lens read instructions as code
+
+A third field case (~1.5k lines, 8 commits: a security-relevant setting got a second, admin-writable
+source) adds two things.
+
+**Timing.** The pass does not have to wait for hand-back. The engine's first full review takes minutes;
+dispatch both lenses the moment the PR is marked ready and triage everything together — one fix commit,
+one re-review. The trigger here was neither size nor money but **where a credential goes**: add "decides
+who receives a secret / who is trusted" to the surface triggers above.
+
+**What the doc lens is for.** The engine read CLEAN on the first pass and on the re-review; the
+correctness lens found nothing above minor (and extended the author's exhaustive one-byte sweep to two
+bytes). The only major finding was **a sentence in the operator runbook**: a human security check framed
+as "before enabling the setting on a tenant" when the exposure began at the *code deploy* — a legacy
+writer could create the row itself, and the same request consumed it. No test reads prose, and an engine
+reviewing a diff has no reason to open the legacy controller the sentence was about. Prompt the doc lens
+accordingly:
+
+- for every **gate, precondition or ordering instruction** ("before X, check Y"): *where does the exposure
+  actually start?* Follow the writers, not the feature;
+- "would an operator following this page **without reading the code** reach a wrong state?" — name the
+  sections most likely to mislead (precedence, kill switch, deploy order);
+- every "never / only / nothing / always" is a claim to falsify, and a claim about **another repository**
+  is a claim about a root nobody searched until someone opens it (both lenses repeated one such sentence
+  here; a single `grep` in the sibling repository overturned it after the merge).
+
+Give **both** lenses the exact container command for the suite. One reviewer had it and re-ran the touched
+classes; the other tried the working tree's own dependencies, could not run anything, and had to verify
+counts by reading test sources.
+
 ## "Read-only" in a reviewer prompt must name the generators
 
 A lens told only "READ-ONLY: do not edit, stage, commit or push" ran the project's spec generator
