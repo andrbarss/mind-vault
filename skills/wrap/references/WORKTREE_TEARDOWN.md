@@ -125,4 +125,6 @@ The clean sequence:
 4. Exit the worktree with `action: keep` — the session returns to the primary checkout with the tree intact.
 5. From the primary checkout run the standard sequence above: `git worktree remove <path>` (git refuses only on a dirty tree, which step 3 cleared), then `git branch -D` each branch after re-checking it is an ancestor of the default branch.
 
+Prefer the non-forcing `git branch -d` where it is enough: a branch that tracks a pushed upstream and is fully merged deletes without `-D`, and a refusal is then information rather than an obstacle. Delete the merged **remote** branch in the same step — a repository that does not auto-delete head branches leaves it behind.
+
 This keeps the teardown on git's safety check (clean tree) rather than the tool's branch-name heuristic, and leaves the human-confirmation gate untouched for the case it exists for — genuinely unmerged work.
