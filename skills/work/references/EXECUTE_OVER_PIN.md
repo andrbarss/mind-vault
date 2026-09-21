@@ -110,6 +110,50 @@ the swap, run the class, watch exactly that test fail) before trusting it. Such 
 ambient-clock branch flips when the calendar passes the fixture's window, so put the window far
 out and say so in the docblock.
 
+## A pin can lock in a wrong belief about a library — execute the library
+
+A source pin asserts that the text you wrote is still there. When the text encodes a *belief about
+a dependency*, the pin certifies the belief, right or wrong. Field case: "follow one redirect" was
+written as an HTTP client's `maxredirects => 1`, pinned as that literal, and walked green on a
+stack that never redirects. The client's loop is `++$count; … while ($count < $max)` — the option
+counts **requests**, so `1` returns the first 301 unfollowed; every configured peer URL in
+production was `http://` behind an https redirect, and the call swallowed its failures. The pin
+made the bug a requirement.
+
+- For any value handed to a library whose meaning you *inferred from its name* — a retry count, a
+  redirect limit, a timeout unit, an inclusive / exclusive bound, a "depth" — write one executed
+  test against the library's own test double (an HTTP test adapter with a scripted `301 → 200`),
+  asserting the *outcome*.
+- Add the **positive control of the quirk**: the same script with the intuitive value, asserting
+  the wrong outcome. It documents why the constant is what it is, and fails loudly if an upgrade
+  changes the semantics.
+- Ask of every walk row: *could this environment have produced the failing input at all?* A dev
+  stack with no TLS never redirects, a single-node queue never redelivers, a fresh schema has no
+  legacy rows. Rows that cannot fail are not evidence; say so next to them and cover the branch in
+  the suite.
+
+## A second environment cloned from the first hides every cross-environment lookup
+
+Verifying code that reads across tenants / schemas / services ("resolve this id in the *owning*
+project's tables") needs a second environment, and the cheap way to get one is to copy the first.
+Then every id exists in both with the same meaning, and a lookup in the **wrong** environment
+returns the right-looking answer — the walk is green on the bug. An inner join against the wrong
+schema is worse: it is an *existence* filter, invisible while both sides hold the id and a silent
+row drop the day they differ.
+
+- **Mark the copy**: prefix the human-readable columns of every catalogue the code resolves
+  (`B:<name>`), so a wrong-environment read is visible in the payload.
+- **Add ids the other side lacks** (a row above the original's max id) and route at least one
+  fixture through them — the only way an existence-filtering join shows itself.
+- **Use fresh identifiers for the environments themselves.** Copied data already carries the old
+  environment ids; reuse them and pre-existing rows masquerade as the peer's.
+- **Run the probe before the fix and keep the failing capture.** "Named by the wrong project's
+  row; the peer-only record lost its link" next to the passing capture is what makes the row
+  evidence.
+- Mind the topology you built: if production's busy node is the *secondary* and your stack made
+  the original the primary, one row must drive the flow from the secondary side — its resolution
+  path is a different branch.
+
 ## Orchestration behind a gateway — ordering guarantees become unit tests
 
 The extreme case of "a pin proves text": a controller action whose *sequence* is the contract —

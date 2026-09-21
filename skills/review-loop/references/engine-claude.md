@@ -485,3 +485,27 @@ What to take from the pair:
 - **Write the verdict with its SHA.** "Engine: clean" in a PR body, an archive README or a devlog
   must name the commit it covers and say which later pushes were skipped — the docs pass caught an
   archive status line that credited the engine with code it never saw.
+
+## § calibration update — both fix pushes skipped; the explicit retrigger reviewed in ~90 s, and the newest `issue_comment` run is NOT the verdict (downstream PHP project, 2026-09-21)
+
+Same workflow as the two entries above, a large money-path PR. The `ready_for_review` run did the
+only push-side review (~14 min, two inline findings, its own test / generator output). Both fix
+pushes — one of them a substantive change to the payment path — got ~2-minute runs that posted
+nothing (`CLAUDE_REVIEW_SILENT` after the settle window). `claude_retrigger.sh` once, on the final
+head, produced a full re-review in about ninety seconds that named both fix commits and verified
+them in the source.
+
+- **Watch the run your comment created, not the newest one.** The bot answers the mention by
+  posting a tracking comment ("Review in progress"), and *that comment* fires a second
+  `issue_comment` run which concludes `skipped` two seconds later. A watcher that takes "the latest
+  `issue_comment` run" reports *completed / skipped* while the real review is still running. Select
+  the run by `createdAt` just after your own comment, or poll the tracking comment until its body
+  stops saying "in progress" — the verdict is that comment, **edited in place**, plus any inline
+  comments newer than your trigger.
+- **Spend the retrigger once, on the last push.** With every fix push skipping, firing it per push
+  bills a review per intermediate state. Review the increments independently, batch the fixes, and
+  retrigger after the final one.
+- The independent lenses again found what the clean engine pass had not — here a library option
+  whose name lied about its unit, and a fix whose recovery path was defeated by an outer lock. The
+  review of the *fix commit* found the second; budget for it on money paths.
+

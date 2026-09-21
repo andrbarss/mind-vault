@@ -91,6 +91,40 @@ truthfully reports "code dropped", so nothing looks wrong.
    equals the undiscounted price; after it, the no-key price. A fixture target without a default
    row answers the same on both implementations — phantom verification.
 
+## The fourth error: a switch in front of a narrowing argument flips every caller that passes it
+
+The inverse job — *widening* a scope — invites the same one-read-short mistake. A service narrows
+its list to the caller's scope when a scope was given (`if ($scope) { drop the others }`), and a
+feature needs the whole list for one or two endpoints. The cheap, correct-looking design is one
+switch in front of the comparison ("when the tenant opts in, skip the narrowing") — a single pivot,
+every dependent method follows by construction. It is a good design. The plan's error is to list
+the change by **feature surface** ("the cart total and the payment callback") when the switch acts
+by **argument**: every call site that passes the scope flips, including the ones nobody was
+thinking about — an admin screen whose SQL counts stay scoped while its totals now do not, a cron,
+a mailer, a history page.
+
+1. **Enumerate by argument, not by feature.** `grep` every call that *sets* the scope and every
+   construction that does not; put the table in the plan — *site → what it does with the list →
+   flips? → intended / accepted / pinned*. "Every action sets it" was false in the field case
+   (twenty constructions, sixteen setters).
+2. **Give the service an explicit pin** (`setWholeScope(false)`) and use it for the sites that must
+   not follow — with a source pin that the call precedes the first dependent read. Leaving them
+   under "out of scope" in the plan is not an exemption; it is an undeclared behaviour change.
+3. **Callers that pass nothing are a contract too.** "No scope given = everything" is what the
+   un-scoped callers (a partner API, a notifier) have always relied on; make it the helper's first
+   rule and test it with the switch both on and off — and make the switch *unresolvable* for them
+   (short-circuit before the lookup), so their load profile cannot change either.
+4. **Look at how the narrowing was implemented before widening it.** A filter that `unset()`s from
+   the instance cache cannot be widened after the first read, leaves holes in a list somebody
+   indexes with `[0]`, and turns "cache the whole, answer a filtered copy" from a nicety into the
+   fix. And do not "complete" the refactor by also resetting that cache in a neighbouring
+   `clearCache()`: grep who calls it — in the field case a payment path called it between its
+   amount check and its confirmation, and a re-read there is a time-of-check / time-of-use gap.
+5. **Partial opt-in is a state to design for.** When the switch is per tenant and the data spans
+   tenants, "A on, B off" is reachable: B's narrower payment marks its own rows paid, after which
+   A's "basket already contains paid items" gate refuses the rest. Either make the group the unit
+   (and say so in the go-live checklist) or make the mixed state coherent.
+
 ## Why the architect must do this, not just the author
 
 The author reads the producer through the plan's intent ("we need the superset") and sees the
