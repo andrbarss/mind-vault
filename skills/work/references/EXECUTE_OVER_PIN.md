@@ -86,6 +86,14 @@ the free-text column was walked only after a review read the capture.
   returns the *same* value from both is green with or without the override. Seed them to disagree —
   pre-check true / collaborator false, and the reverse — so only the override line produces the
   asserted result.
+- **Give the fake only the methods the code is allowed to call.** When the requirement is "read through
+  collaborator method A, never through B" (an exact-match reader instead of a case-insensitive one, a
+  scoped loader instead of the unscoped one), a source pin on `->A(` proves text. A fake that implements
+  A and **does not have** B turns the rule into behaviour: calling B is an `Error`, the surrounding
+  catch-all swallows it like any other failure, and every test that expects the read's *result* goes red.
+  In the field case the mutation "swap in B" died with eighteen failures, all but one of them behavioural;
+  with a full-featured mock it would have died on the pin alone — or not at all, had B been stubbed to return the
+  same rows.
 - **Quote the way the real adapter does.** A recording adapter double that quotes ints (`id = '42'`)
   where the driver leaves them bare pins text production never emits; copy the driver's quoting
   rules for the types the code passes.
