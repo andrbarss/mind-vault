@@ -137,3 +137,35 @@ it: a third pass over a wording-only increment is the cosmetic non-convergence o
 single pass when the engine skips it — that one caught a verification guide still asserting the
 opposite of what the README and the devlog (correctly) said about which commits the engine had
 reviewed.
+
+## Fresh reviewers, no prior findings — and what a third recurrence means
+
+A fourth field case (a mid-size PR: a validator for an operator-written URL list whose accepted entries
+receive a fleet-wide credential, plus a fan-out through a shared queue). The engine's first full review
+raised one archive-layout finding and **called the rejected-entry log rendering safe**. The two lenses
+found it leaked; the increment review found the fix leaked differently; the confirmation pass found the
+second fix leaked a third way. Three things to take from it:
+
+- **The same defect class a third time is a design signal, not a fourth fix.** This is not the
+  cosmetic non-convergence of [`COSMETIC_NONCONVERGENCE.md`](COSMETIC_NONCONVERGENCE.md) — each finding
+  was a real leak — so "stop" is the wrong answer and so is "patch again". Track recurrences per
+  *category* in the loop's scratch file; at the second, write down what the third will trigger; at the
+  third, remove the class (there: render nothing of a rejected entry, and stop returning the text from
+  the validator at all). The fix after that needed no confirmation round, because there was no filter
+  left to get wrong.
+- **After the engine reads CLEAN, a review by reviewers who were given the contract but none of the
+  findings still pays.** Asked for by the owner on the final head, two fresh lenses found what three
+  rounds of increment review could not, because increment reviewers inherit the frame of what was
+  already looked at: an entry point (one CLI script on one queue adapter) where the fan-out would
+  silently never run, a repair the validator still performed, a cleartext rule whose rationale failed
+  for an internal primary, and two operator-doc statements that were false by the code ("nothing resets
+  a stale claim" — a reset action existed and was documented elsewhere in the repo). Give fresh
+  reviewers the **contract** (numbered, testable) and the entry points; withhold the history.
+- **Send the fix for a finding back to the reviewer who raised it**, as a bounded confirmation pass with
+  the changes mapped to their finding numbers. It converged MEDIUM → LOW → clean, and surfaced a
+  runtime-version difference the author's own runtime could not show. A reviewer probing on a newer
+  runtime than production gives leads, not results — re-run the row on the production image.
+
+Calibration for the push-triggered engine in that PR: of nine runs after the PR left draft, three were
+full reviews and six were ~2-minute skips, including the docs-only wrap push and its fix — every
+finding that changed the code came from the independent passes.

@@ -47,6 +47,29 @@ disarmed guard behind a green suite.
   after the pass, and clean with a delete constrained by the defect's own signature (for example,
   rows whose parent and target are *both* missing), never a blanket truncate of shared data.
 
+## A survivor is a question — three answers met in the field
+
+- **An equivalent mutant.** Removing a registry-presence guard in front of a call already wrapped in a
+  catch-all changed nothing observable: guard and catch were two layers of one guarantee. Say so in the
+  record and keep both; do not invent a test for it.
+- **A test that cannot fail.** A "the primary's failure must still propagate" test wrapped the call in
+  `try { …; $this->fail('swallowed'); } catch (RuntimeException $e) { … }`. The test framework's own
+  failure exception **is a `RuntimeException`**, so the catch swallowed the failure it was meant to
+  raise, and the mutation that swallowed the primary's exception passed. Capture the throwable into a
+  variable and assert on it *after* the block (or use the framework's expect-exception API); never
+  `fail()` inside a `try` whose `catch` names a base class. Grep the touched test files for the shape
+  once one turns up.
+- **A runtime-version difference.** A mutation that dropped half of an address check survived on the
+  production runtime and would have been killed on a newer one: the newer runtime's address filter
+  treats a whole block as reserved, the older one does not, so the rows written from a reviewer's
+  newer-runtime probe passed either way. Add the row that makes the guard observable **on the runtime
+  you ship** (there: a *private* address in that block), and record the version difference where the
+  next upgrade will find it.
+
+Write the verdict **after** reading the results. A commit script that ran the mutations and then
+appended "all killed" to the verification guide put a false sentence on an open PR; the correction cost
+a commit and a billed review run. Generate the numbers, read them, then write prose.
+
 ## Anti-patterns
 
 - ❌ Mutating uncommitted code, then restoring by hand.
@@ -54,6 +77,8 @@ disarmed guard behind a green suite.
 - ❌ Counting a mutation as killed when every run died on the same error.
 - ❌ Adding a mutation for a guard whose test asserts a status code the failure path shares.
 - ❌ Hostile-input rows whose outcome depends on which ids the shared database happens to hold.
+- ❌ `fail()` inside a `try` whose `catch` names a base class of the framework's failure exception.
+- ❌ Letting the script that runs the pass also write "all killed" into the docs.
 
 ## Related
 
