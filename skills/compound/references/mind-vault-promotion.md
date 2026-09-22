@@ -134,3 +134,26 @@ Include the PR URL explicitly so the user can click through.
 - **Target file has merge conflicts.** The skill detected an existing file to extend but git shows conflict markers. Stop, report, and let the user resolve manually.
 
 Silent retry loops are forbidden. Report and ask.
+
+## Promote from a dedicated worktree, never from the shared checkout
+
+The default mind-vault path (`~/projects/mind-vault`) is one working tree shared by **every**
+session on the machine — a second `/compound` in another project, an overnight sprint-auto run, a
+human at a terminal. Its checked-out branch can change between two of your commands. Field case
+(2026-09-22): a compound run read "branch = the open compound PR's branch", edited files, and by
+the time it committed and ran `git push origin HEAD` a concurrent session had checked out `main` —
+the edits were applied twice (the first step's uncommitted copy plus the re-run) and the commit
+went **straight to `main`**, a `RULE_git-safety` violation nobody typed. The remedy is structural,
+not vigilance:
+
+1. **`git -C <mind-vault> worktree add ../mind-vault-wt-<slug> <branch>`** — a fresh worktree on
+   the target branch (create it with `-b … origin/main` when the branch policy says branch fresh).
+   Every edit, commit and push happens inside that worktree; the shared checkout is never
+   `git checkout`-ed by the promotion.
+2. **Push by branch name, never `HEAD`**: `git push -u origin <branch>`. If the worktree is somehow
+   on the wrong branch, the push fails instead of landing on `main`.
+3. **`git worktree remove`** it after the push; the branch and the PR survive.
+
+If a direct commit to `main` does happen: do not rewrite `main`. Fix forward on a branch from
+`origin/main` (de-duplicate, add the changelog section) and open the PR that should have carried
+it, saying plainly in its body what happened.
