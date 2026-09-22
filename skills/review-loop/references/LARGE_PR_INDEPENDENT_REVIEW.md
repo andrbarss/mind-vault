@@ -199,3 +199,31 @@ second fix leaked a third way. Three things to take from it:
 Calibration for the push-triggered engine in that PR: of nine runs after the PR left draft, three were
 full reviews and six were ~2-minute skips, including the docs-only wrap push and its fix — every
 finding that changed the code came from the independent passes.
+
+## The engine passed a guard the framework had made unobservable — and three claims about other repositories
+
+A fifth field case (a mid-size PR: one validated column on a legacy admin save, a degrade ladder for
+tenants the migration has not reached, a real-DDL fixture; engine CLEAN on the first full-diff run
+after un-draft). The two lenses on the same SHA, launched while the engine ran:
+
+- **Correctness found a dead guard the suite could not.** The strip that removes an empty key on an
+  un-migrated tenant was built as `[$data, $this->refuse($data)]` — the array literal copies `$data`
+  before the by-reference `unset()` runs. Every HTTP row stayed green, three of them with the column
+  genuinely absent, because the ORM drops an unknown column key from a mass-assign anyway: the
+  observable had two producers and the surface could not distinguish them. The lens found it by
+  driving the decision method directly with a schema double; the fix assigned first and pinned the
+  payload at the guard's own return. Ask of every guard in a degrade ladder *what else produces the
+  same observable if this were deleted* — if a framework internal does, the pin belongs at the guard.
+- **The doc lens found three sentences false by other repositories**, none visible from the diff: the
+  mirrored schema contract was one commit stale and called its owner's PR a draft after it had merged
+  (`gh pr view` in the owner's repo); "the column's only writer" was false — a legacy admin in the
+  owner's repo mass-assigns the same table (a grep there); a shared test trait named a sibling fixture
+  as a verbatim copy that in fact typed its own DDL (a read of the file). Give the doc lens the sibling
+  repositories and `git show` access; a negative about another repository is checked in that repository.
+- **The increment review found only wording** (a test-list sentence the fix had made false; a "six
+  methods" that were five plus a guard) and the loop stopped there — the wording rode the docs wrap
+  commit rather than a third billed cycle.
+
+Calibration for the push-triggered engine: CLEAN on the un-draft run (first full diff), CLEAN again on
+the fix push *and* on the explicit retrigger, which also confirmed the fix by name. Every finding that
+changed the code came from the independent pass.
