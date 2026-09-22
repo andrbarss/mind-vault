@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.83 — compound: a contract's claims about the consumer's writer, and the producer's provisional IDEA number
+
+Pure `/compound` PR (2026-09-22). The reference text first landed on `main` directly in `94bb0a7` (a shared-checkout branch switch under a concurrent session — see the PR); this section and the de-duplication ride the PR that should have carried it. Numbered above #88's v4.6.82, which was open at the time.
+
+### Changed
+
+- **`skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`** — § 4 gains a second field case of a contract describing the consumer's framework wrongly (a dirty-only JSON writer neither "sends the key on every save" nor posts `key=`; both sentences went back to the producer as defects). § 8 gains a bullet: name the producer by branch and slug, because the IDEA number in a capture is provisional until the producer's `/plan` — a stale-checkout capture reused a shipped number, the producer renumbered the same day, and every sibling copy needed a sweep.
+
+### Fixed
+
+- The same two additions were applied twice in `94bb0a7`; one copy of each is kept.
+
 ## v4.6.81 — compound: an identity parameter beside a shared secret; a guard in a constructor the harness skips; the one-listener walk
 
 Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP booking API: every call its cache-clearing client makes to the storefront gained a `backend=<host>` key beside the fleet-wide `secret_key`. Small diff; the lessons were about the value's source (the identity the queue already records, never the request host), what a caller-asserted identity may mean to the receiver (routing context, never authorization), a constructor guard the DB-free harness would have verified by text only, and a walk that proved the wire without a stack.
