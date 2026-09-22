@@ -28,6 +28,20 @@ Pure `/compound` PR (2026-09-22). The reference text first landed on `main` dire
 
 - **`skills/compound/references/mind-vault-promotion.md`** — § Promote from a dedicated worktree, never from the shared checkout: the structural fix for the accident above (worktree per promotion, push by branch name never `HEAD`, fix forward on a branch if `main` is hit).
 
+## v4.6.82 — compound: an additive column through a wholesale copy; a filter parameter's enum, null class and container; the review tools' cwd
+
+Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP booking API: one nullable column on a catalogue table whose rows a writer copies wholesale (`SELECT *` → `INSERT`) onto a snapshot table — the destination needed the column first, the scaffold could not be trusted for the order, a ledger-run backfill would have copied nothing, and a "endpoint-scoped" key guard in a shared loader turned out loader-wide (caught by the independent review lens, not the engine); the same change added a filter parameter to a legacy list endpoint; the review loop's finder read a running review as "no activity" because it was run from the wrong checkout.
+
+### Added
+
+- `skills/plan/references/ADDITIVE_COLUMN_THROUGH_A_WHOLESALE_COPY.md` — the write-side twin of the wholesale-emitter rule: grep for every `SELECT *`-fed `INSERT` before the DDL; destination first, in its own migration, dependency in both headers and the rollback order stated; two ordered stems rather than two `ALTER`s in one file; the scaffold's per-slug collision guard does not enforce order (scaffold a second apart, list, pin with `strcmp`); snapshot vs join with NULL's meaning on the copy; a backfill whose source is populated after the migration is an operator statement with a fleet-wide affected-rows count; "endpoint-scoped" derived from the guard's callers; a walk's teardown names its files.
+
+### Changed
+
+- `skills/plan/references/NEW_PARAMETER_ON_A_LEGACY_ENDPOINT.md` — § 9: a filter parameter over a legacy collection — an OpenAPI `enum` on a case-insensitive parameter (or on a pass-through column an un-gated writer can fill) is a wrong contract; give the "none" class explicit synonym words and define it as *not one of the accepted values*; re-index filtered collections so the legacy array-vs-object flip stays on the unfiltered path.
+- `skills/review-loop/references/engine-claude.md` — § Tool invocations: the finder and the retrigger resolve the PR number against the cwd's repository; run them inside the target project's checkout, and confirm a "nothing found" against the API.
+- `skills/plan/SKILL.md` — pointer line.
+
 ## v4.6.81 — compound: an identity parameter beside a shared secret; a guard in a constructor the harness skips; the one-listener walk
 
 Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP booking API: every call its cache-clearing client makes to the storefront gained a `backend=<host>` key beside the fleet-wide `secret_key`. Small diff; the lessons were about the value's source (the identity the queue already records, never the request host), what a caller-asserted identity may mean to the receiver (routing context, never authorization), a constructor guard the DB-free harness would have verified by text only, and a walk that proved the wire without a stack.
