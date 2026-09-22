@@ -163,6 +163,35 @@ the rule's literals in the new methods. When hashing legacy answers before / aft
 on the same row by more than the stamp's resolution — a rows-changed verdict flips on a same-second
 identical write.
 
+## 9. A *filter* parameter over a legacy collection — the enum, the null class, the container shape
+
+Three decisions a filter parameter on a legacy list endpoint forces, each of which reads as obvious and
+was wrong on first draft:
+
+- **An OpenAPI `enum` on a case-insensitive parameter is a wrong contract.** `enum` is exact-match to
+  every generated client and request validator; if the server accepts the words after `trim` and
+  case-folding (`SPA_SERVICES`, ` Empty `), the spec refuses what the server answers 200 to. Either
+  drop the `enum` (keep `type: string`, an `example`, and a description that names the words and says
+  how they match) or state in the description that the enum lists canonical spellings only. The same
+  tension on the *response* side: an `enum` on a pass-through column that an un-gated legacy writer can
+  fill with anything documents a guarantee the code does not give — drop it or add the caveat.
+- **Give the "none" class its own words.** A filter for "rows with no value" cannot be expressed by an
+  empty parameter when the house rule makes *absent or empty = not filtered*; accept explicit synonym
+  words (`null`, `empty`, case-insensitive) for it, and define the class as **not one of the accepted
+  values** — NULL, a missing key (an un-migrated tenant), `''`, garbage from a legacy writer — the same
+  class the consumer treats as "no value", so a client that filters and a client that groups agree.
+  Compare the stored value byte-exactly; only the *parameter* is case-folded.
+- **Re-index the filtered collection.** A legacy list that occasionally serialises as an index-keyed
+  *object* (an earlier in-place filter that kept original indexes) must not leak that quirk into the new
+  path: `array_values` the survivors, so a filtered answer is always a JSON array, `[]` when nothing
+  survives, per key under a map-shaped container. Say so in the operation description; the legacy
+  array-vs-object flip stays on the unfiltered path, byte-identical.
+
+The pure filter class holds all three (classification of the raw value into none / value / null-class /
+invalid, the selection, the envelope) and is unit-tested against a fixture with non-consecutive keys; the
+action reads the parameter first, refuses an invalid value before any model call, and both paths build
+the payload through one private builder so they cannot drift (§ 3, § 4).
+
 ## Plan checklist
 
 - [ ] Invalid / absent / empty decided per parameter by the user; the literal `null` decided.
