@@ -92,8 +92,33 @@ included) — and make sure the logger itself cannot throw where its own prerequ
 - the residual, stated as a residual, with the follow-up that owns the real fix (a per-task timeout the
   adapter stores, a connect timeout, the reset job scheduled everywhere).
 
+## 7. Seeing what every path sends, cheaply
+
+When the question is only *what url leaves the process* (a new query key on every call, a changed
+order), the full worktree stack is more than the answer needs. The cheap form that proved a
+constructor-to-wire path end to end:
+
+- **One listener container, N network aliases.** A single `php -S` (or any one-file server) started
+  on the dev stack's network with `--network-alias <primary> --network-alias <second>` plays every
+  target; the router answers `200` and logs `<Host> <uri>`. **It must log itself** — a built-in dev
+  server may log only accept/close lines, never the request — and redact the credential *before*
+  writing.
+- **The real bootstrap, a scratch env.** A one-off container on the same network, mounting the
+  worktree and the shared dependency volume, runs a scratch script that `require`s the project's CLI
+  bootstrap with `--env=<scratch file>` placed in the worktree's *ignored* env directory (the real env
+  plus the listener urls and an isolated queue prefix). The class is built by its real constructor,
+  so the value's source and the guard are exercised, not pinned.
+- **Read the queue back from the adapter's own store** (the hash / list under the isolated prefix),
+  print each task with the credential redacted, then delete the prefix. No worker runs on dev: queued
+  tasks are observed, never delivered — say so in the capture.
+- **Delete what the walk wrote.** A debug log the synchronous path writes on success carries the
+  full url **with** the credential; it is untracked in the worktree and must not survive the walk.
+
 ## Related
 
+- [`IDENTITY_PARAMETER_ON_A_SHARED_SECRET_CALL.md`](IDENTITY_PARAMETER_ON_A_SHARED_SECRET_CALL.md) — a
+  "who is calling" key beside the shared secret: absent not empty, one builder, context never
+  authorization.
 - [`OPERATOR_LIST_THAT_RECEIVES_A_SECRET.md`](OPERATOR_LIST_THAT_RECEIVES_A_SECRET.md) — validating the
   list of targets when each accepted one receives a credential.
 - [`VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`](VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md) — phantom
