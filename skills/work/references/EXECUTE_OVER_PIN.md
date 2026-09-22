@@ -199,6 +199,27 @@ loaded on every request, confirm every entry point (web bootstrap, CLI runner, c
 registers an autoloader that can resolve the interface the same way it resolves the class's other
 dependencies.
 
+## A guard in a constructor the harness skips — make the guard a method
+
+The DB-free harness subclasses the class and **replaces the constructor** (it would build a table
+adapter) and often one method (`get()`, the synchronous transport) wholesale. Anything the plan
+adds *inside* either never executes under test. A plan that puts a guarded read in the constructor
+— `registered(key) ? get(key) : ''` — and "verifies" it with a source pin on that line has verified
+text: the branch where the key is absent, the cast, the empty-string default were never run. The
+architect's fix is one move: the read becomes `protected function readX()`, the constructor calls
+it (pin **that** line), and the harness exposes it so the test executes it against a set, an empty,
+a null and an unregistered registry — no exception, the documented default. Same for the url
+builder the replaced `get()` would call: a public wrapper on the harness, and a pin that each real
+site calls it.
+
+Two pin details that bite: (1) **pin the assignment form, not the word** — `grep -c secret` fails
+the moment the new docblock mentions the concept; pin `$params['secret_key'] =` and
+`http_build_query(` and keep the new docblocks free of both literals (say so in the plan, or the
+plan's own paragraph trips the pin it asks for); (2) **count occurrences, not lines** — a reviewer
+reported 21 pins where `grep -o | wc -l` finds 24 on 21 lines; multi-url assertions carry several
+per line, and fixtures that merely *contain* the literal (an exception message that must never be
+logged) are not pins and must not gain the suffix. Write the number the way you counted it.
+
 ## Related
 
 - `agents/AGENT_test-engineer.md` PASS 2 — the reviewer-side bullet that points here.

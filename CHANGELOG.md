@@ -12,6 +12,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.81 — compound: an identity parameter beside a shared secret; a guard in a constructor the harness skips; the one-listener walk
+
+Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP booking API: every call its cache-clearing client makes to the storefront gained a `backend=<host>` key beside the fleet-wide `secret_key`. Small diff; the lessons were about the value's source (the identity the queue already records, never the request host), what a caller-asserted identity may mean to the receiver (routing context, never authorization), a constructor guard the DB-free harness would have verified by text only, and a walk that proved the wire without a stack.
+
+### Added
+
+- `skills/plan/references/IDENTITY_PARAMETER_ON_A_SHARED_SECRET_CALL.md` — the value from where the process records its own identity, read once through a guarded read with every env shape named (`''`/`null`/unregistered → absent, `'1'` verbatim on purpose); one url builder for N sites with unset-then-set so a caller can neither place nor smuggle either key; a header cannot reach a url-only queue; context never authorization, written at every seam the consumer's team reads; the consumer out of the workspace → a human pre-deploy probe that gates the deploy, not the close-out; date the sibling sentences the change makes false.
+
+### Changed
+
+- `skills/work/references/EXECUTE_OVER_PIN.md` — a guard in a constructor the harness skips becomes a method the harness executes (set / empty / null / unregistered); pin the assignment form, not the word, and keep the new docblocks free of the pinned literals; count pin occurrences, not lines, and exclude fixtures that merely contain the literal.
+- `skills/plan/references/FAN_OUT_THROUGH_A_SHARED_SERIAL_QUEUE.md` — § 7: seeing what every path sends cheaply — one listener container with N network aliases that logs itself (a built-in dev server may log only accept/close), the real bootstrap through a scratch env in the worktree's ignored env dir, the queue read back from the adapter's store, the debug log that carries the credential deleted.
+- `skills/plan/SKILL.md` — pointer line.
+
 ## v4.6.80 — compound: a second, admin-writable source for an ops-only setting; the gate sits where the exposure starts
 
 Single-PR section; provenance on this paragraph (2026-09-21). Routed from a downstream PHP booking API: the env-configured list of hosts that receive a fleet-wide key got a per-tenant, admin-editable twin that replaces it when not empty. Plan review, an engine (clean on the first full-diff pass and on the re-review) and two independent lenses left no defect in the code — the one major finding was a sentence in the operator runbook that put a human security check at "enabling the setting" when the exposure began at the code deploy.
