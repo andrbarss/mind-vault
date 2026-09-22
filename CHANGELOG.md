@@ -12,7 +12,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.83 — compound: a guard masked by a framework fallback; the by-reference literal; numbers from the default branch's tree
+## v4.6.84 — compound: a guard masked by a framework fallback; the by-reference literal; numbers from the default branch's tree
 
 Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP admin API adding one validated column to a legacy save: a degrade guard that strips an empty key shipped dead — `[$data, byRef($data)]` copies the payload before the by-reference `unset()` runs — and thirty-two route tests, three of them with the column genuinely dropped, stayed green because the ORM drops an unknown column key from a mass-assign anyway. The push-triggered engine read the PR CLEAN twice; the independent correctness lens found it by calling the decision method directly. The same idea was captured under a number a shipped idea already owned, because the capture scanned a checkout fourteen merges behind the default branch.
 
@@ -21,6 +21,22 @@ Single-PR section; provenance on this paragraph (2026-09-22). Routed from a down
 - `agents/AGENT_curator.md` — PASS 1: **a guard masked by a framework fallback** — when a guard's observable effect has a second producer (an ORM that drops unknown keys, a DB default, a null-tolerant reader, a sibling guard), no surface-level test can see the guard; demand a pin at the guard's own return value or state write, and name the one-line edit *in the guard* that turns it red. And the mechanism to grep for: a by-reference call inside an array / tuple literal or a concatenation that reads the same variable — the copy is taken before the call mutates it.
 - `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md` — fifth field case: engine CLEAN on the first full-diff run and again on the fix; the two lenses on the same SHA found one real defect the suite could not (above) and three documentation claims false by the sibling repositories (a mirrored contract one commit stale after its owner's PR had merged, an "only writer" that a legacy admin in the owner's repo falsified, a fixture named as a verbatim copy that typed its own DDL); the increment review of the fix found only wording, and the loop stopped there.
 - `skills/idea/SKILL.md` — § 4 numbering: the on-disk scan runs against the **default branch's tree** (`git fetch && git ls-tree --name-only origin/<default> docs/ideas/ docs/archive/`), never the working tree — a local default branch can sit many merges behind and hand out a number a shipped idea already owns; the sibling-branch scan does not catch that, because the collision is on the default branch itself.
+
+## v4.6.83 — compound: a contract's claims about the consumer's writer, and the producer's provisional IDEA number
+
+Pure `/compound` PR (2026-09-22). The reference text first landed on `main` directly in `94bb0a7` (a shared-checkout branch switch under a concurrent session — see the PR); this section and the de-duplication ride the PR that should have carried it. Numbered above #88's v4.6.82, which was open at the time.
+
+### Changed
+
+- **`skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`** — § 4 gains a second field case of a contract describing the consumer's framework wrongly (a dirty-only JSON writer neither "sends the key on every save" nor posts `key=`; both sentences went back to the producer as defects). § 8 gains a bullet: name the producer by branch and slug, because the IDEA number in a capture is provisional until the producer's `/plan` — a stale-checkout capture reused a shipped number, the producer renumbered the same day, and every sibling copy needed a sweep.
+
+### Fixed
+
+- The same two additions were applied twice in `94bb0a7`; one copy of each is kept.
+
+### Added
+
+- **`skills/compound/references/mind-vault-promotion.md`** — § Promote from a dedicated worktree, never from the shared checkout: the structural fix for the accident above (worktree per promotion, push by branch name never `HEAD`, fix forward on a branch if `main` is hit).
 
 ## v4.6.82 — compound: an additive column through a wholesale copy; a filter parameter's enum, null class and container; the review tools' cwd
 
