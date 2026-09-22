@@ -24,6 +24,10 @@ Pure `/compound` PR (2026-09-22). The reference text first landed on `main` dire
 
 - The same two additions were applied twice in `94bb0a7`; one copy of each is kept.
 
+### Added
+
+- **`skills/compound/references/mind-vault-promotion.md`** — § Promote from a dedicated worktree, never from the shared checkout: the structural fix for the accident above (worktree per promotion, push by branch name never `HEAD`, fix forward on a branch if `main` is hit).
+
 ## v4.6.81 — compound: an identity parameter beside a shared secret; a guard in a constructor the harness skips; the one-listener walk
 
 Single-PR section; provenance on this paragraph (2026-09-22). Routed from a downstream PHP booking API: every call its cache-clearing client makes to the storefront gained a `backend=<host>` key beside the fleet-wide `secret_key`. Small diff; the lessons were about the value's source (the identity the queue already records, never the request host), what a caller-asserted identity may mean to the receiver (routing context, never authorization), a constructor guard the DB-free harness would have verified by text only, and a walk that proved the wire without a stack.
