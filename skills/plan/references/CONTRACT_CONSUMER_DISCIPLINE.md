@@ -59,6 +59,10 @@ The best contracts go beyond shapes and hand you a build spec: the exact field c
 
 Field case. The contract stated, as settled fact, that a locale whose editor tab is filtered out of the UI "is never constructed, so its key is never posted — absent means unchanged." True on **update**. False on **create**: the framework's default writer forces write-all for a new (phantom) record and iterates the **model's** declared fields, not the rendered form's — so the disabled locale's key ships anyway, as an empty string. The consuming repo already had this written down in its own solved-problem notes from an earlier idea; the contract's claim contradicted it. The consumer's plan had copied the claim into a "verified, read not assumed" table before the architect pass caught it.
 
+Second field case, same class, one quarter later: the producer's hand-off paragraph stated that the consumer's edit window "sends the key on every save (the combo is always rendered)" and that "an emptied combo posts `key=`". The consumer's writer was the framework's default JSON writer with dirty-only updates: an untouched combo sends **no** key (so the producer's "absent ⇒ unchanged" branch *is* reached from that client), and an emptied combo posts JSON `null`, never a form-encoded empty string. Neither sentence changed the producer's own rules — but a later consumer building from that paragraph would have coded a form-encoded assumption and a "the key is always present" invariant that the wire does not honour. Both went back in a note; the producer's paragraph was the defect.
+
+Second field case, same class, one quarter later: the producer's hand-off paragraph stated that the consumer's edit window "sends the key on every save (the combo is always rendered)" and that "an emptied combo posts `key=`". The consumer's writer was the framework's default JSON writer with dirty-only updates: an untouched combo sends **no** key (so the producer's "absent ⇒ unchanged" branch *is* reached from that client), and an emptied combo posts JSON `null`, never a form-encoded empty string. Neither sentence changed the producer's own rules — but a later consumer building from that paragraph would have coded a form-encoded assumption and a "the key is always present" invariant that the wire does not honour. Both went back in a note; the producer's paragraph was the defect.
+
 The discipline:
 
 - **Sort the contract into shapes vs claims-about-me.** Envelopes, keys, status codes, error values — those are the author's own code, trust and verify per §3. Anything phrased as "your X will do Y" is a hypothesis.
@@ -125,6 +129,24 @@ What to put in the note, beyond shapes:
   Say the client coerces anyway, so the producer is not blocked on it.
 - **Acceptance rows the client can physically produce** (§ 5), written into the note so they land in the
   producer's contract.
+- **Name the producer by branch and slug, not only by its IDEA number — the number is provisional
+  until the producer's own `/plan`.** A capture made on a stale checkout can carry a number that is
+  already shipped on the producer's default branch; the producer's `/plan` then renumbers (the archive
+  dir, the file, the branch, the PR), and every sibling that copied the old number from the capture —
+  the consumer's IDEA, plan, notes, index line, PR body — is stale at once. Field case: three repos
+  captured the same feature within an hour; the write-side repo renumbered at `/plan` the same day,
+  its contract carried a paste-ready "017 → 018" correction, and the consumer's `/work` step 0 spent
+  its first commit on the sweep. Cite `<repo> <branch> (<slug>)` beside the number in the note and the
+  contract table, and expect the number to move.
+- **Name the producer by branch and slug, not only by its IDEA number — the number is provisional
+  until the producer's own `/plan`.** A capture made on a stale checkout can carry a number that is
+  already shipped on the producer's default branch; the producer's `/plan` then renumbers (the archive
+  dir, the file, the branch, the PR), and every sibling that copied the old number from the capture —
+  the consumer's IDEA, plan, notes, index line, PR body — is stale at once. Field case: three repos
+  captured the same feature within an hour; the write-side repo renumbered at `/plan` the same day,
+  its contract carried a paste-ready "017 → 018" correction, and the consumer's `/work` step 0 spent
+  its first commit on the sweep. Cite `<repo> <branch> (<slug>)` beside the number in the note and the
+  contract table, and expect the number to move.
 
 ## 9. A partial-success envelope that also means "nothing saved" cannot be decided by the client
 
