@@ -12,6 +12,25 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.86 — compound: your own note's predictions are hypotheses too; assert the whole write path; three non-visual cross-spec leaks
+
+Single-PR section. Provenance is on this paragraph (2026-09-24). Routed from a downstream ExtJS admin UI that consumed a sibling API's plan-stage contract for a "tonight only" promo flag:
+
+- The consumer's note to the producer carried an architect's SDK prediction about the consumer's own client. The producer adopted it verbatim, and one spec at `/work` showed it was false.
+- A create-only writer transform was invisible to the per-record serializer shortcut that every sibling spec used.
+- The first suite to show a real edit window and save through its controller surfaced three non-visual leaks under random order. One of them, an orphan load mask, was also a production bug.
+
+### Changed
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`:
+  - § 4: assert payloads through the whole write path once it has a later stage. A per-record serializer never reaches a body `transform`, so a spec asking it stays green on a model without the stage. Build the request, run the writer, and mutation-check the row.
+  - § 8: label every sentence the note makes about your own client *measured* or *predicted*, and measure the cheap ones before sending. A correction is dated, lives in the note, and names the producer's sentences that repeat the old wording.
+- `skills/work/references/CROSS_SPEC_UI_LEAKAGE.md`:
+  - Three non-visual shapes of the same class: a fixture object the framework adopts as live record data, an orphan component with global listeners, and a route pushed by a save that closes its window.
+  - A diagnosis step for thrown errors: list the survivors whose target is destroyed, and raise `Error.stackTraceLimit` in a local harness copy.
+  - Two anti-patterns.
+- `skills/plan/SKILL.md`, `skills/work/SKILL.md` — reference pointers.
+
 ## v4.6.85 — compound: a state watch on a shared checkout; the narrowest channel bounds the rule; one predicate behind N compares; a host-only test failure is in scope
 
 Single-PR section; provenance on this paragraph (2026-09-24). Routed from a downstream PHP booking project adding a "tonight only, inside a clock window" promo rule: the rule reaches a storefront and two OTA exports, and the exports price each date as a one-night stay — the whole-stay variant drafted at plan time had no representation there and was removed everywhere; the boundaries needed a per-minute watch whose first draft kept its state in a file on a multi-tenant checkout (architect 🔴), then a per-tenant compare-and-set table whose effects had no isolation (independent review); six inline date compares became one predicate whose legacy branch keeps `strtotime(null)` = epoch; and a two-case suite failure reported as a "host artefact" for three cycles turned out to be a test capturing a deprecation the host logs and CI masks.

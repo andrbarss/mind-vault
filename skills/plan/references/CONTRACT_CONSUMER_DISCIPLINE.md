@@ -67,6 +67,16 @@ The discipline:
 - **Grep your own framework / prior art for each such claim** before it enters your plan. Serialisation defaults, create-vs-update divergence, lifecycle ordering and "this never reaches the wire" are the usual suspects — a create path almost always serialises differently from an update path, and contracts routinely document only the update.
 - **A claim contradicted by your own solved-problem notes is a defect in the contract, not a puzzle.** Report it; do not code around it and do not quietly correct only your own copy — the next consumer reads the same sentence.
 - **Pin it with a test that would fail if the claim were true.** The cheapest form asks your serialiser directly what it would send for a fresh record and for a one-field edit, with no server and no DOM. That test is also the guard on whatever field-declaration choice the divergence forced.
+- **Ask the whole write path, not a stage of it — as soon as the path has more than one stage.** A
+  serialiser's per-record method (`getRecordData`-style) is only the first stage. A body-level
+  `transform`, an envelope hook or a root wrapper runs after it, inside the real write call. The
+  shortcut is exact while the write path has one stage. Once a later stage exists, a spec that asks
+  the shortcut stays green on a model *without* that stage. Field case: a create-only transform
+  dropped three default-valued keys from the create body. Every sibling spec in the repo asserted
+  payloads through the per-record shortcut, and that shortcut never reaches the transform. Build the
+  request the proxy would build, then run the writer on it (`proxy.buildRequest(operation)` →
+  `writer.write(request)` → the encoded body). One mutation that disables the stage must turn the row
+  red.
 
 ## 5. An inherited acceptance criterion may be unobservable in your client — replace it, don't copy it
 
@@ -136,6 +146,25 @@ What to put in the note, beyond shapes:
   its contract carried a paste-ready "017 → 018" correction, and the consumer's `/work` step 0 spent
   its first commit on the sweep. Cite `<repo> <branch> (<slug>)` beside the number in the note and the
   contract table, and expect the number to move.
+- **Mark every sentence about your own client as *measured* or *predicted*, and measure the cheap
+  ones before sending.** The note is the producer's only source for how your client behaves, so a
+  producer that adopts it row by row copies your predictions into its contract as commitments. Field
+  case:
+  - An architect's review of the consumer plan reasoned from the SDK that a time input would normalise
+    a stored `23:59:59` to `23:59:00` on every re-save.
+  - The note stated this as client behaviour, and the producer's contract accepted it verbatim ("the
+    truncation is accepted").
+  - The consumer's `/work` measured it with one spec: an untouched time keeps its seconds. Only a time
+    the operator edits is re-parsed.
+  - No shape moved, but the producer's contract now documents a behaviour the client does not have. A
+    dated correction had to follow the note, and the next consumer of the contract would have
+    inherited the wrong sentence.
+
+  A claim that one spec could settle (what the writer sends, what a field does to a value on a round
+  trip) is measured before the note goes out. A claim that cannot be measured yet is labelled
+  *predicted* in the note. A correction is **dated, placed in the note itself, and names the
+  producer's sentences that repeat the old wording**. This is the mirror of § 4: there the
+  producer's claims about you are hypotheses; here your own are too, until a spec says otherwise.
 
 ## 9. A partial-success envelope that also means "nothing saved" cannot be decided by the client
 

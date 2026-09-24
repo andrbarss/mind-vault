@@ -31,6 +31,32 @@ Two properties make this class expensive:
    leak needs two or more rows of the same kind — so a per-`it` bisect that runs each row alone stays
    green and reads as "not this file".
 
+## Three non-visual shapes of the same class
+
+The leaked thing need not be visible. The signature is the same: random-order red in a file the new
+spec does not touch, and green when each row runs alone. These three turned up together in the first
+suite that **showed** a real edit window and saved through its controller:
+
+- **A shared fixture object that the framework adopts.** Some model constructors keep the object you
+  pass as the record's live data. ExtJS `Ext.create(Model, obj)` stores `obj` as `record.data`, for
+  example. Every later `set()` or form write-back then mutates the fixture. After one spec unticks a
+  flag in a shared `TODAY = {…}` literal, a later spec that opens `TODAY` sees it unticked. That spec
+  fails only when it runs after the mutating one, and its own assertion looks like a product bug.
+  **Clone per use** (`Object.assign({}, obj)`, or a fixture factory function), not per file.
+- **An orphan component with global listeners.** A helper creates a component without an owner, such
+  as a load mask with `target:` and no parent. Showing it once registers **global** hierarchy
+  listeners (`show` / `hide`). Destroying the host window does not destroy the orphan. The next
+  `show()` anywhere in the page calls into the dead component and throws, for example `Cannot read
+  properties of null`, in whichever spec opens a window next. This is a **real production bug**, not a
+  harness artefact: the same sequence throws in the app. The suite only reaches it because the new
+  file is the first to render the helper. Fix the helper's destroy path and pin it with a
+  create → show → destroy → show-another row.
+- **Navigation state pushed by a success path.** A save handler that closes its window can push a
+  route or hash (`History.add(…)`, `router.navigate(…)`). Tearing down with `destroy()` does not help
+  here, because the *product* code closed the window. Later specs create controllers whose routes
+  match that hash, and those close their own windows on creation. **Spy on the navigation call** in
+  every spec that drives a save to success, and assert it fired where the behaviour includes it.
+
 ## Diagnosis that works
 
 1. **A/B the suite with and without the new file**, several runs each. Build a throwaway copy of the
@@ -44,7 +70,14 @@ Two properties make this class expensive:
    harness. Expect the describe-level bisect to name one block and the it-level bisect to name
    *nothing* — that is the "two or more artefacts" signature. If one row reproduces it alone, it is a
    plain teardown bug, not this class.
-4. **Name the artefact by reading the block's success path** — the call that produces something the
+4. **For a thrown error, list the survivors and lengthen the stack.** A failure that is an exception
+   (not a wrong value) is usually an orphan. After a full run, list the live components whose owner or
+   target is destroyed: in ExtJS, `Ext.ComponentManager.getAll().filter(c => c.target && c.target.destroyed)`.
+   In a **local, uncommitted** copy of the harness page, raise `Error.stackTraceLimit` (V8 cuts stacks
+   at 10 frames, which usually ends inside the framework's event dispatch), and have the reporter
+   print each failed expectation's `stack`. The frame that names *your* file shows which `show()` fired
+   into the orphan. The survivor listing shows who created it.
+5. **Name the artefact by reading the block's success path** — the call that produces something the
    component does not own (`toast(…)`, `MessageBox.wait(…)`, `Msg.show(…)`, a `focus()`, a
    `scrollIntoView`). The framework's own action pipeline is a common source: a form-submit helper
    that shows a wait box before the request, a success handler that toasts.
@@ -70,3 +103,7 @@ Two properties make this class expensive:
   between attempts.
 - ❌ Stubbing the artefact without asserting it fired.
 - ❌ Disabling random order in the real harness to make the suite stable.
+- ❌ Sharing one fixture literal across specs when the framework keeps the passed object as live
+  record state.
+- ❌ Stubbing the thrown error away in the harness when the orphan also exists in production. Fix the
+  component's destroy path.
