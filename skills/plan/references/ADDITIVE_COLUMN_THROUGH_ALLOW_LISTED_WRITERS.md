@@ -60,6 +60,20 @@ part; the work is the set of gates the value must pass on every path, and each o
    either reached by a fixture you can build (a task row copied through a temporary table, a token read
    from the join) or stands on a source pin **plus** the shared-sink argument from rule 3. Say which
    in the transcript, per probe; a human-only residue is a recorded follow-up, not a gate.
+10. **A derived rule in a model hook is a direct write that bypasses the unknown-column filter.** On a
+    staggered per-tenant migration, a guarded-list ORM (Eloquent `$guarded`: `isGuarded()` consults
+    the column listing) silently **drops** a mass-assigned key naming a column the tenant lacks. The
+    owner's contract may predict "the save fails with *Unknown column*", but a ticked box instead
+    vanishes at HTTP 201. The tempting place for a derived rule ("flag off ⇒ clear the window") is the
+    model's `fill()` / save hook, as `$this->column = null`. That is a **direct attribute set**: it never
+    passes the filter, so on an un-migrated tenant the `INSERT` / `UPDATE` names the absent column and
+    the "fix" creates the 500 the silent drop was hiding. The hook also runs from every constructor
+    and every caller, not just the endpoint that knows the tenant's schema. Put derived rules in the
+    endpoint's pre-write decision instead. Emit their keys into the payload **only when the columns
+    are provisioned**, and characterise the un-migrated behaviour live at step 0 (one request with the
+    columns absent) before any text claims 1054 or silence. Field case: the capture proposed exactly
+    that `fill()` rule, the plan caught it, and the step-0 probe measured the silent 201 the owner had
+    written up as 1054.
 
 ## Why this is a plan-stage rule
 

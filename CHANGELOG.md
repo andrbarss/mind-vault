@@ -12,9 +12,9 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
-## v4.6.86 — compound: your own note's predictions are hypotheses too; assert the whole write path; three non-visual cross-spec leaks
+## v4.6.87 — compound: your own note's predictions are hypotheses too; assert the whole write path; three non-visual cross-spec leaks
 
-Single-PR section. Provenance is on this paragraph (2026-09-24). Routed from a downstream ExtJS admin UI that consumed a sibling API's plan-stage contract for a "tonight only" promo flag:
+Single-PR section. Provenance is on this paragraph (2026-09-24). Renumbered from v4.6.86 at the forward-sync: PR #92 took that number first. Routed from a downstream ExtJS admin UI that consumed a sibling API's plan-stage contract for a "tonight only" promo flag:
 
 - The consumer's note to the producer carried an architect's SDK prediction about the consumer's own client. The producer adopted it verbatim, and one spec at `/work` showed it was false.
 - A create-only writer transform was invisible to the per-record serializer shortcut that every sibling spec used.
@@ -30,6 +30,43 @@ Single-PR section. Provenance is on this paragraph (2026-09-24). Routed from a d
   - A diagnosis step for thrown errors: list the survivors whose target is destroyed, and raise `Error.stackTraceLimit` in a local harness copy.
   - Two anti-patterns.
 - `skills/plan/SKILL.md`, `skills/work/SKILL.md` — reference pointers.
+
+## v4.6.86 — compound: a version number is a claim other open PRs hold; a narrowed refusal makes its state reachable; a model hook bypasses the column filter; planning mutations finds second producers
+
+Single-PR section; provenance on this paragraph (2026-09-24). Routed from a downstream PHP admin API
+that added the write side of a "tonight only, inside a clock window" promo flag: an owner-mirrored
+contract, a pure pre-write decision on the merged row, an un-migrated-tenant degrade, and a wrap
+whose per-PR minor bump collided with a concurrently open PR's claim.
+
+### Added
+
+- `skills/wrap/references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md` — Step 4b addendum:
+  - read every open PR's version claim before bumping; a number another open PR holds is taken, even
+    under "bump without asking" policy;
+  - write the merge-order dependency into both PRs;
+  - when the human merges out of order, the late PR resolves it: the version never goes backwards and
+    its section slots below.
+
+### Changed
+
+- `skills/plan/references/STRICTER_WRITER_NEEDS_A_CLIENT_EXIT.md` — § "Narrowing a refusal makes its
+  state reachable":
+  - once a merged-row refusal is narrowed to avoid a lock-out, every later rule reads the reader's
+    *effective* value (flag AND type), or the dead state the rule existed to block sails through;
+  - narrow to the transition that can strand a live value (a move *away from* the honouring type), and
+    document the reverse move;
+  - one new anti-pattern.
+- `skills/plan/references/ADDITIVE_COLUMN_THROUGH_ALLOW_LISTED_WRITERS.md` — rule 10: a derived rule in
+  a model's `fill()` / save hook is a direct attribute set that bypasses a guarded-list ORM's
+  unknown-column filter. On an un-migrated tenant it names the absent column, and the "fix" creates the
+  500 that the silent drop was hiding. Put derived rules in the pre-write decision, emitted only when
+  provisioned, and characterise the un-migrated behaviour live at step 0.
+- `skills/work/references/MUTATION_PASS_DISCIPLINE.md` — § "Planning the mutations finds second
+  producers":
+  - the storage as the second producer (a `TIME` column pads what the normaliser pads);
+  - a fixture that gives the guard nothing to act on (use a partial tenant);
+  - impossible "reported together" rows replaced by never-co-occur pins.
+- `skills/wrap/SKILL.md` — Step 4b pointer + References entry.
 
 ## v4.6.85 — compound: a state watch on a shared checkout; the narrowest channel bounds the rule; one predicate behind N compares; a host-only test failure is in scope
 

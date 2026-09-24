@@ -84,8 +84,46 @@ the same prose drift within a sprint. The shape that held:
 The consumer then codes against the delta and re-reads it at the end of its own `/work`
 (`CONTRACT_CONSUMER_DISCIPLINE`), which is one file, not a diff of two.
 
+## Narrowing a refusal makes its state reachable: decide the rest on the reader's effective value
+
+The usual exit from a merged-row lock-out is to narrow the refusal. It then fires only when the
+request *touches* the offending state (posts the flag, changes the type), not on every save that
+merely carries it. That is correct, but it has a consequence the rule's author rarely writes down.
+The refusal was what made the state **impossible**, and every later rule in the pipeline was written
+against a world that did not contain it. Narrowing makes the state **reachable**. Rules downstream of
+the refusal now meet inputs they never decided, and a literal reading of their text usually waves
+the state through.
+
+Field case: an owner's contract said *flag = 1 with type ≠ interval → 400*, and *the date pair is
+required when the flag is 0; not required for interval with the flag on*. The consumer narrowed the
+first rule to fire only on a posted flag or a changed type, because a flag stored by SQL on another
+type is inert to every reader and the form hid the checkbox there. That was a lock-out avoided.
+Consider a `weekdays` row carrying an inert flag 1 and an empty date pair. Read literally, "required
+when the flag is 0" does not fire, so the row saves. That row is a **dead offer**, which is exactly
+what the date rule existed to block. The architect review caught it before any code existed.
+
+**The rule.** When a refusal is narrowed, every later rule reads the **effective** value: the value
+the readers act on, as the owner's reader-tolerance rules define it. Here that was `flag = 1 AND
+type = interval`, not the stored flag. An inert value behaves as its default for the rest of the
+pipeline:
+- the derived clears run;
+- the rules that only apply when the value is live are skipped;
+- the rules that apply when it is off, apply.
+
+Write a state row for it in the consumer contract (flag stored on another type, request touches
+neither → treated as off). Put the paste-ready rewording in the owed-back list: the owner's text was
+written for a world the narrowing changed.
+
+Then check the narrowing itself for the next lock-out it leaves. "Fires on a *changed* type" still
+refused a move between two *other* types over an inert flag, which keeps it inert: the same lock-out
+one step over. Narrow to the transition that can actually strand a live value (a move **away from**
+the one type that honours it). Test both directions, and document the reverse move, which *activates*
+an inert value without the request posting it.
+
 ## Anti-patterns
 
+- ❌ Narrowing a refusal and leaving every later rule reading the raw stored value — the state the
+  refusal used to forbid now sails through rules written as if it could not exist.
 - ❌ "One rule, no carve-outs" declared without asking how a client escapes the refused state — the
   rule is clean on the writer and a lock on the consumer.
 - ❌ A seed rule that handles editable rows and forgets the disabled ones — the disabled rows are
