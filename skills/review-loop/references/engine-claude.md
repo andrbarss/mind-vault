@@ -510,3 +510,21 @@ them in the source.
   whose name lied about its unit, and a fix whose recovery path was defeated by an outer lock. The
   review of the *fix commit* found the second; budget for it on money paths.
 
+## § calibration update — whether a fix push is reviewed is not predictable; the docs pass is the explicit retrigger (downstream PHP project, 2026-09-24)
+
+Same workflow, a schema + cron PR. The un-draft run reviewed in ~8 minutes and posted a clean summary.
+A code-fix push afterwards **skipped** (~90 s, nothing posted; `claude_retrigger.sh` produced the
+verdict). A later test-fix push — a test file plus two docs — got a **full** push-side review (~11
+minutes, "## Code review … No issues found", its own suite and drift output). The docs-only wrap push
+skipped again (every step `conclusion=skipped`, 90 s), and `claude_retrigger.sh` on that head produced
+the docs-pass verdict in 2.5 minutes as a task-format comment edited in place.
+
+- **Do not predict the skip; read the timestamps.** Neither "fix pushes skip after the first review"
+  nor "code pushes are reviewed" held across one PR. The only reliable read is the one already in this
+  file: a summary whose time post-dates the head commit is a verdict for that head; none ⇒ retrigger.
+- **The docs pass of a doc-heavy PR is always the explicit retrigger.** A wrap push carries no code, so
+  budget one `claude_retrigger.sh` for pass 2 of the chain; the run reviews the code again as well
+  (it re-ran the suite and the generator), so the verdict covers the merged shape.
+- **Read the mention-path comment by `updated_at`, not `created_at`.** The tracking comment is
+  created within seconds of the trigger and edited in place with the verdict minutes later; a filter
+  on creation time after the trigger finds nothing and reads as "still running".
