@@ -47,6 +47,31 @@ disarmed guard behind a green suite.
   after the pass, and clean with a delete constrained by the defect's own signature (for example,
   rows whose parent and target are *both* missing), never a blanket truncate of shared data.
 
+## Planning the mutations finds second producers before any run
+
+Write each mutation down *with the row you expect it to turn red* before running anything. The act
+of naming that row is itself a review, and two gaps it exposes are not in the usual list:
+
+- **The storage is the second producer.** A normaliser that pads `"10:00"` to `"10:00:00"` cannot be
+  pinned at the database, because a `TIME` column pads the same text on insert. Likewise "build the
+  model from the decision's payload, not the raw body" cannot be pinned through a field the column
+  coerces anyway. Field case: the mutation "create from the raw body" had **no** HTTP row that could
+  see it. Planning it produced the two rows that could: a derived clear (flag off + lone time ⇒ no
+  time stored) and a key the payload must *unset* (a JSON `null` on a `NOT NULL` column). The
+  mutation then went red on exactly those two. Pin a normaliser at its own return value. Pin the
+  wiring with an input whose raw and normalised forms land **differently** in storage.
+- **The fixture gives the guard nothing to act on.** A guard that skips a derived write on an
+  un-migrated tenant was "pinned" by a test whose stored row had no value to clear. So removing the
+  guard produced the same payload, and the test could not fail. It was found by an independent review
+  lens, which planned the mutation that the author's own plan never listed. When a guard's effect is
+  "do not emit X", the fixture must hold the value X would be derived from. For a per-column schema
+  guard, use a **partial** tenant as well: there the framework keeps one column's write and drops the
+  other's, so a missing guard corrupts data instead of 500ing.
+
+Planning also catches **impossible rows**. A plan that promised "error A and error B are reported
+together" asked for a row that could not exist: A needs the flag on, B needs it off. Replace such a
+row with a pin that they never co-occur.
+
 ## A survivor is a question — three answers met in the field
 
 - **An equivalent mutant.** Removing a registry-presence guard in front of a call already wrapped in a

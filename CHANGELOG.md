@@ -12,6 +12,43 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.86 — compound: a version number is a claim other open PRs hold; a narrowed refusal makes its state reachable; a model hook bypasses the column filter; planning mutations finds second producers
+
+Single-PR section; provenance on this paragraph (2026-09-24). Routed from a downstream PHP admin API
+that added the write side of a "tonight only, inside a clock window" promo flag: an owner-mirrored
+contract, a pure pre-write decision on the merged row, an un-migrated-tenant degrade, and a wrap
+whose per-PR minor bump collided with a concurrently open PR's claim.
+
+### Added
+
+- `skills/wrap/references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md` — Step 4b addendum:
+  - read every open PR's version claim before bumping; a number another open PR holds is taken, even
+    under "bump without asking" policy;
+  - write the merge-order dependency into both PRs;
+  - when the human merges out of order, the late PR resolves it: the version never goes backwards and
+    its section slots below.
+
+### Changed
+
+- `skills/plan/references/STRICTER_WRITER_NEEDS_A_CLIENT_EXIT.md` — § "Narrowing a refusal makes its
+  state reachable":
+  - once a merged-row refusal is narrowed to avoid a lock-out, every later rule reads the reader's
+    *effective* value (flag AND type), or the dead state the rule existed to block sails through;
+  - narrow to the transition that can strand a live value (a move *away from* the honouring type), and
+    document the reverse move;
+  - one new anti-pattern.
+- `skills/plan/references/ADDITIVE_COLUMN_THROUGH_ALLOW_LISTED_WRITERS.md` — rule 10: a derived rule in
+  a model's `fill()` / save hook is a direct attribute set that bypasses a guarded-list ORM's
+  unknown-column filter. On an un-migrated tenant it names the absent column, and the "fix" creates the
+  500 that the silent drop was hiding. Put derived rules in the pre-write decision, emitted only when
+  provisioned, and characterise the un-migrated behaviour live at step 0.
+- `skills/work/references/MUTATION_PASS_DISCIPLINE.md` — § "Planning the mutations finds second
+  producers":
+  - the storage as the second producer (a `TIME` column pads what the normaliser pads);
+  - a fixture that gives the guard nothing to act on (use a partial tenant);
+  - impossible "reported together" rows replaced by never-co-occur pins.
+- `skills/wrap/SKILL.md` — Step 4b pointer + References entry.
+
 ## v4.6.85 — compound: a state watch on a shared checkout; the narrowest channel bounds the rule; one predicate behind N compares; a host-only test failure is in scope
 
 Single-PR section; provenance on this paragraph (2026-09-24). Routed from a downstream PHP booking project adding a "tonight only, inside a clock window" promo rule: the rule reaches a storefront and two OTA exports, and the exports price each date as a one-night stay — the whole-stay variant drafted at plan time had no representation there and was removed everywhere; the boundaries needed a per-minute watch whose first draft kept its state in a file on a multi-tenant checkout (architect 🔴), then a per-tenant compare-and-set table whose effects had no isolation (independent review); six inline date compares became one predicate whose legacy branch keeps `strtotime(null)` = epoch; and a two-case suite failure reported as a "host artefact" for three cycles turned out to be a test capturing a deprecation the host logs and CI masks.
