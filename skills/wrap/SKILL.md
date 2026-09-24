@@ -304,7 +304,7 @@ If `VER_SOURCE=none`, skip this step entirely — the project doesn't publish a 
 
 **Mechanics when a bump is warranted:**
 
-1. **Confirm with the user** before editing the version source — show the proposed new version + headline rationale linking back to which bump-trigger criterion fired. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready", semver `2.3.0`, etc.). **Never decide the number autonomously** — projects have policy on minor-vs-major calls that an outside agent doesn't know.
+1. **Confirm with the user** before editing the version source — show the proposed new version + headline rationale linking back to which bump-trigger criterion fired. The user picks the version number (`v4.1`, `v5`, named milestone like "Cross-platform-ready", semver `2.3.0`, etc.). **Never decide the number autonomously** — projects have policy on minor-vs-major calls that an outside agent doesn't know. **Read every open PR's version claim first** — a number another open PR already holds is taken, even when history says "bump without asking"; see [`references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md`](references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md) (incl. the out-of-order-merge resolution).
 2. **Update the version source** detected above:
     - `VERSION` file → single-line replace
     - `pyproject.toml` / `package.json` / `Cargo.toml` → in-place version-field edit
@@ -410,6 +410,7 @@ The HITL gate is *protected-branch* merge, not *every* merge; the gate stays exa
 
 ## References
 
+- [`references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md`](references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md) — Step 4b addendum: read every open PR's version claim before bumping (a held number is taken), write the merge-order dependency into both PRs, and resolve an out-of-order human merge on the late PR (version never goes backwards; its section slots below).
 - [`references/PRE_WRAP_FORWARD_SYNC.md`](references/PRE_WRAP_FORWARD_SYNC.md) — Step 1 addendum: forward-merge the default branch before editing shared docs (index / devlog / CLAUDE.md), keep-both resolution in ship order, re-check `mergeable` after the final push, and the parallel-module-missed-this-IDEA's-convention scan.
 - [`references/IDEA_COMPLETENESS_AUDIT.md`](references/IDEA_COMPLETENESS_AUDIT.md) — Step 2 pre-condition: walk plan acceptance criteria before flipping `status: complete`. ⚠️ marker for unmet criteria, phase-tracking frontmatter (`phase_N_completed:` + `completed:`), worked premature-wrap precedent.
 - [`references/WORKTREE_TEARDOWN.md`](references/WORKTREE_TEARDOWN.md) — Step 5 mechanics: destructive teardown sequence, per-file evaluation when `git worktree remove` refuses, last-of-batch integration cleanup for sprint-auto v3.1 batches.
