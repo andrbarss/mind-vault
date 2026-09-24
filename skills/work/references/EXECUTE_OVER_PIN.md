@@ -220,6 +220,31 @@ reported 21 pins where `grep -o | wc -l` finds 24 on 21 lines; multi-url asserti
 per line, and fixtures that merely *contain* the literal (an exception message that must never be
 logged) are not pins and must not gain the suffix. Write the number the way you counted it.
 
+## One predicate behind N inline compares — the legacy branch is the legacy expression, and every legacy form gets its own row
+
+When a rule is added to a compare that exists at several sites (a date-range test copied six times
+into a pricing model), the right move is one pure predicate the sites delegate to, with no signature
+change and an injectable clock. Three things make the refactor byte-identical rather than "equivalent":
+
+- **The legacy branch evaluates the legacy expression, quirks included.** `date('Y-m-d',
+  strtotime($v))` on a `NULL` bound is `1970-01-01` (`strtotime(null)` → `false` → epoch); a
+  cleaner rewrite that treats `NULL` as "no bound" changes which rows discount. Reproduce the old
+  form exactly and pin the `NULL` row in the truth table.
+- **A missing column is the legacy branch.** `($row['flag'] ?? 0) != 1` — new code reaches a tenant
+  before its schema on a per-tenant-migrated fleet; the un-migrated shape must price as before, not
+  warn. Prove it by `cmp` against captures taken *before* the migration, and once more with the
+  migration rolled back.
+- **When two legacy sites used different forms, find the row where they disagree and pin it
+  separately.** Five sites went through `strtotime`, one compared the raw `DATE` text; the truth
+  tables agree everywhere except a stay date equal to the epoch itself. Folding both into one
+  predicate silently picks one form for that row — say which, in a test named for the disagreement,
+  so the choice is a decision and not a regression found later.
+
+Then the executed half: the truth table over the predicate (every branch of the new rule, the `NULL`
+row, the malformed-input row that must fail closed), source pins that each site calls the predicate
+and no longer carries the inline form (count the occurrences of the old expression: zero), and one
+live row per surface (a quote, a per-cell calendar, a listing) with the flag on and off.
+
 ## Related
 
 - `agents/AGENT_test-engineer.md` PASS 2 — the reviewer-side bullet that points here.

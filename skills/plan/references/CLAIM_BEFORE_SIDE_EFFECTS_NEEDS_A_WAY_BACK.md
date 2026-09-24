@@ -68,6 +68,9 @@ minimum.
 
 - [`COMPARE_AND_SET_GUARD_SCOPE.md`](COMPARE_AND_SET_GUARD_SCOPE.md) — the claim itself: guard
   scope, rows changed vs matched, hooks fired by key.
+- [`STATE_WATCH_ON_A_SHARED_CHECKOUT.md`](STATE_WATCH_ON_A_SHARED_CHECKOUT.md) — the fan-out variant:
+  a periodic watch whose claim gates several independent effects — isolate each effect, restore only
+  a claim whose effects never started, name each effect's own fallback instead of a release.
 - [`REVERSIBLE_EXPIRY_ON_TWO_PHASE_HOLDS.md`](REVERSIBLE_EXPIRY_ON_TWO_PHASE_HOLDS.md) — the
   marker-conditional single-statement un-cancel: the same "undo only the bare state" shape.
 - [`../../work/references/EXECUTE_OVER_PIN.md`](../../work/references/EXECUTE_OVER_PIN.md) — why
