@@ -227,3 +227,19 @@ after un-draft). The two lenses on the same SHA, launched while the engine ran:
 Calibration for the push-triggered engine: CLEAN on the un-draft run (first full diff), CLEAN again on
 the fix push *and* on the explicit retrigger, which also confirmed the fix by name. Every finding that
 changed the code came from the independent pass.
+
+## Sending a stored flag outward: the engine read each call alone
+
+A sixth field case (a mid-size PR sending a stored consent flag to an external system on three
+calls). The engine was CLEAN on three full reviews. The two lenses, run while the engine ran and
+again on the fix increment, found three MEDIUM consent-sync defects, and **each lived between two
+calls, not inside one**:
+- the booking copy and the person copy of the same answer fed different calls, so a withdrawal at
+  check-in was undone by the next booking update;
+- an admin edit wrote only the booking copy;
+- a multi-booking cart kept a stale answer on the sibling.
+
+The engine reviewed each call site correctly in isolation. For a PR that pushes one value through
+several outbound calls, tell the correctness lens to draw the value's **sources × calls** table and
+ask whether any two calls can disagree. See `skills/plan/references/LOCAL_FLAG_INTO_AN_EXTERNAL_RECORD.md`.
+

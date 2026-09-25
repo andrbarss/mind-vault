@@ -12,6 +12,20 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.89 — compound: a local flag pushed into an external record — a default is not an answer, one field needs one source
+
+Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project that started sending a stored marketing-consent flag to an external property-management system on its create, update and guest-save calls. The plan's review and the independent lenses found the traps; the push-triggered engine passed all of them.
+
+### Added
+
+- `skills/plan/references/LOCAL_FLAG_INTO_AN_EXTERNAL_RECORD.md`:
+  - A `NOT NULL DEFAULT` column cannot say "never asked": presence of the input is the signal, writers are classified as answer / default / copy, imported rows and non-answering paths send nothing, and an update call that re-sends the column wholesale makes the ambiguity immediate.
+  - One external field fed from two local copies (booking vs person) flips back and forth: one sink, latest answer wins, both directions, same-person siblings (same parent + same e-mail), executed rather than pinned.
+  - A lossy legacy writer becomes an external write: check the real client's form in its own repository.
+  - A six-step plan checklist.
+- `skills/plan/SKILL.md`: a References pointer to it.
+- `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md`: a sixth field case. Three consent-sync defects lived *between* outbound calls, and the engine read each call alone; give the correctness lens a sources × calls table.
+
 ## v4.6.88 — compound: a later scaffold must sort after every earlier one; a smoke must be able to fail
 
 Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project where a migration scaffold stamped `now` with an exact-path guard, so two scaffolds in one second applied in slug order: the outage order for a two-stem column change. The fix made the stamp monotonic. Its first smoke would have passed without the fix, so the smoke was redesigned to force the diverging condition.
