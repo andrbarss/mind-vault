@@ -68,6 +68,33 @@ never submitted, so that path never writes. A field that is absent from the form
 save, and would now clear the external record on every edit. The client usually lives in another
 repository; read it there before calling the risk real or cleared.
 
+## 4. Delivering a change later: a narrow call, only what moved, around the unchanged writer
+
+A second action changes the stored value after the external record exists (a checkout step, a
+profile save). Three choices keep that delivery safe:
+
+- **A narrow call, switched per consumer.** Re-sending the whole record through the generic "update"
+  call just to change one field re-pushes dates, prices and names, which may overwrite edits made on
+  the external side since. Prefer a field-specific call. When the external system is deployed per
+  customer and gains that call one instance at a time, gate it with a **per-consumer capability flag**
+  (default off). Follow the project's existing capability flags if it has them. The fallback with the
+  flag off is the wide call (or nothing); decide it with the owner and record what the wide call
+  re-sends.
+- **Only values that actually moved.** Snapshot the rows before the write, compare after, and send
+  only the changed ones. A repeated request (the client re-posts the same step) then sends nothing.
+  Record the one gap this leaves: a value that was stored but never sent, and that does not change,
+  is still not sent.
+- **Delivery-only around the unchanged writer.** When the owner says the action's own logic must not
+  change, add exactly two statements: a snapshot before the existing write branch, and the delivery
+  after it. Pin the original branch byte-identical. Put the loop in its own class with injected
+  collaborators (reload, sender factory, logger, a marker for queued work), so "delivery never breaks
+  the action" is **executed** in tests: a throwing reload, a throwing factory built once, `false`
+  results logged, a failing logger contained. The snapshot itself catches and returns null. Gate the
+  whole thing on the integration being active *before* any reload or sender construction, so other
+  tenants pay nothing.
+- Rows still waiting for their first registration are not sent now. Amend their queued task instead
+  (`AMEND_A_QUEUED_TASK_PAYLOAD.md`).
+
 ## Checklist for the plan
 
 1. List every writer of the column: answers / defaults / copies. Only answers cause a send.
@@ -78,3 +105,5 @@ repository; read it there before calling the risk real or cleared.
    byte-identical (generate the expected literal by running the **pre-change** code, not by hand).
 6. The residual default-vs-answer risk goes into the consumer's contract as a condition, and a
    nullable-column follow-up is filed.
+7. Later changes: a narrow call behind a per-consumer flag, only moved values, delivery-only around
+   the unchanged writer, queued first registrations amended rather than skipped.

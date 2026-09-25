@@ -12,6 +12,30 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.90 — compound: amending a queued task's payload; delivering a later change to an external record
+
+Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project whose checkout step started delivering a changed consent flag to an external system: by a narrow call behind a per-tenant capability flag for registered records, and by amending the queued registration task for records not yet registered. Review caught the ledger/adopt trap in the second path.
+
+### Added
+
+- `skills/plan/references/AMEND_A_QUEUED_TASK_PAYLOAD.md`:
+  - a compare-and-set on status **and** the whole payload, so a lost race cannot erase the worker's idempotency ledger;
+  - refuse a payload whose ledger makes the worker skip the stage that reads your key (a silent loss that looks delivered);
+  - the other read-modify-write writers are the residual race; name them;
+  - a second source of a presence-signal key changes its meaning;
+  - a plan checklist.
+- `skills/plan/SKILL.md`: a References pointer to it.
+
+### Changed
+
+- `skills/plan/references/LOCAL_FLAG_INTO_AN_EXTERNAL_RECORD.md`, a new § 4 and a checklist item. A later change is delivered:
+  - by a narrow call behind a per-consumer capability flag (the fallback decided with the owner);
+  - only for values that moved (a snapshot before, compare after);
+  - as delivery-only statements around the unchanged writer, with a never-break loop in an injected, executed class;
+  - with the integration gate checked before any reload.
+
+  Its pointer in `skills/plan/SKILL.md` says so.
+
 ## v4.6.89 — compound: a local flag pushed into an external record — a default is not an answer, one field needs one source
 
 Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project that started sending a stored marketing-consent flag to an external property-management system on its create, update and guest-save calls. The plan's review and the independent lenses found the traps; the push-triggered engine passed all of them.
