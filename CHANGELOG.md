@@ -12,6 +12,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.88 — compound: a later scaffold must sort after every earlier one; a smoke must be able to fail
+
+Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project where a migration scaffold stamped `now` with an exact-path guard, so two scaffolds in one second applied in slug order: the outage order for a two-stem column change. The fix made the stamp monotonic. Its first smoke would have passed without the fix, so the smoke was redesigned to force the diverging condition.
+
+### Added
+
+- `skills/plan/references/ORDERED_SCAFFOLD_TIMESTAMPS.md`:
+  - The rule: `max(now, greatest prefix on disk + 1 unit)` over every file that owns a prefix (up- and down-files), with the directory as the only state and only the current checkout visible.
+  - Calendar arithmetic in UTC.
+  - A round trip, not a `false` return, to validate a date parser that silently normalises impossible values.
+  - Parse only a prefix that can win.
+  - Announce the bump, don't refuse it; state accurately what the remaining exact-path guard still covers.
+  - PHP numeric-key coercion.
+  - A table of one discriminating test per wrong design, and the workaround for an unfixed helper.
+
+### Changed
+
+- `skills/work/references/MUTATION_PASS_DISCIPLINE.md` — new § A smoke must be able to fail:
+  - Force the diverging condition with a hand-placed fixture.
+  - Count a timing race only on the fix's own tell; otherwise it is inconclusive.
+  - Clean up by name.
+  - One new anti-pattern.
+- `skills/plan/references/ADDITIVE_COLUMN_THROUGH_A_WHOLESALE_COPY.md` — the scaffold bullet now names the monotonic fix and points at the new reference.
+- `skills/plan/SKILL.md`, `skills/work/SKILL.md` — reference pointers.
+
 ## v4.6.87 — compound: your own note's predictions are hypotheses too; assert the whole write path; three non-visual cross-spec leaks
 
 Single-PR section. Provenance is on this paragraph (2026-09-24). Renumbered from v4.6.86 at the forward-sync: PR #92 took that number first. Routed from a downstream ExtJS admin UI that consumed a sibling API's plan-stage contract for a "tonight only" promo flag:

@@ -32,8 +32,11 @@ a half-written parent, not a refused request.
   second with a per-*slug* collision guard gives two `create` calls inside one second the same prefix,
   and the runner then sorts by slug — possibly the outage order. Scaffold a full second apart, list the
   order before writing any SQL, and pin the order in a DB-free test (`strcmp` on the full stems, plus
-  the exact `ADD COLUMN` per table and the `DROP` per down-file). Then file the helper fix (bump the
-  timestamp when *any* stem shares the prefix) as its own idea.
+  the exact `ADD COLUMN` per table and the `DROP` per down-file). Then file the helper fix as its own
+  idea: a stamp of `max(now, greatest prefix on disk + 1 s)`, which makes scaffold order the apply
+  order. Once the scaffold is monotonic, scaffolding in apply order is enough, and the `strcmp` pin
+  still guards the committed pair. Mechanics in
+  [`ORDERED_SCAFFOLD_TIMESTAMPS.md`](ORDERED_SCAFFOLD_TIMESTAMPS.md).
 
 ## 2. Snapshot or join — and what NULL means on the copy
 
