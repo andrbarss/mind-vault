@@ -12,6 +12,32 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.91 — compound: an endpoint that a retrying queue calls — the status code is the retry instruction
+
+Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project
+that added a consent-only endpoint for a backend's async-HTTP queue. The queue counts 200 as done,
+never reads the body, and retries every other status with no practical limit. The plan's architect
+review found that the framework's own pre-dispatch paths (DB-down `die`, unknown action) answered 200
+and would have silently completed queued calls, and that a credential frozen in the queued URL turns a
+key rotation into an endless 403 loop.
+
+### Added
+
+- `skills/plan/references/ENDPOINT_BEHIND_A_RETRYING_QUEUE.md`:
+  - read the consumer's done / retry / give-up semantics from its code, per adapter;
+  - map every outcome to done or retry in one pure function: permanent → 200 + `success:0`,
+    retry-fixable → 403 / 5xx, unknown → 500;
+  - the pre-dispatch paths answer before the action does (unknown action, DB-down, top-level catch),
+    so deploy the consumer first, turn the switch off before a rollback, and make DB-down a 503;
+  - a credential in the queued URL is frozen at enqueue time, so a rotation needs a step to drain
+    or rewrite pending tasks;
+  - a swallowing helper must report its outcome;
+  - the residuals: terminal transport failure, serial-drain stalls, retried-older-value ordering,
+    several writers on one field;
+  - amend the house status rule with a general exemption;
+  - a plan checklist.
+- `skills/plan/SKILL.md`: a References pointer to it.
+
 ## v4.6.90 — compound: amending a queued task's payload; delivering a later change to an external record
 
 Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project whose checkout step started delivering a changed consent flag to an external system: by a narrow call behind a per-tenant capability flag for registered records, and by amending the queued registration task for records not yet registered. Review caught the ledger/adopt trap in the second path.
