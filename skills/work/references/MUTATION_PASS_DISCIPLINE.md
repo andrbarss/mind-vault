@@ -95,8 +95,29 @@ Write the verdict **after** reading the results. A commit script that ran the mu
 appended "all killed" to the verification guide put a false sentence on an open PR; the correction cost
 a commit and a billed review run. Generate the numbers, read them, then write prose.
 
+## A smoke must be able to fail — the same test for a manual walk
+
+A smoke or walk on the real command is a guard on the claim "the fix works". It has to be able to
+go red on the **unfixed** code, and a timing- or state-dependent smoke often can't.
+
+Field case: "run `create b && create a` in one second, and `b` sorts first" passes without the fix
+whenever the two process launches fall in different seconds. That's most of the time, since a CLI
+bootstrap can take longer than the gap. The listing order proves nothing on its own.
+
+- **Force the condition instead of hoping for it.** Hand-place the fixture that makes the fixed and
+  unfixed paths diverge: a stem dated a day ahead. The unfixed code then stamps `now` and sorts
+  *before* it, while the fixed code stamps future + 1. That result is deterministic and
+  discriminating. Date the fixture far enough ahead that a host/container time-zone difference
+  can't put it in the past.
+- **Keep the racy variant only as a bonus, and count it only on the fix's tell.** Here the tell is
+  the "bumped" notice. A run without the tell is *inconclusive*, not a pass. Record which one you
+  got.
+- **Clean up by name.** Remove exactly the files the walk created, never with a glob over a tracked
+  directory. Check the tracked tree with `git status -- <dir>`.
+
 ## Anti-patterns
 
+- ❌ A smoke that reads the same on the unfixed code (a timing race counted as a pass without the fix's tell).
 - ❌ Mutating uncommitted code, then restoring by hand.
 - ❌ Running the mutation script beside a staging command or another suite on the same database.
 - ❌ Counting a mutation as killed when every run died on the same error.
