@@ -12,6 +12,40 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.93 — compound: fix the branch that handles the missing row; placeholder rows in a listing
+
+Single-PR section. Provenance is on this paragraph (2026-09-28). Routed from a downstream PHP project
+where saving the first member of a record was refused with "limit is 1" while the record was not paid.
+The row is normally created on payment; without it the writer took its empty-list branch, which set a
+flag on the list it had just read and then counted that list. The first proposal, creating the row
+when the record is created, would have hidden the refusal and kept the defect. The defect was already
+in the backlog, filed from an earlier review.
+
+### Added
+
+- `skills/work/references/FIX_THE_BRANCH_FOR_THE_MISSING_ROW.md`:
+  - the shape: a late step creates the row, the writer's empty-list branch holds the defect;
+  - why guaranteeing the row is the wrong fix, and how to list where the late step does not run;
+  - finding it: a write to the collection that is about to be counted, the sibling writers, a grep of
+    the backlog for the message before further analysis;
+  - the fix: the flag on the payload after the allow-list filter, one shared limit check with `>=`;
+  - tests, what changes when the fix ships, and description sentences the fix makes false.
+- `skills/plan/references/PLACEHOLDER_ROWS_IN_A_LISTING.md`:
+  - a client posts back a placeholder's defaults as answers;
+  - a field with a source shows the source, under the sender's own "is this an answer" rule;
+  - read the column definition before describing `null`;
+  - the writer decides the flags, the listing only predicts them;
+  - fixtures use shapes the producer returns.
+- `skills/work/SKILL.md`, `skills/plan/SKILL.md`: a References pointer each.
+
+### Changed
+
+- `docs/rules/RULE_self-sweep-before-push-rationale.md`: a sixth staged-set tell — one unmatched
+  pathspec makes `git add` stage nothing, and an unchained `git commit` then ships only what `git mv`
+  had staged.
+- `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md`: an eighth field case — on a defect
+  fix with spec text the lenses found the false sentences beside the new one.
+
 ## v4.6.92 — compound: a defaulted option on a shared pipeline, hidden by a store-only-on-change gate
 
 Single-PR section. Provenance is on this paragraph (2026-09-28). Routed from a downstream PHP project

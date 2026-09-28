@@ -255,3 +255,23 @@ An engine reviews the diff. A defect that is an **absence in a file the diff doe
 what it reads. For a bug fix, give the correctness lens the question "which other callers of this
 function have the same defect?" whatever the size of the PR. See
 `skills/work/references/DEFAULTED_OPTION_ON_A_SHARED_PIPELINE.md`.
+
+## A defect fix with spec text: the lenses read the sentences beside the new one
+
+An eighth field case, about 100 lines of code with API description changes. The engine reviewed the
+final head and found nothing. The two lenses, run before it on the same diff, found no HIGH and:
+
+- **docs lens, MEDIUM:** a new description promised `null` "when there is no answer" for a field whose
+  column is `NOT NULL DEFAULT 0`; the sentence **next to** the added one described a hand-over to an
+  external system that the code never performs for the flagged row, which the fix had just made the
+  normal case; an archive sentence compared the behaviour to a sibling action that strips the
+  parameter in question.
+- **correctness lens, LOW:** the new value ignored an existing "is this an answer" rule that the
+  sending code applies; a test fixture used a shape the producer never returns; source pins did not
+  fix the order against an allow-list filter.
+
+What made the lenses effective: the prompt asked the docs lens to **confirm or refute each behaviour
+claim against the code, by file and line**, and listed the claims. Run the lenses while the PR is
+still a draft, fold the fixes into one commit, and mark the PR ready afterwards, so the engine's billed
+review is of the final head.
+
