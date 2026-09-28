@@ -243,3 +243,15 @@ The engine reviewed each call site correctly in isolation. For a PR that pushes 
 several outbound calls, tell the correctness lens to draw the value's **sources × calls** table and
 ask whether any two calls can disagree. See `skills/plan/references/LOCAL_FLAG_INTO_AN_EXTERNAL_RECORD.md`.
 
+## A one-line fix: the engine verified the fix it was shown, not the callers it was not
+
+A seventh field case, and the smallest: a one-line fix (an option set unconditionally in one caller of
+a shared calculation) with four tests. The engine was CLEAN on a full review and confirmed the root
+cause by its own trace. Both lenses, asked to walk **every caller path** into the calculation, found a
+second caller with the same omission behind a different action. The engine confirmed that one too, once
+it was in the diff.
+
+An engine reviews the diff. A defect that is an **absence in a file the diff does not touch** is outside
+what it reads. For a bug fix, give the correctness lens the question "which other callers of this
+function have the same defect?" whatever the size of the PR. See
+`skills/work/references/DEFAULTED_OPTION_ON_A_SHARED_PIPELINE.md`.

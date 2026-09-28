@@ -12,6 +12,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.92 — compound: a defaulted option on a shared pipeline, hidden by a store-only-on-change gate
+
+Single-PR section. Provenance is on this paragraph (2026-09-28). Routed from a downstream PHP project
+where a discount was applied when a booking was created and lost when the cart was re-priced, but only
+on products with a rate rule. The recalculating caller set a "not for display" option under a
+condition; the rate rule only made the wrong result storable. An independent review of the one-line fix
+found a second caller with the same omission.
+
+### Added
+
+- `skills/work/references/DEFAULTED_OPTION_ON_A_SHARED_PIPELINE.md`:
+  - the shape: an option defaulted for the display caller, omitted by a storing caller;
+  - why the defect shows "only with feature X": X opens the store-only-on-change gate;
+  - find it by listing every caller of the function, since a grep for the option name misses the
+    callers that omit it;
+  - fix all storing callers in one change and leave the default alone;
+  - tests: both inputs with the option set, the gate's deltas with it unset, a pin per caller;
+  - what changes when the fix ships: the gate opens, quotes include the rule.
+- `skills/work/SKILL.md`: a References pointer to it.
+
+### Changed
+
+- `skills/review-loop/references/LARGE_PR_INDEPENDENT_REVIEW.md`: a seventh field case — on a one-line
+  fix the engine verified the fix it was shown; the lenses found the sibling caller outside the diff.
+
 ## v4.6.91 — compound: an endpoint that a retrying queue calls — the status code is the retry instruction
 
 Single-PR section. Provenance is on this paragraph (2026-09-25). Routed from a downstream PHP project
