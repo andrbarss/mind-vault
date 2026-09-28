@@ -374,6 +374,25 @@ Then look at the file's content before deciding whether the history needs rewrit
 does, a routine script does not — and a force-push over an open PR needs the human's word first.
 Tell the human either way; the branch carries an add / remove pair a squash merge hides.
 
+### Sixth tell — one unmatched pathspec and `git add` stages nothing
+
+`git add a b c old-path` is all-or-nothing on pathspec errors: when `old-path` no longer matches
+(the file was moved with `git mv` and the list still names the old location), git prints
+`fatal: pathspec '…' did not match any files` and stages **none** of `a`, `b`, `c` either. The index
+keeps only what was staged before, here the rename from `git mv`.
+
+Field case: a wrap commit listed seven paths, one of them the pre-move path of the idea file. The
+`add` failed, the following `git commit` ran anyway (the two were separate statements, not an `&&`
+chain), and the commit carried one file: the rename at 100 %. Six edited and new files stayed in the
+working tree, and the push published a wrap that was only a move.
+
+- The tell is the second one above (a 100 % rename on a file that was edited) **plus** a stat line far
+  shorter than intended: 1 file where 7 were meant.
+- Chain `git add … && git commit …`, so that a failed add stops the commit.
+- After `git mv`, name the **directory** or the new path in the add list. Never the old path.
+- Recovery on a branch with an open PR: a follow-up commit with the missing files. An amend needs a
+  force-push, which invalidates review threads.
+
 ## Relationship to Other Rules
 
 - [`RULE_git-safety`](../../rules/RULE_git-safety.md) — the sweep runs on the feature branch before push; doesn't change branch policy.
