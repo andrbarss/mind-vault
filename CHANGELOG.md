@@ -12,6 +12,46 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.94 — compound: a preview before the record exists; the default branch as a live "before"; user text into a renderer; a fallback that hides the branch
+
+Single-PR section. Provenance is on this paragraph (2026-09-29). Routed from a downstream PHP project
+that added previews of a document for a record not created yet. The preview runs the creators' own
+code, extracted from three legacy actions, the model's save and the reader. The independent review of
+that work found that the bundled PDF library evaluated the parameters of one of its tags as code and
+that a request value reached a query between hand-made quotes; both predate the work. A verification
+claim ("drawn with the tenant's own templates") turned out to describe a fallback.
+
+### Added
+
+- `skills/plan/references/PREVIEW_BEFORE_CREATE.md`:
+  - what is stored is not what was sent: the creator's preparation, the save's mapping, the
+    database's coercion;
+  - four shared pieces: a builder the creator and the preview call, the entry → row mapping, a
+    read-back coercion from the column definitions, the reader's renderer;
+  - owner decisions first: the gate, the contract as a list of what reaches the builder, what stands
+    in for values that exist later;
+  - traps: a mode flag in moved code, the shape of a refusal, a helper written from memory of the
+    framework, a record type derived from a link row, a getter that computes;
+  - verification: against the record created from the same request, with every switch that makes a
+    value visible.
+- `skills/work/references/LIVE_BEFORE_ORACLE.md`:
+  - two stacks over one database, one request to both, answers and stored rows compared;
+  - conditions, restoring fixtures from values written down first, never flushing a shared store;
+  - what the oracle cannot show; comparing documents by page raster;
+  - the throwaway container before "not verified", and the defect such a walk found.
+- `skills/work/references/FALLBACK_HIDES_THE_BRANCH.md`:
+  - a fixture that names a template whose file does not exist is drawn by the default, on both sides
+    of the comparison;
+  - check the precondition, make the branch's result differ from the fallback's, count what was
+    covered;
+  - wording evidence as what happened; the silent and the loud file test in one choice.
+- `skills/review-loop/references/USER_TEXT_INTO_A_RENDERER.md`:
+  - the question for the correctness lens, and a proof that carries no parameters;
+  - what to read in the library; closing it in the library and at the one shared entry;
+  - every copy of the library, and the deploy check for a copy outside the repository;
+  - saying what was not examined.
+- `skills/plan/SKILL.md`, `skills/work/SKILL.md`, `skills/review-loop/SKILL.md`: References pointers.
+
 ## v4.6.93 — compound: fix the branch that handles the missing row; placeholder rows in a listing
 
 Single-PR section. Provenance is on this paragraph (2026-09-28). Routed from a downstream PHP project
