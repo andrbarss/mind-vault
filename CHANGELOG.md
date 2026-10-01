@@ -12,6 +12,42 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.95 — compound: re-check, outbound call, guarded write — the two-writer race when an adapter reads the state
+
+Single-PR section. Provenance is on this paragraph (2026-10-01). Routed from a downstream PHP project
+whose expiry cron and payment callback both read a reservation's state, made a slow call to the
+property-management system and then wrote the state by key — a paid reservation ended cancelled.
+The claim-first draft was rejected in architect review: one of six adapters re-read the table with
+`state != cancelled` and would have left a one-room booking live and cancelled a two-room booking
+whole. The shipped design keeps the order and brackets the call. The independent review then found
+the guard on "the status as read" too narrow and a protection that could fail the payment it
+protected.
+
+### Added
+
+- `skills/plan/references/RECHECK_OUTBOUND_GUARDED_WRITE.md`:
+  - the three interleavings, two of them silent, and why an idempotency lock does not help;
+  - audit every adapter of the outbound call for reads of the claimed column before moving the
+    write, and the windows a claim adds (a dead process strands the row; a refusal during a
+    confirmation un-cancels it after the charge);
+  - the order when an adapter reads: re-check with the whole candidate predicate, one guarded
+    write, a classified miss that is never retried and is reported with the external id, the hook
+    by key, no elapsed condition in the write;
+  - guard on the set of states the decision admits, built before the call, tested against the
+    pure eligibility predicate;
+  - the confirmer's hold: written on every clock that judges the column, from the sweeper's own
+    configuration key (check the model can read it), failing open inside a payment path, past any
+    event hook; name the confirmers that take no hold;
+  - the walk: a scripted outbound call that changes the row mid-call, the default branch as the
+    "before", fixtures below the auto-increment, delete-trigger logs, never the sweeper action on a
+    shared database.
+- `skills/plan/SKILL.md`: References pointer.
+
+### Changed
+
+- `skills/plan/references/CLAIM_BEFORE_SIDE_EFFECTS_NEEDS_A_WAY_BACK.md`: the adapter audit is a
+  precondition of the move, with the pointer to the alternative.
+
 ## v4.6.94 — compound: a preview before the record exists; the default branch as a live "before"; user text into a renderer; a fallback that hides the branch
 
 Single-PR section. Provenance is on this paragraph (2026-09-29). Routed from a downstream PHP project

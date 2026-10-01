@@ -21,6 +21,14 @@ makes it a no-op. The retry cannot repair what it is not allowed to enter. Compa
 orderings honestly in the plan: *better* (race, duplicate A), *same* (a crash after the state
 write was always unrecoverable), *worse* (the unrecoverable window now includes A).
 
+**Audit the gated call's adapters first.** The move is only available when nothing the outbound
+call dispatches to reads the column the claim changes. An adapter that re-reads the table to decide
+what to send (`state != done AND external_id = ?` — "cancel the whole external record, or re-send
+the siblings to keep") sees the claimed row as already gone and does the wrong thing on every call,
+race or not. Grep every adapter before choosing; when one reads it, the design is
+[`RECHECK_OUTBOUND_GUARDED_WRITE.md`](RECHECK_OUTBOUND_GUARDED_WRITE.md) — today's order with a
+re-check before the call and a guarded write after it.
+
 ## The way back, in three parts
 
 1. **Release the claim when the first gated effect fails — guarded to the bare claim.** Restore
@@ -68,6 +76,9 @@ minimum.
 
 - [`COMPARE_AND_SET_GUARD_SCOPE.md`](COMPARE_AND_SET_GUARD_SCOPE.md) — the claim itself: guard
   scope, rows changed vs matched, hooks fired by key.
+- [`RECHECK_OUTBOUND_GUARDED_WRITE.md`](RECHECK_OUTBOUND_GUARDED_WRITE.md) — the alternative when
+  an adapter of the gated call reads the claimed column: re-check, call, guarded write, reported
+  miss.
 - [`STATE_WATCH_ON_A_SHARED_CHECKOUT.md`](STATE_WATCH_ON_A_SHARED_CHECKOUT.md) — the fan-out variant:
   a periodic watch whose claim gates several independent effects — isolate each effect, restore only
   a claim whose effects never started, name each effect's own fallback instead of a release.
