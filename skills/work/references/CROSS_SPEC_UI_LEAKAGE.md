@@ -31,11 +31,12 @@ Two properties make this class expensive:
    leak needs two or more rows of the same kind — so a per-`it` bisect that runs each row alone stays
    green and reads as "not this file".
 
-## Three non-visual shapes of the same class
+## Four non-visual shapes of the same class
 
 The leaked thing need not be visible. The signature is the same: random-order red in a file the new
-spec does not touch, and green when each row runs alone. These three turned up together in the first
-suite that **showed** a real edit window and saved through its controller:
+spec does not touch, and green when each row runs alone. The first three turned up together in the
+first suite that **showed** a real edit window and saved through its controller; the fourth is the
+one the "leftover toast" explanation was standing in for:
 
 - **A shared fixture object that the framework adopts.** Some model constructors keep the object you
   pass as the record's live data. ExtJS `Ext.create(Model, obj)` stores `obj` as `record.data`, for
@@ -56,6 +57,21 @@ suite that **showed** a real edit window and saved through its controller:
   here, because the *product* code closed the window. Later specs create controllers whose routes
   match that hash, and those close their own windows on creation. **Spy on the navigation call** in
   every spec that drives a save to success, and assert it fired where the behaviour includes it.
+- **A hidden component that still occupies layout flow.** On a harness page without the theme's
+  CSS, the framework's hidden / floating classes do nothing, so a singleton rendered once by any
+  spec (a message box behind a form's wait state, a tooltip layer, a notification host) sits
+  **in the document flow** at its full height and is never destroyed. Every later component renders
+  that much lower. A geometry-driven spec then fails only when such a spec ran first — and the
+  failing mechanism can be the framework's own: a drag pipeline that **autoscrolls the window** by a
+  fixed step whenever the pointer is near the viewport edge, while the spec dispatches *client*
+  coordinates and the framework reads *page* coordinates, so the drop lands one row off (`[7,5]` vs
+  `[5,7]` from a reorder that should have been `before`). Two refinements to the diagnosis: a
+  survivor listing filtered by *visibility* finds nothing — list `document.body`'s children by
+  `offsetHeight`; and a run that **passes** with the leftover present may be two errors cancelling
+  (an earlier step's leftover scroll offsetting the drift) — do not read a green run under the
+  suspect as "not the cause". Fix in the sensitive spec: switch the framework's autoscroll off for
+  the gesture (`dragZone.scroll = false` in ExtJS, beside the repair-animation neutralisation) and
+  compute any caller-supplied drop point *after* the scroll reset, never from a rect read earlier.
 
 ## Diagnosis that works
 
@@ -77,7 +93,14 @@ suite that **showed** a real edit window and saved through its controller:
    at 10 frames, which usually ends inside the framework's event dispatch), and have the reporter
    print each failed expectation's `stack`. The frame that names *your* file shows which `show()` fired
    into the orphan. The survivor listing shows who created it.
-5. **Name the artefact by reading the block's success path** — the call that produces something the
+5. **Replay by seed, not by rerun.** When the runner randomises order from a seed (Jasmine prints
+   `order.seed`; most runners expose one), record the seed of each failing run and replay it — a
+   true leak replays deterministically (5/5), and bisecting a *pinned* order is fast. To pin the
+   seed without editing the tracked harness page, serve the real page and rewrite it in flight
+   (Playwright `page.route` on the page URL, substituting the seed into the env configuration and
+   injecting the probe) — nothing in the repo moves, and the probe can record the executed order,
+   dump survivors after a chosen spec, and trace the framework pipeline with stacks.
+6. **Name the artefact by reading the block's success path** — the call that produces something the
    component does not own (`toast(…)`, `MessageBox.wait(…)`, `Msg.show(…)`, a `focus()`, a
    `scrollIntoView`). The framework's own action pipeline is a common source: a form-submit helper
    that shows a wait box before the request, a success handler that toasts.
@@ -107,3 +130,6 @@ suite that **showed** a real edit window and saved through its controller:
   record state.
 - ❌ Stubbing the thrown error away in the harness when the orphan also exists in production. Fix the
   component's destroy path.
+- ❌ Accepting the first plausible artefact (two toasts, a wait box) because stubbing it made the
+  suite green for a while — the general mechanism (anything in flow above a geometry spec) returns
+  with the next leftover; name the mechanism, not the instance.
