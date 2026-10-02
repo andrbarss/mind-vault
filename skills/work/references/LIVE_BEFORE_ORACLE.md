@@ -77,6 +77,23 @@ headers. The defect was live on the default branch; no test and no review had a 
 
 Write down what the container was given, so that the deploy check can ask the same of a server.
 
+- **Anything after an effect that only this environment makes throw.** When the code under test
+  ends with a side effect the walk environment cannot perform — a broadcast over an extension the
+  image lacks, a mail transport that is not there — and the change you are verifying moved work
+  *after* that effect, or wrapped the effect in a `try` whose catch frees a lock and rethrows, then
+  every HTTP row that asserts something *after* the effect is **phantom**: the request dies at the
+  effect, the block never runs, and the row reads the same on a correct and on a broken
+  implementation. (The predecessor's HTTP rows survived only because their assertions sat before
+  the effect.) Mirror the action statement by statement in the probe with the effect stubbed, and
+  keep the real HTTP rows for what they can show: the rows written before the effect, the lock the
+  catch freed. Say which side the row ran on.
+- **Fixture ids shared between the two stacks.** Both stacks read one database; a probe on each
+  side that allocates fixture ids from the same range makes an HTTP row on one side silently act on
+  a row the other side already finished (two rows once answered "idempotent" and "cart refused"
+  for the oracle's paid fixtures, and the insert that should have replaced them had failed without
+  a word). Give each side its own id range, HTTP rows included, and read the fixture helper's
+  answer before every row.
+
 ## Related
 
 - `EXECUTE_OVER_PIN.md` — when a source pin is not enough; § a second environment cloned from the
