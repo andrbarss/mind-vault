@@ -55,8 +55,9 @@ both forms (bare, and after the write-back) so the count is unchanged and the se
 Two traps when choosing the declaration:
 
 - **Do not type a decimal as a number when the UI accepts a decimal comma.** Number parsers strip
-  thousands separators: ExtJS `Number.parse` strips `,` and turns a typed `3,5` into `35` — a tenfold
-  silent error in a price. Keep the field as text and add an *empty ⇒ `null`* convert that returns
+  thousands separators: ExtJS's `Ext.data.field.Number` converts through
+  `parseFloat(String(v).replace(/[$,%]/g, ''))`, so a typed `3,5` becomes `35` — a tenfold silent
+  error in a price. Keep the field as text and add an *empty ⇒ `null`* convert that returns
   every non-empty value untouched (no trim, no cast — `0`, `'0'`, `'0.00'` are values).
 - **Do not retype an already-integer field as text** to unify the family; add `allowNull` (or the
   stack's equivalent) and leave the wire type as it was. Two declaration shapes in one family are
