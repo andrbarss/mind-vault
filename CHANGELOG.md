@@ -12,6 +12,35 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.97 — compound: the claim through the raw writer; the fatal nobody catches; after-effect phantom rows
+
+Single-PR section. Provenance is on this paragraph (2026-10-02). Routed from a PHP booking backend
+that turned its payment registration into a guarded claim (the payment side of the race the v4.6.95
+compound closed on the cancel side): the architect caught that a claim written through the model's
+stamping writer would be drained by the pull feed before the completion; the independent review
+caught that a fatal inside the PMS push runs no catch; the walk found that a broadcast the dev
+image cannot perform, once inside a widened `try`, made every "after it" HTTP row phantom, and a
+shared fixture id range made two HTTP rows act on the oracle's finished rows.
+
+### Added
+
+- `skills/plan/references/CLAIM_BEFORE_SIDE_EFFECTS_NEEDS_A_WAY_BACK.md` — two sections:
+  - **the claim must not travel through a stamping writer**: the raw writer, the state column only;
+    the amounts and the re-sync markers with the completion; why the split also keeps the
+    import-loop windows as they were and makes the bare claim recognisable without a schema change
+    (a stranded claim refuses the repeat loudly); a concurrent duplicate refused, a later one
+    idempotent; the idempotent arm's blind spot when the amount already matches; the post-update
+    event once, by key, after the completion;
+  - **the way back's third leg**: a shutdown release for claims in flight (registered once, behind a
+    seam), the kill from outside as the residual with its fingerprint and repair.
+- `skills/work/references/LIVE_BEFORE_ORACLE.md` § What the oracle cannot show — two entries: an
+  effect only the walk environment makes throw turns every "after it" HTTP row phantom (mirror the
+  action in the probe); fixture id ranges shared between the two stacks.
+
+### Changed
+
+- `skills/plan/SKILL.md`, `skills/work/SKILL.md` — the reference pointers name the new entries.
+
 ## v4.6.96 — compound: empty is a third state; the hidden singleton in layout flow
 
 Single-PR section. Provenance is on this paragraph (2026-10-02). Routed from a downstream ExtJS
