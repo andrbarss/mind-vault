@@ -12,6 +12,45 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.96 — compound: empty is a third state; the hidden singleton in layout flow
+
+Single-PR section. Provenance is on this paragraph (2026-10-02). Routed from a downstream ExtJS
+admin whose three "extension coupon" fields always saved `0`: the client's typed integer fields
+turned empty into `0`, its untyped fields sent `""`, the PHP API's validator skipped the empty
+string and the non-strict database stored it as `0` — while the storefront that reads the columns
+treated `NULL` as *use the tenant default* and `0` as *none*. The capture measured creates on a bare
+model and was wrong about one screen; the architect's drive through the real form corrected it. The
+same PR traced a long-lived random-order flake to a hidden message-box singleton sitting in layout
+flow on the theme-less harness page, which pushed a drag spec into the framework's window-autoscroll
+band — the "leftover toast" recorded earlier was one instance of that mechanism.
+
+### Added
+
+- `skills/plan/references/EMPTY_IS_A_THIRD_STATE.md`:
+  - read the column's consumer before the writer — `NULL` as *inherit*, `0` as *none*;
+  - the three coercion layers (typed client field, validator skipping `""`, non-strict database),
+    which one is the fix and which are hardening for the other writers; a "nothing forbids `NULL`"
+    claim cites schema, write guard and rules;
+  - measure the create payload through the form's write-back (it writes `''` on a new record too),
+    and pin both forms in the first spec row;
+  - nullable by the field's existing type: an empty ⇒ `null` convert on text (a number type strips
+    the decimal comma: `3,5` → `35`), allow-null on existing integers, the asymmetry pinned, one
+    normaliser called at convert time, fixtures in the producer's shape;
+  - the rows already holding an accidental zero: a sizing query, the owner's call, no blanket reset;
+  - verification that can fail: the per-model truth table red-first, one row through the real form,
+    the runtime walk as the merge gate with its failure branch.
+- `skills/plan/SKILL.md`: References pointer.
+
+### Changed
+
+- `skills/work/references/CROSS_SPEC_UI_LEAKAGE.md`: a fourth non-visual shape — a hidden component
+  still occupying layout flow on a theme-less page, the framework's own drag autoscroll as the
+  failing mechanism, survivors listed by `offsetHeight` not visibility, a green run under the
+  suspect as two errors cancelling; a diagnosis step on replaying by the runner's random seed
+  through an in-flight rewrite of the harness page; an anti-pattern on accepting the first
+  plausible artefact.
+- `skills/work/SKILL.md`: the reference's pointer names the fourth shape and the seed replay.
+
 ## v4.6.95 — compound: re-check, outbound call, guarded write — the two-writer race when an adapter reads the state
 
 Single-PR section. Provenance is on this paragraph (2026-10-01). Routed from a downstream PHP project
