@@ -99,6 +99,34 @@ two separate verifications.
 - When you take the diagnosis but not the suggestion, **say so on the thread** with the command
   that settles it, then resolve. It closes the loop honestly and stops the next cycle re-raising it.
 
+## Third case: the bot cites a project rule the project file does not contain
+
+The same confident-and-wrong shape appears with **project conventions**, not only framework APIs.
+A review engine that reports "checked for `CLAUDE.md` compliance" can attribute a rule from its own
+generic guidance to the project's file: "multi-line comment blocks and task-number references in
+comments are explicitly prohibited by `CLAUDE.md`" — on a repository whose `CLAUDE.md` says nothing
+about comments and whose source already carried ninety-odd `// IDEA-NNN:` comments *by convention*
+(the cross-idea-amendment rule requires an amended file's comment to name the amending idea). The
+finding reads as a documented violation, the four "fixes" would have deleted the project's own
+discoverability trail, and a tired operator applies them because the citation looks precise.
+
+Triage, same discipline as the API case:
+
+1. **Grep the cited file for the cited rule** before touching code (`grep -i comment CLAUDE.md`).
+   No match → the attribution is the bot's, not the project's.
+2. **Check the codebase for the opposite convention** (`grep -rc '// IDEA-' app | …`). A pattern
+   present in dozens of files is a convention, and the finding is Tier 3 (conflicts with project
+   convention), never Tier 1.
+3. **Refute on-thread with both greps**, don't apply, don't re-trigger unchanged.
+4. **Write the real convention into the project file in the same PR** (a wrap commit is a natural
+   carrier) — the engine reads `CLAUDE.md` on every run, so the next pass sees the rule as the
+   project states it, and the nit does not recur per PR. Field case: the very next run on the same
+   PR said "the earlier review's comment-style findings don't apply; the root `CLAUDE.md` has no
+   rule on comment length or task references".
+
+The tell is the same as for APIs: a specific citation (`CLAUDE.md`, a rule name) whose source, when
+opened, does not say what the bot says it says.
+
 ## How it slots into the loop
 
 - This is a **Tier-3 disagreement** with the engine, not a defect → it does **not** auto-clear to
