@@ -12,6 +12,38 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.98 — compound: a small optional parameter follows the action it joins
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP booking backend
+that added one optional parameter (a nullable guest ordinal) to two legacy write actions. The plan
+applied the house rule for a new parameter on a legacy action in full — a decide-first method with
+its own status codes, guarded write methods around the one statement naming the new column, a
+pure value class, pins on the lot — and the architect pass upheld the guard as a blocker; the
+review engine read it CLEAN. The owner then rejected it in four steps, each after a CLEAN read:
+no guarded split (the only case it served is a deploy-order error the migrate-first gate forbids),
+no private helper and no new status (a controller with dozens of actions does not get a method for
+one parameter — it joins the action's own validation chain and envelope), no per-parameter class (a
+nullable int is every integer parameter's shape — the framework's validators inline), no literal
+bound (the ceiling is a model helper the siblings already use). The parameter ended up as the ones
+next to it, −477 lines from the first reviewed head, with the waiver written into the rule text.
+
+### Added
+
+- `skills/plan/references/SMALL_OPTIONAL_PARAMETER_FOLLOWS_THE_ACTION.md` — the four shapes and the
+  objection each drew; the four questions that decide the shape before the plan is written (can the
+  write fail on a *migrated* tenant; does the action have a validation chain; is the value rule
+  parameter-specific; where does the bound come from); what still holds from the rule (decide-first,
+  byte-identical absent path, presence by key only where present-empty ≠ absent, the owner's clear
+  spellings and nothing more, shape pins, the waiver in the rule, the un-migrated row re-walked after
+  every change of shape); a note for the architect pass; the plan checklist.
+
+### Changed
+
+- `skills/plan/SKILL.md` — the reference pointer; `NEW_PARAMETER_ON_A_LEGACY_ENDPOINT.md` § 8 opens
+  with a pointer to the smaller case.
+- `agents/AGENT_architect.md` PASS 1 — the opposite failure: ceremony for one optional parameter is
+  a cost-benefit finding for the owner, not a blocker, even under a written house rule.
+
 ## v4.6.97 — compound: the claim through the raw writer; the fatal nobody catches; after-effect phantom rows
 
 Single-PR section. Provenance is on this paragraph (2026-10-02). Routed from a PHP booking backend

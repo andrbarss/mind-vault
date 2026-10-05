@@ -112,6 +112,13 @@ immediate, justified objection. Say it in this order:
 
 ## 8. When the new parameter is a *write* — it cannot leave the action
 
+> **Before applying this section**: if the parameter only adds a nullable value to a write the action
+> already makes — nothing but a migration gate between the code and the column, no compare-and-set,
+> no second table, no external call — read
+> [`SMALL_OPTIONAL_PARAMETER_FOLLOWS_THE_ACTION.md`](SMALL_OPTIONAL_PARAMETER_FOLLOWS_THE_ACTION.md)
+> first. The guarded write below is for a write that can fail on a *migrated* tenant; for the smaller
+> case the owner's shape is the action's own chain, and the rule text gets an exemption paragraph.
+
 Section 3's "branch out before the first legacy statement" is exact for a read filter: the new
 path builds its own answer and the legacy statements never run. A parameter that **adds columns to
 the row the action already writes** (a quantity, a flag, a recomputed total) has no such exit —
