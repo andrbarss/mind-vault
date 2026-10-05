@@ -12,6 +12,21 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.102 — compound: a punctuation-only touch is not an amendment
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream ExtJS
+admin whose review engine, on a PR that extended the unit harness's class list, asked for the
+previous last entry's `// IDEA-NNN` comment to be rewritten to name the new IDEA — because that
+line had gained a trailing comma. The rewrite would have claimed an amendment that had not
+happened; the project wrote the exception into its convention file and the next pass agreed.
+
+### Changed
+
+- `rules/RULE_cross-idea-amendments.md` § When this rule applies: a punctuation-only touch (the
+  trailing comma a list's last entry gains when a later IDEA extends the list) is not an amendment
+  of that entry — its inline comment stays; the amending IDEA's own block carries its own comment;
+  state the exception in the project's convention file so the review engine reads it there.
+
 ## v4.6.101 — compound: a flag that gates a small optional parameter; a shared `allOf` base promises its keys to every composer
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP booking API whose
