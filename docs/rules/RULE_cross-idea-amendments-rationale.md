@@ -26,6 +26,8 @@ Step 2 of the contract (refresh the amended file's inline marker) assumes the fi
 
 For these files the bidirectional trail still holds, through the other three steps: the **new** migration's header names the table and the IDEA it amends, the commit trailer carries `Amends IDEA-MMM <file>`, and the `/wrap` backref lands in the amended IDEA's archive. Nothing is lost except the in-file grep hit — and a reader grepping the old migration for the column will find it only in the new one anyway, which is where the column is defined.
 
+**The data a hashed stem seeded is amendable even though the stem is not.** When a later IDEA makes a *row* the earlier stem wrote false — an operator-facing description that said "the listed price is the minimum" once a configurable minimum exists — the fix is one more statement in the **new** stem: `UPDATE … SET <text> = <new> WHERE <key> = … AND <text> IN (<every text the seeds have ever written>)`. Equality on the seeded texts is what keeps an operator-written value untouched (the same convergence contract the original seed used); the down-file restores the latest seeded text where the value equals the new one; the header names the stems whose data it amends and the commit trailer carries `Amends IDEA-MMM <stem> (seeded text)`; the walk proves both directions and the operator-edited case. Field case and the surrounding bound-semantics decisions: `skills/plan/references/CONFIGURED_BOUND_OVER_A_DERIVED_FLOOR.md` § 6.
+
 ## Anti-patterns
 
 - ❌ **Re-opening the original IDEA's branch** to make the change. The original IDEA is shipped; the change belongs in the current IDEA's commits.
