@@ -12,6 +12,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.99 — compound: request-side surfaces of a column that ships ahead of its migration; a bot's rule the project file never stated
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream ExtJS
+admin that added one read-only grid column for a backend column whose migration had not shipped.
+The plan argued "no deploy order" from the read path (absent key → empty cell) and made the column
+sortable; the review pointed at the list's remote sort reaching `ORDER BY` unfiltered, with the
+sorter persisting on the store — the same trap a sibling idea had recorded a month earlier. The same
+PR's first review pass attributed a comment-style rule to the project's `CLAUDE.md` that the file
+did not contain; the re-review retracted it, and the convention was written into the file.
+
+### Changed
+
+- `skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`: § 10 — "ships independently of the
+  migration" is a claim about reads; list the request parameters the column generates (sort,
+  filter, search), read the producer's handling of an unknown property, decide per surface
+  (non-sortable until fleet-wide, or a producer-side strip), name the persistence of the failure;
+  one anti-pattern. `skills/plan/SKILL.md`: pointer extended.
+- `skills/review-loop/references/VERIFY_BOT_API_CLAIMS.md`: § Third case — a review bot citing a
+  project rule the project file does not contain: grep the cited file, grep the codebase's
+  convention, refute on-thread, write the real convention into the project file on the same PR so
+  the next pass reads it. `skills/review-loop/SKILL.md`: pointer extended.
+- `skills/review-loop/references/engine-claude.md`: calibration note — style findings in the
+  summary body read as clean by the finder; a user-triggered re-review retracted them unprompted
+  and raised a real finding.
+
 ## v4.6.98 — compound: a small optional parameter follows the action it joins
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP booking backend

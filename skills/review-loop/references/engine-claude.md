@@ -528,3 +528,21 @@ the docs-pass verdict in 2.5 minutes as a task-format comment edited in place.
 - **Read the mention-path comment by `updated_at`, not `created_at`.** The tracking comment is
   created within seconds of the trigger and edited in place with the verdict minutes later; a filter
   on creation time after the trigger finds nothing and reads as "still running".
+
+## § calibration update — "CLAUDE.md compliance" findings can cite rules the file does not contain (downstream ExtJS project, 2026-10-02)
+
+The `ready_for_review` run on a small UI PR posted "No bugs found" plus a **CLAUDE.md violations —
+comment style** section: four findings that multi-line comment blocks and task-number references
+are "explicitly prohibited by CLAUDE.md". The project's `CLAUDE.md` had no such rule, and the
+source carried ~90 IDEA-tagged comments by convention. Two things worth knowing:
+
+- **The finder read the run as clean** (summary matched the positive phrase, zero inline comments),
+  because the engine put the style findings only in the summary body — the § 2026-06-03 calibration
+  again. Read the body; `CLAUDE_CLEAN_SIGNAL` is not "no prose findings".
+- **A user-triggered `@claude` re-review on the same SHA retracted it unprompted** ("the root
+  `CLAUDE.md` has no rule on comment length or on task references, so I did not flag them") and
+  raised a real finding instead (a sortable column on a list the backend sorts in SQL ahead of the
+  column's migration). The re-review is worth its cost when the first pass's findings are
+  attribution-shaped; triage per [`VERIFY_BOT_API_CLAIMS.md`](VERIFY_BOT_API_CLAIMS.md) § Third case
+  and write the convention into the project file on the same PR — the following push's run posted a
+  plain "No issues found".

@@ -185,8 +185,38 @@ consumer traps.
     `"saved": true` in the note back to its owner.
   - Spec a 4xx sent **through the save path**, so the new branch cannot silently swallow every failure.
 
+## 10. "Ships independently of the migration" is a claim about reads — enumerate the request-side surfaces too
+
+A consumer that adds a column to a list view ahead of the producer's migration usually degrades
+cleanly on the **read** side: the key is absent on an un-migrated tenant, the typed field reads it
+as `null`, the cell renders empty. That is the argument every "no deploy order" decision rests on,
+and it is true as far as it goes. It says nothing about the **request parameters the new column
+generates**: a sortable header sends `sort=[{property: <column>}]`, a filter sends the column name,
+a search-fields list names it. A producer list endpoint that passes those to SQL unfiltered
+(`orderBy($property)` straight from the request is the common shape) answers a 1054 → 500 on the
+tenant that lacks the column — and a grid's remote sorter **persists on the store**, so every
+reload after a save re-sends it; one header click breaks the tab for the rest of the window's
+life. Field case: the sort trap was recorded in a sibling idea's plan a month earlier (deploy
+order was the gate there), and the next column on the same window shipped `sortable: true` with
+"ships independently" in its plan until the review pointed back at it.
+
+Before writing "no deploy order" into a plan:
+
+- **List every request parameter the column can produce** — sort, filter, search field, export
+  column, group-by — and read the producer's handling of each against an unknown property (a
+  strip / allow-list, or straight to SQL). A read-side degrade proves nothing about these.
+- **Decide per surface**: not sortable / not filterable until the migration is fleet-wide (one flag,
+  pinned by a spec row, flipped later), or ask the producer in the consumer note to strip unknown
+  sort / filter properties — then the flag can wait on *that* producer change instead of the
+  fleet. Say which in the plan's decision, with the flip as a recorded follow-up.
+- **Probe the persistence**: a request-side failure that sticks to client state (a remote sorter,
+  a saved filter, a remembered page) is worse than a one-off error; name the recovery (reopen the
+  window) in the decision so the reviewer can weigh it.
+
 ## Anti-patterns
 
+- ❌ "Ships independently of the migration" argued from the read path alone, while the same column
+  is sortable or filterable on a list the producer sorts in SQL.
 - ❌ "Empty picker ⇒ send `[]`, the degraded tenant accepts it" — the harmless case is the only one you thought about.
 - ❌ Deriving a write payload from a lookup / reference store instead of state seeded from the record.
 - ❌ Reading the contract once at `/plan` and never again — the owner's corrections land in their working tree while you build.
