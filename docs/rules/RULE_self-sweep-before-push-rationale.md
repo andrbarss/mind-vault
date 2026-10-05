@@ -112,6 +112,37 @@ If suite reports M pre-existing + N new failures:
 - **Reviewer confusion**: reviewer sees N failures, can't tell which are your responsibility. Either approves blind or asks you to attribute.
 - **Compound interest**: every PR shipped with M pre-existing failures grows the noise floor by M. The dominant strategy if everyone follows the discipline is to monotonically decrease the count.
 
+### The persistent local test database — read the remote run
+
+**Field case.** A column-fixture suite — one that adds a contract column to four tables, parks values,
+drops one and restores it — carried an oracle test asserting that a *sibling* fixture's column (an
+earlier idea's column on the same table) was present at the start: `assertTrue($oracle->siblingAvailable())`,
+labelled "the earlier idea's column is untouched by this fixture". Locally, `make test` was green at the
+expected count, twice. On the hosted CI the same two SHAs were red on exactly that assertion, and nobody
+read the remote run until the review loop checked the PR's checks at hand-back.
+
+Two differences between the stacks, both invisible from a green local run:
+
+1. **The local test database persists.** The compose stack's MySQL container keeps the dump across runs,
+   so every column any fixture ever added (`section`, `guest_no`, …) is still there on the next run. CI
+   loads the dump fresh: a column exists only once *its* fixture has run in *this* process.
+2. **Suite order differs.** PHPUnit walks the directory in readdir order — APFS on the laptop, ext4 on
+   the runner — so on CI the new suite ran before the sibling's suite had provisioned the column.
+
+The assertion had encoded "the sibling's fixture already ran" as "the sibling's column exists". The
+claim the test meant — *my fixture's drop does not change the sibling's answer* — is order-independent:
+read the sibling's answer before the drop, assert it is **the same** after. That rewrite made the file
+green in both orders; the reproduction was one `ALTER TABLE … DROP COLUMN <sibling>` on the local test
+container followed by the single file (old code red, fix green).
+
+**Why this is a sweep item and not a CI item.** The rule's "read the count, not the colour" already says a
+green run can be the wrong run; this is the sibling: a green run on the wrong *database state*. The
+habit is cheap — one `gh run list --workflow=<tests> --branch <b> --limit 1 --json conclusion` after
+each push — and it is the only signal that distinguishes "my suite is green" from "my suite is green on a
+database no fresh checkout will ever have". The second habit is in the test itself: a fixture suite owns
+exactly the columns its fixture provisions; everything else on the table is an *input* whose value it
+records and compares, never a precondition it asserts.
+
 ### The unlisted-directory silent skip — gate on the exact count
 
 A suite configured with an **explicit directory list** (PHPUnit `<testsuite><directory>`, pytest `testpaths`, a Jest `roots` array, any glob allow-list adopted to keep a quarantined legacy tree out of discovery) has a failure mode the touched-suite sweep does not see: a new test file in a directory the list does not name is never discovered, the run stays green, and the count stays at the old N. Nothing is red, so nothing triggers the sweep.

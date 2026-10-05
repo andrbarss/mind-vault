@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.104 — compound: read the remote run; the second contract column; counting doubles for when-claims
+
+### Changed
+
+- **`rules/RULE_self-sweep-before-push.md` § 4** gains *read the remote run, not the local one*: a persistent local test database keeps every fixture's column while CI loads a fresh dump in its own suite order, so a suite that assumes a sibling fixture's column reads green locally and red on CI; read the remote conclusion after every push, assert only what your own fixture provisions, reproduce CI order by dropping the sibling's column locally. Field case in `docs/rules/RULE_self-sweep-before-push-rationale.md` § *The persistent local test database*.
+- **`skills/plan/references/ADDITIVE_COLUMN_THROUGH_A_WHOLESALE_COPY.md`** gains § 4b, the consumer repository's side: the test fixture provisions the copy destination first and refuses to drop it; a second contract column on an already-oracled table breaks the first column's whole-family pins (`=== []`, "last column") — rewrite them per column as a cross-idea amendment; a `<table>` DOWN template needs a substitution with a tripwire. Checklist line added.
+- **`skills/work/references/EXECUTE_OVER_PIN.md`** gains *a claim about when a collaborator is asked needs a counting double*: a `bool` argument is evaluated before the callee's gate (pass a closure, pin `asked === 0`), and a payload strip the framework would do anyway is observable only by calling the decision method directly — the mutation then turns exactly one row red.
+
 ## v4.6.103 — compound: a configured bound over a derived floor; the zero that rounding hides; repairing what a hashed stem seeded
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream PHP
