@@ -12,6 +12,26 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.101 — compound: a flag that gates a small optional parameter; a shared `allOf` base promises its keys to every composer
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP booking API whose
+per-guest service parameter (the previous compound) gained a per-item catalogue flag, with the review
+catching the flag's schema property on a base block a third, excluded endpoint composes.
+
+### Added
+
+- **`skills/plan/references/SMALL_OPTIONAL_PARAMETER_FOLLOWS_THE_ACTION.md` § 5 + a checklist line** —
+  the sequel shape when a later flag gates the parameter: one stem per wholesale-copy target with the
+  snapshot table's first; the gate reads the live catalogue by the stored row's type + id, never the
+  snapshot copy; an executed type → table map on the model (unknown fails closed) instead of a comment
+  restating another method's dispatch; the gate as one more link after the number check whose lookup
+  is skipped when the earlier link's input is empty, so the action's own refusal keeps winning; reads
+  carry the flag where the producer does.
+- **`skills/work/references/CAPTURE_FIRST_API_DOCS.md`** — the shared-base trap: a key added to an
+  `allOf` base is promised on every endpoint composing it, including the one that never selects the
+  column, and the drift test cannot see it; read the base's description for its composers, declare on
+  the narrowest schema whose every producer emits the key, pin the base's absence; plus the DON'T line.
+
 ## v4.6.100 — compound: the request-side race is four re-reads; a skip that posts a clean summary; a wholesale emitter's named paths
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP admin API that

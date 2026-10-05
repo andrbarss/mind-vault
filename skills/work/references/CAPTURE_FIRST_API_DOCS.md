@@ -124,6 +124,17 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
   belong in the shared block: split it out and let each variant declare it once (raw DATETIME in
   one list, `DATE()`-truncated `Y-m-d` in another, `date()`-normalised with an epoch sentinel in a
   tree — the same column, three wire formats, three declarations).
+- **A shared `allOf` base promises its keys to every composer.** A new column lands on the hand-built
+  projection two list endpoints share, and the schema author adds the property (and its `required`
+  entry) to the base block those two compose — but a third endpoint composes the same base and never
+  selects the column: the spec now promises on it a key no capture shows, and the drift test is
+  blind to it (the artefact matches the annotations exactly). Before declaring a key on a base, read
+  the base's own `description` — it names its composers — and grep every `allOf` that references it;
+  declare the key on the narrowest schema whose *every* producer emits it (the per-list item, not the
+  shared block), and give the spec guard a negative pin: the base does **not** carry the key. The same
+  column can legitimately sit on a different schema for a different producer path (a `select *` tree
+  endpoint carries it; the hand-built list of the excluded endpoint does not) — declare per producer,
+  not per column.
 - **Error paths with side effects get a probe budget.** A disabled action that throws into an
   error controller which renders under HTTP 200 *and e-mails support per request* is captured
   exactly twice (plain, and with `Accept: application/json`) under a `curl-once` probe class the
@@ -232,6 +243,8 @@ promises (a branch that cannot be exercised safely) is marked *code-read* in the
 - ❌ Transcribe a column list into a schema and mark the endpoint done.
 - ❌ Write a failure capture without asserting the fault is armed and the status matches the file's name.
 - ❌ Document a key that is `null` in every capture as merely `nullable` without grepping its writer.
+- ❌ Declare a new key on a shared `allOf` base without reading which endpoints compose it — one of them
+  may never emit it; put it on the narrowest schema and pin the base's absence.
 - ❌ Put "captured", "code-read", "verified on the dev stack" or the sprint's ids into the published
   description (→ `GENERATED_ARTEFACT_HYGIENE.md`).
 - ❌ Fix the bugs the probes surface inside the docs PR — register them, file them, keep the docs
