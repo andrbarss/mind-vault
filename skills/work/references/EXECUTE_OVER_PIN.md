@@ -104,6 +104,33 @@ the free-text column was walked only after a review read the capture.
   statements *are* the contract (a post-commit method whose side effects each sit in their own
   `try`), `assertSame` the whole normalised method: brittle on purpose.
 
+## A claim about *when* a collaborator is asked needs a counting double, not an outcome row
+
+Two design claims from one write path, both true in the plan and both invisible to every HTTP row:
+
+- **"The oracle is asked only after the presence gate"** (a cost claim: a request without the key pays no
+  schema listing). The implementation passed the answer as a `bool` argument —
+  `decide($data, $this->oracle->present())` — and a call argument is evaluated **before** the callee's
+  first line, so the listing was paid on every request. Every outcome assertion stayed green: the answer
+  was right, only its timing was wrong. The fix is a **closure** (`fn () => $this->oracle->present()`)
+  invoked past the gate; the pin is a double that **counts its calls** — `asked === 0` for a request
+  without the key and for a value the validator refuses, `asked === 1` past both. Two independent reviews
+  found the eager argument by reading; no test could have.
+- **"A default-valued key is stripped from the payload on an un-migrated tenant"** when the framework
+  would drop that key anyway (an ORM that silently discards a mass-assigned key naming a column the table
+  lacks) and, on the migrated test database, a leftover default is simply written to the real column —
+  so the strip is unobservable over HTTP in both states. Pin it **at the payload**: call the decision
+  method directly (an anonymous host class that uses the trait) and `assertArrayNotHasKey` on the returned
+  array. The mutation that removes the strip then turns **exactly one** row red — that row — which is the
+  proof the HTTP rows were not testing it.
+
+The shape in both: the behaviour lives in a *sequence* (gate → validate → ask → strip → write) and the
+rows observe only the final write. A counting double on the collaborator and a direct call on the
+sequence's own method are the two cheap ways to observe the middle. Prefer the lazy argument over the
+textual fix ("one memoised listing per request" in the docblock): the plan decided the laziness, and a
+docblock that re-describes the eager behaviour keeps the regression on a sibling path that paid the
+listing lazily before.
+
 ## A forwarded argument needs a fixture where the wrong source answers differently
 
 An extracted method takes a `$timestamp` (or an id, a locale, a tenant key) and forwards it to a

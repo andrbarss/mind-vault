@@ -76,6 +76,36 @@ for every sibling, and a consumer coding the "key may be absent" branch against 
 - The wholesale readers of the *destination* table (`SELECT *` grids, exports) publish the column with
   no code and no guard — list them too.
 
+## 4b. The consumer repository's side — the fixture copies the order, and the first column's pins break
+
+When another codebase writes the source table through its own API and tests against a shared or dumped
+copy of the schema, it provisions the owner's columns with a **test fixture** rather than the owner's
+migrations. Two things follow from §§ 1–2 that the consumer's plan must state:
+
+- **The fixture provisions the destination column first and never drops it.** The owner's order (§ 1)
+  is a property of the data, not of the migration runner: a consumer fixture that adds only the source
+  columns puts the shared dev database into the 1054-on-every-copy state the owner's order exists to
+  prevent — and leaves it there for every other process on that database. Write the fixture over the
+  owner's full table list in apply order, make the drop refuse the destination table outright, and let a
+  degrade test drop **one source column at a time** while the destination column stays. The owner's
+  hand-off should say this in so many words ("if your fixture provisions these columns, the copy
+  destination first"); if it does not, ask.
+- **A second contract column on a table that already has an oracle breaks the first column's pins.**
+  The earlier idea's tests were written when its column was the only contract column on the table, and
+  two of its assertions encoded that as a whole-family fact: `absentColumns() === []` ("fully migrated"
+  meant "my column is present") and "my column is the table's **last** column" (meant "appended, no
+  `AFTER` clause"). Both are true only until the next appended column. Before amending the oracle's
+  column list, grep the first idea's suite for assertions on the *family* (`=== []`, `count(...)`,
+  `ORDINAL_POSITION`, "last") and rewrite each to the per-column claim it meant — membership of *this*
+  column, position after every *non-contract* column — as a cross-idea amendment with its backref. A
+  dumped local database can hide the second pin: that suite's own drop / restore re-appends the column
+  last, so it stays green there and goes red only on a fresh dump where the newer suite ran first (see
+  the self-sweep rule's "read the remote run").
+- **The owner's DOWN as one `<table>` template** is a convenience for a four-table change and a trap for
+  a mirror parser that reads one literal statement per table. Substitute the name in the fixture, pin
+  the substitution, and add a tripwire that fails the day the template disappears from the mirror — a
+  fallback with no tripwire goes dead silently when the owner later publishes literal statements.
+
 ## 5. The cleanup that follows a walk
 
 A verification walk leaves untracked artefacts (a throwaway runner config, log files the stack wrote).
@@ -85,6 +115,8 @@ gitignore the throwaway config directory the docs already describe as ignored, a
 inside a directory that mixes tracked and untracked files.
 
 ## Plan checklist
+
+- [ ] Consumer side: the fixture provisions the destination column first and refuses to drop it; the first contract column's whole-family pins (`=== []`, "last column") rewritten per column; a tripwire on any `<table>` DOWN template substitution (§ 4b).
 
 - [ ] Every `INSERT` fed by a `SELECT *` of the source table is listed; each destination gets the column
       first, in its own migration, with the dependency in both headers and the rollback order stated.
