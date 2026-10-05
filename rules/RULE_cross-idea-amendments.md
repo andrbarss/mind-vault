@@ -12,6 +12,8 @@ Concrete examples of when this fires, the "why" framing, and anti-patterns (re-o
 
 Any time a current IDEA's commit modifies a file whose primary author was a *shipped* IDEA (status: complete, merged into the protected branch). Does NOT apply to bug fixes within the original IDEA's PR cycle, or routine sustaining work (deps, security patches).
 
+**A punctuation-only touch is not an amendment.** When a later IDEA extends a list (a harness manifest, a requires array, a registry), the previous last entry gains a trailing comma — that line changes, but the declaration it carries does not, and its inline comment stays as it was. The amending IDEA's own block carries its own comment. A review engine will read the diff line as "touched declaration, comment not refreshed"; the project's convention file should state this exception so the engine reads it there (field case: a reviewer proposed rewriting a sibling IDEA's comment to claim an amendment that had not happened).
+
 ## The bidirectional-documentation contract
 
 When amending another IDEA's shipped files in scope of a current IDEA's work, ALL FOUR steps:
