@@ -546,3 +546,31 @@ source carried ~90 IDEA-tagged comments by convention. Two things worth knowing:
   attribution-shaped; triage per [`VERIFY_BOT_API_CLAIMS.md`](VERIFY_BOT_API_CLAIMS.md) § Third case
   and write the convention into the project file on the same PR — the following push's run posted a
   plain "No issues found".
+
+## § calibration update — a fix push after a posted review can post a clean summary WITH a "already reviewed" note in two minutes; the wrap push got the full review while its tip skipped (downstream PHP project, 2026-10-05)
+
+Canonical workflow, a small read-side PR with a large docs surface. Three observations on one PR:
+
+- **The docs pass came from the wrap push itself, not the tip.** The `/wrap` push (`SHA₃`, sixteen
+  doc files) got a **full 7-minute re-review** that posted "No issues found"; a one-line plan
+  status-line push a minute later (`SHA₄`) completed in 60 s and posted nothing. The finder
+  attributed the summary to `SHA₄`. The § 2026-09-09 rule held: `git diff SHA₃ SHA₄` was one doc
+  line, so the verdict was accepted for the tip without a retrigger.
+- **A fix push after three posted reviews got a 2-minute run that DID post a summary** —
+  "## Code review / No issues found. Checked for bugs and CLAUDE.md compliance." followed by
+  "> Note: Claude has already reviewed this PR previously (most recently on <date>) and found no
+  issues." The finder reads that as `CLEAN=true` (positive phrase, zero inline, post-dates the head
+  commit). It is the **post-review skip wearing a summary**: the run did not read the fix (a
+  shared-helper behaviour change plus a fixture rewrite). Treat a summary whose body says the PR was
+  "already reviewed previously" as **no verdict for this SHA** — the same class as the stale-summary
+  guard, which cannot catch it because the timestamp is fresh.
+- **The explicit retrigger then produced the fix verdict in 13 seconds** — a task-format comment
+  naming the three changed surfaces, with an honest scope line ("I did not run the test suite, and I
+  skimmed the docs and tests rather than reading them line by line"). Short is not shallow here: the
+  review named the exact behaviour of each change. Read the scope line and weigh the verdict by it;
+  for a fixture-heavy change the independent lens is what runs the tests.
+
+Practice: after a fix push, read the push run's summary **body**, not just its phrase match — an
+"already reviewed previously" note means retrigger once; and keep the independent two-lens pass for
+what the engine's own scope line says it skimmed.
+

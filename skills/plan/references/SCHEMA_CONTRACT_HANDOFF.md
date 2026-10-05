@@ -99,6 +99,38 @@ note file in its own archive directory, on its feature branch — before your `/
   contract after the consumer verified it, write each change and whether it needs consumer code as
   paste-ready text in your archive.
 
+## The request-side race is four re-reads, not one — and your own notes are in it
+
+The requesting-contract section above says to re-read the owner's branch as the last step before
+emitting. On the day all three repos (owner, API, UI) plan and build the same feature, that read is
+necessary and not sufficient. Field case, one afternoon: the owner's branch was re-read at 15:55
+(IDEA file only); a requesting contract was drafted at 15:57; the owner's contract landed at 16:08 —
+*during* the API repo's architect review — and the UI repo coded its column at 16:09 "on the
+predicted shape" because nothing of the API plan had reached `origin`. Four disciplines fall out:
+
+1. **Re-fetch after the architect pass, immediately before the `/plan` commit — and brief the
+   reviewer to re-fetch too.** The review is the longest step between the pre-emit read and the
+   commit; a sibling's `/plan` fits inside it. The architect's own re-fetch is what found the owner's
+   file; make that part of its brief rather than luck.
+2. **Push the plan-stage contract as the first act after the plan commit.** A sibling's re-read gate
+   looks at your branch on `origin`, never at your working tree. A contract that sits unpushed for
+   an hour has no value to the parallel build it exists for — in the field case the UI contract was
+   on disk nine minutes before the UI coded and reached `origin` eight minutes after.
+3. **Your outgoing notes go stale the way a mirror does.** The gates in this file cover *incoming*
+   notes. A note you wrote *to* a sibling (three corrections, say) can be overtaken when that
+   sibling finds the same defect at its own review and fixes it differently — in the field case it
+   made the column non-sortable and left an ask of its own, so the three corrections had to be
+   withdrawn and the ask answered, with the deploy-order sentence reworded in five files. Re-read
+   your outgoing notes against the sibling's branch at the same four points (`/plan`-emit, `/work`
+   start, `/work` end, `/wrap`), and expect to withdraw.
+4. **The owner folding your note at its `/wrap` is what closes it.** When the owner's final body
+   carries every item you asked for (the field case: wire type, the sort clause, a baseline note,
+   all folded into its § 4 / § 6 and marked "Final"), the note stays as the record of what was asked
+   with a dated "closed" line at its top — never deleted, never edited into agreement after the fact.
+
+The count that results is unremarkable and worth expecting: four mirrors in three days, the DDL
+never moving, every change reader-side or on the owner's own write rules.
+
 ## Charset and collation are part of the DDL — pin them on `ADD COLUMN` against a legacy table
 
 A column added with `ALTER TABLE … ADD COLUMN x VARCHAR(100) NULL` takes the **table's** default character set — not the database's, not the neighbouring columns'. On a schema that grew up before utf8 (MySQL `latin1` defaults are the common case), a table can default to latin1 while every one of its text columns carries its own `CHARACTER SET utf8mb4 COLLATE …` — readable, and a trap: the next additive column silently lands as latin1, and every non-Latin-1 letter is mangled **on write**, under HTTP 200, on every tenant. Nothing in a DB-free suite can see it; the migration round trip is clean; only real data exposes it. Field case: an eight-locale display-name family shipped latin1 on the first cut and stored `Š` as one byte; the seed read-back caught it before the first push.
@@ -191,6 +223,8 @@ amending IDEA's backref.
 - ❌ A mirror whose body can be edited in place without a failing test.
 - ❌ A picker that ships its own selection flag next to a record that already carries the selection.
 - ❌ A second reader added with a paragraph in its own docs but no revision of the mirrored contract — the consumer copies "the only place this table is read" as still true.
-- ❌ Emitting a *requesting* contract on a "the owner has only captured" claim verified at session start — the owner's `/plan` can land in the same hour; re-read the owner's branch as the last step before writing the banner.
+- ❌ Emitting a *requesting* contract on a "the owner has only captured" claim verified at session start — the owner's `/plan` can land in the same hour; re-read the owner's branch as the last step before writing the banner, and again after the architect pass.
+- ❌ A plan-stage contract that sits unpushed while the parallel consumer builds — the sibling's gate reads `origin`, not your tree.
+- ❌ Re-reading the sibling's notes to you while never re-reading yours to it — an outgoing ask the sibling has already resolved its own way is a correction you now owe.
 - ❌ A mirror banner the copied guard cannot parse — the md5 phrase split across lines, or a hash computed over anything but the guard's own slice of the body.
 - ❌ An acceptance row that expects the server's message for an input your own contract told the client to refuse first — unreachable from that form; give the client a zero-requests row and pin the server refusal in your suite.

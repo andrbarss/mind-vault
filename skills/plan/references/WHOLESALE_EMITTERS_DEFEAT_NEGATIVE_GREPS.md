@@ -82,6 +82,27 @@ each free-text / audit column ask who writes it and with what. `SELECT COUNT(*) 
 '%token=%'` (and `password`, `secret`, `key=`) on real data takes a minute. Record what you find as
 its own high-priority work item — do not widen the plan to fix it, and do not leave it unsaid.
 
+## A wholesale emitter makes the *read* zero-code — not the request paths that name the column
+
+The reverse mistake. Once "a `SELECT *` list passes the new column through" is established, the
+plan writes "no code change" and every sibling copies it — the owner's deploy-order section ("the
+UI column is simply empty before the migration"), the UI's CHANGELOG ("no deploy prerequisite").
+The read *is* zero-code. The request parameters that **name** the column are not: a grid that sorts
+remotely sends `sort=[{"property":"<column>"}]`, and a list that hands that property to `orderBy()`
+with no whitelist answers `Unknown column` → 500 on every tenant that has not received the column
+yet — and again after the owner's rollback. Field case: an API plan was captured as zero-code;
+`/plan` read the UI's store (`remoteSort: true`, a sortable column) and the list's `applySorting()`,
+measured the 1054 on the dev clone, and shipped a one-method strip that drops the sorter when a
+schema oracle reports the column absent. The UI, reviewing in parallel, hit the same 500 and made its
+column non-sortable until a backend carrying the strip is deployed.
+
+For every column a wholesale emitter passes through, list the **named** paths the same request can
+carry — sort, filter, live search, a `fields` projection — and read what the interpolator does with
+an unknown property. Each is a surface to decide (strip, whitelist, or "non-sortable until") and a
+deploy-order sentence to write. The consumer-side half of this rule is
+[`CONTRACT_CONSUMER_DISCIPLINE.md`](CONTRACT_CONSUMER_DISCIPLINE.md) § 10; the producer owns the
+answer, and "the key is absent on an un-migrated tenant, nothing to show" is true of the read only.
+
 ## Cost of getting it wrong
 
 A false "nothing consumes it" is cheap to write and expensive to unwind: it propagates from capture into the plan, into the shipped doc, into the migration's header comment, and into the cross-repo contract other teams build against — each copy re-asserting it without re-verifying, which is exactly the propagation trigger 5(7) exists to stop. Re-verify the negative **at every copy**, and when the answer changes, correct every copy including the one that reads as a settled decision.

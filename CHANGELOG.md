@@ -12,6 +12,33 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.100 — compound: the request-side race is four re-reads; a skip that posts a clean summary; a wholesale emitter's named paths
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a PHP admin API that
+added read-side support for a sibling-owned column while the owner and the UI planned, built and
+reviewed the same feature in the same afternoon: the owner's contract landed during the API plan's
+architect review, the UI coded against nothing because the plan-stage contract sat unpushed, and
+the API's note to the UI was overtaken by the UI's own review. The review loop then met a push run
+that posted a clean summary with an "already reviewed previously" note.
+
+### Changed
+
+- `skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md`: § The request-side race is four re-reads,
+  not one — re-fetch after the architect pass (and brief the reviewer to), push the plan-stage
+  contract as the first act after the plan commit, re-read your *outgoing* notes against the
+  sibling at the same four gates and expect to withdraw, the owner folding the note at its `/wrap`
+  closes it; three anti-patterns. `skills/plan/SKILL.md`: pointer extended.
+- `skills/plan/references/WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md`: § A wholesale emitter
+  makes the read zero-code — not the request paths that name the column: list sort / filter /
+  search / projection for every passed-through column, read the interpolator's handling of an
+  unknown property, decide per surface; the producer-side half of `CONTRACT_CONSUMER_DISCIPLINE.md`
+  § 10. `skills/plan/SKILL.md`: pointer extended.
+- `skills/review-loop/references/engine-claude.md`: calibration — a fix push after posted reviews
+  can post "No issues found" plus an "already reviewed previously" note in two minutes (the skip
+  wearing a summary; no verdict, retrigger once); the wrap push got the full review while its
+  one-line tip skipped; the explicit retrigger's 13-second verdict carries its own scope line.
+  `skills/review-loop/SKILL.md`: pointer extended.
+
 ## v4.6.99 — compound: request-side surfaces of a column that ships ahead of its migration; a bot's rule the project file never stated
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream ExtJS
