@@ -12,6 +12,38 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.103 — compound: a configured bound over a derived floor; the zero that rounding hides; repairing what a hashed stem seeded
+
+Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream PHP
+booking backend whose custom-amount sale gained two operator-configured bounds over a floor the
+code had derived from a price row. Three plan decisions were wrong on the first draft (compose
+instead of replace; garbage in the ceiling treated as "unset", which silently removed the only
+cap; the one-time deploy gate written into operator text read for years) and the independent
+review after the engine's CLEAN found the fourth: a normaliser that rounded *after* its `> 0`
+test let `'0.004'` through as a set bound of zero, while the sibling request-amount path had
+guarded exactly that a week earlier.
+
+### Added
+
+- `skills/plan/references/CONFIGURED_BOUND_OVER_A_DERIVED_FLOOR.md` — replace vs compose as the
+  owner's two-row table with the structural existence gate kept either way; the two directions do
+  not fail the same way (the ceiling fails closed, "non-empty" and "usable" are separate predicates,
+  the misconfiguration gets its own refusal text); a write that fails closed on configuration needs
+  its sentence on the read surface's contract; every predicate after a rounding step runs on the
+  rounded value, and the new path's data provider is diffed against the sibling's; deploy-window
+  sentences stay out of seeded operator text; data an earlier content-hashed stem seeded is repaired
+  by the new stem with equality on the seeded texts, reverse in down; lazy bounds and the
+  int-or-float wire pin. Pointer in `skills/plan/SKILL.md` § References.
+
+### Changed
+
+- `agents/AGENT_curator.md` PASS 2: a normaliser that rounds, then tests zero on the raw value —
+  every predicate after the rounding step evaluates the rounded value; diff the new path's data
+  provider against the sibling path's for the missing `'rounds to zero'` row.
+- `docs/rules/RULE_cross-idea-amendments-rationale.md` § content-hashed files: the data a hashed stem
+  seeded is amendable even though the stem is not — one more `UPDATE` in the new stem, equality on
+  every seeded text, the reverse in down, the operator-edited case walked.
+
 ## v4.6.102 — compound: a punctuation-only touch is not an amendment
 
 Single-PR section. Provenance is on this paragraph (2026-10-05). Routed from a downstream ExtJS
