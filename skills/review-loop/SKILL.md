@@ -199,7 +199,7 @@ Under sprint-auto v3.1, the "user" the loop hands back to is sprint-auto itself 
 - [`references/engine-adapter-contract.md`](references/engine-adapter-contract.md) — what an engine adapter must implement.
 - [`references/engine-bugbot.md`](references/engine-bugbot.md) — Cursor Bugbot adapter.
 - [`references/engine-copilot.md`](references/engine-copilot.md) — GitHub Copilot adapter.
-- [`references/engine-claude.md`](references/engine-claude.md) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
+- [`references/engine-claude.md`](references/engine-claude.md) — (a post-review skip can post a clean summary with an "already reviewed previously" note — no verdict, retrigger once) — Claude Code Review adapter (action + `code-review` plugin; push-triggered, comment-anchored — NOT the managed App).
 - [`references/engine-claude-onboarding.md`](references/engine-claude-onboarding.md) — onboarding a project to the claude engine: ship the write-perm + guarded workflow templates ([`assets/claude-code-review.yml`](assets/claude-code-review.yml) + [`assets/claude.yml`](assets/claude.yml)) to the default branch (NOT `/install-github-app`'s read-only default), the anti-tampering bootstrap catch-22, and the fork-PR / author-association guards.
 - [`references/multi-engine-sync.md`](references/multi-engine-sync.md) — multi-engine synchronisation contract.
 - [`references/common-review-findings.md`](references/common-review-findings.md) — shared codified Tier-1 catalogue (engine-agnostic).
