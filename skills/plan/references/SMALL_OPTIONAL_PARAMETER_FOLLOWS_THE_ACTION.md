@@ -90,6 +90,35 @@ action's own shape and say which clauses of the written rule still hold. The F1 
 guarded write is mandatory, the contract's 500 row is false without it" was correct *about the rule*
 and wrong *about the cost* — the owner answered it with the deploy gate.
 
+## 5. When a later flag gates the parameter — the sequel keeps the shape
+
+The follow-up almost always arrives: "only *some* items may take this parameter", so a boolean lands
+on the catalogue the row is sold from and the action refuses the parameter for an unflagged item.
+Everything above still holds, and five things are specific to the gate:
+
+- **The flag's column lands on every table a wholesale copy writes to — the copy's target first.**
+  A "sell" path that does `SELECT *` from the catalogue and `insert()`s the row into a snapshot
+  table turns a catalogue-only column into an unknown-column error on every sale. One stem per table,
+  the snapshot table's stem *first* in the batch, each pinned on its DDL and position; the snapshot's
+  copy of the flag is informational — the gate never reads it (next bullet).
+- **The gate reads the live catalogue, by the stored row's type and id — never the snapshot copy.**
+  On create the item is looked up by the request's type + id; on update by the existing row's. Flipping
+  the item's flag back refuses the next update while a clear still passes — put that row in the walk.
+- **An executable type → table map on the model, not a comment that restates another method's
+  dispatch.** The sell path already dispatches on the item type in its arms; the architect's ask is a
+  small static map (`type → catalogue table`, unknown → none) the gate executes and the pins read,
+  mirroring those arms — fail *closed*: an unmapped type (a custom / free-text row) refuses the
+  parameter. A second comment copying the arm list drifts; a map that is executed cannot.
+- **The gate is one more link in the same block, after the number check, and its lookup is
+  skipped when the earlier link's input is empty.** `elseif ($id && !allowed(type, id))` on create;
+  a second `throw` after the validator chain on update — so a missing id still answers the action's
+  own "invalid id" text, not the gate's, and the gate's text is the second refusal line of the rule's
+  exemption paragraph. A clear is always allowed (the gate runs only on a non-null value).
+- **Reads carry the flag where the producer does.** A hand-built projection names the new column (and
+  so needs the migrate-before-deploy gate); `select *` producers carry it for free; a list endpoint
+  the owner excluded does not — which decides where the *schema* declares it (→
+  `../../work/references/CAPTURE_FIRST_API_DOCS.md`, the shared-base trap).
+
 ## Plan checklist
 
 - [ ] The four questions of § 2 answered in the plan's decisions, each with the sibling idiom it copies (file:line).
@@ -99,3 +128,4 @@ and wrong *about the cost* — the owner answered it with the deploy gate.
 - [ ] The rule's exemption paragraph in the plan's scope when the rule's ceremony is waived.
 - [ ] The pins listed as *shape* pins; the framework's validator not re-tested.
 - [ ] The un-migrated walk row restated after any change of shape.
+- [ ] For a gating flag: one stem per wholesale-copy target, the snapshot's first; the gate reads the live catalogue; the type → table map is executed, unknown fails closed; the gate's lookup skipped when the earlier link's input is empty; the flipped-back walk row.
