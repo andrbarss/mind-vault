@@ -141,6 +141,20 @@ Three disciplines, in order:
 2. **The contract under-specifies without it.** `VARCHAR(100) NULL` is not a complete column definition on such a schema; the consumer building a form against the contract will validate length in characters that the column then cannot store. Treat charset/collation as part of the frozen DDL, like the type and the nullability.
 3. **The seed probe is the acceptance gate for the bytes, not just the arithmetic.** Seed at least one value with a non-ASCII letter and read back `HEX(col), CHAR_LENGTH(col), LENGTH(col)`: the bytes must be the UTF-8 sequence and `LENGTH > CHAR_LENGTH`. Run it before the first push, while rolling the stem back still costs nothing — a stem that has reached a tenant is content-hashed and gets a *second* migration instead of an edit. (Seed from a client set to utf8mb4; a latin1 *client* produces a different, double-encoded symptom that looks like the same bug.)
 
+**An ENUM that mirrors another table's column is a string type too.** When the new column copies a
+sibling table's `enum(...)` (a guest's age band onto the service row), pin the charset / collation to
+the column it mirrors — and to the table's own enum columns, measured from `information_schema` — so a
+later comparison between the two never meets a collation mismatch; spell the charset the name every
+supported server accepts (`utf8` resolves to `utf8mb3` on MySQL 8, which logs a deprecation warning the
+runner ignores; `utf8mb3` is unknown to older MariaDB), and let the stem test pin the charset
+*positively* (the sibling integer column's test asserts the opposite — invert the copy, don't reuse
+it). Decide nullability from what `NULL` means on the *new* row, not from the source column: a source
+that is `NOT NULL DEFAULT 'adult'` mirrors as `NULL DEFAULT NULL` when "not stated" must never read
+as the default. The writers refuse anything outside the list before the statement, so the server's
+non-strict "unknown enum value becomes `''`" coercion is unreachable on the API path — say so in the
+contract, and keep the list in one constant on the model of the mirrored domain (the guest model, not
+the service model) so the validator, the setter and the spec guard share it.
+
 ## A per-pair setting stored on per-child rows — invariant, tolerance, and a two-direction probe
 
 A setting that is *one fact per (parent, item) pair* sometimes has no row of its own: the only

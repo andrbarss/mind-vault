@@ -12,6 +12,18 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.105 — compound: a second small parameter beside the first; the type gate ahead of the validator; an enum that mirrors a sibling column
+
+Single-PR section. Provenance is on this paragraph (2026-10-06). Routed from a downstream PHP
+booking backend whose legacy write actions gained a second small optional parameter beside the one
+the previous compound described — a sibling value on the same row, sharing the catalogue gate.
+
+### Changed
+
+- **`skills/plan/references/SMALL_OPTIONAL_PARAMETER_FOLLOWS_THE_ACTION.md`** gains § 6, *a second small parameter beside the first*: a second block behind one "the first block did not run it" condition (the shared gate runs *at most* once — pin that, never "exactly"); the pins the change falsifies — the writer's last-parameter regex, the call-site needle, the lookup counts, a spec guard's text count in another test file — amended in the same commit as the code (the first plan draft scheduled them a step later, a red commit inside the PR); the list as a constant on the model of the mirrored domain, the class grepped for a retyped copy; an `is_string` gate ahead of every validator call for both parameters, because the framework's validators throw only from configuration paths but `isValid()` on an array reaches the message builder's `(string)` cast — a warning today, an error page on the catch-less action under a warnings-to-exceptions handler — and a `try` per validator is the catch-per-parameter shape the owner rejected; the third-parameter merge trigger written into the plan; the create-response hash compared with the row id masked. Checklist row added; the `skills/plan/SKILL.md` pointer extended.
+- **`skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md`** § charset gains *an ENUM that mirrors another table's column is a string type too*: pin the charset / collation to the mirrored column and the table's own enums, spell it the name every supported server accepts, invert the sibling integer stem test's "no CHARACTER SET" assertion into a positive pin, decide nullability from what `NULL` means on the new row (a `NOT NULL DEFAULT` source mirrors as nullable when "not stated" must never read as the default), and state that the writers make the server's non-strict enum coercion unreachable.
+- **`skills/review-loop/references/engine-claude.md`** gains a calibration update: the explicit re-review after one fix push answers in ~20 s with "No blocking issues found" plus a Nits section the finder classifies as `FINDINGS=true` — CLEAN with residual nits, closed on the structural signal after reading the body against the fix commit.
+
 ## v4.6.104 — compound: read the remote run; the second contract column; counting doubles for when-claims
 
 ### Changed
