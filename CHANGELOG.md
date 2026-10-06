@@ -12,6 +12,13 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.105 — compound: the producer's local tip; the capture is your first note; the reviewer applies the change
+
+### Changed
+
+- **`skills/plan/references/CONTRACT_CONSUMER_DISCIPLINE.md`** gains § 11, *"no contract yet" is a statement about `origin`*: when the producers' checkouts share the consumer's disk, each re-read gate lists unpushed commits and untracked files (an untracked archive directory is invisible to a status on a path you do not know yet), reads through the branch rather than the working tree, and cites provenance (pushed / local tip / uncommitted as of a time); § 12, *the capture is your first note*: a positive "already works" sentence about your own client in an IDEA is copied into a sibling's contract before anyone checks it — check both of its conditions at capture or label it predicted, and correct it in the IDEA, the notes and the inherited acceptance row when it falls; § 10 gains *name the producer release, not the migration* as the flip condition for a request-side flag (a rollback makes "fleet-wide" insufficient), with a grep for every copy of a corrected condition. Three anti-pattern lines; the `skills/plan/SKILL.md` pointer names the two new sections.
+- **`skills/plan/references/architect-handoff.md`** § *Spec-heavy plans* gains *have the reviewer apply the planned change and run the whole suite*: a structural insertion can turn a sibling idea's adjacency pin red in a file the plan never listed — the reviewer patches the class in the running harness and reports every row that changes colour; the brief also lists sibling-repository paths for a local-tip re-read.
+
 ## v4.6.104 — compound: read the remote run; the second contract column; counting doubles for when-claims
 
 ### Changed

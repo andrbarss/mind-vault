@@ -1,6 +1,6 @@
-# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, the claims the contract makes about *your* codebase, wire booleans, invariant handlers under a programmatic set, the failed-save residue of a gated key, a provisioning-probe route, and a partial-success envelope the client cannot decide
+# Consuming a plan-stage contract — loaded-gated clearing keys, re-read at `/work` end, envelopes verified against the producing code, the claims the contract makes about *your* codebase, wire booleans, invariant handlers under a programmatic set, the failed-save residue of a gated key, a provisioning-probe route, and a partial-success envelope the client cannot decide, the producer's local tip, and the capture as your first note
 
-Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Nine disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
+Load when a plan builds **against** a contract another codebase emitted at *its* plan stage — the consumer side of [`SCHEMA_CONTRACT_HANDOFF.md`](SCHEMA_CONTRACT_HANDOFF.md): an admin-UI write-side coded ahead of the API, a client built from a sibling service's draft, any "shapes are authoritative as intent, re-verified at the owner's `/wrap`" arrangement. Twelve disciplines. The first three were field-caught on one idea (the first destroys data); §4 and §5 came from a later consumer of a contract whose §2 was an explicit *build spec* for the consuming repo — the richer the contract, the more of its prose is inference about code its author cannot run.
 
 ## 1. A `[]`-means-clear write key is a positive statement — gate it on the reference list having loaded
 
@@ -212,11 +212,90 @@ Before writing "no deploy order" into a plan:
 - **Probe the persistence**: a request-side failure that sticks to client state (a remote sorter,
   a saved filter, a remembered page) is worse than a one-off error; name the recovery (reopen the
   window) in the decision so the reviewer can weigh it.
+- **Name the producer release as the flip condition, not the migration.** "Until the migration is
+  fleet-wide" reads like the natural gate and is neither necessary nor sufficient: a producer that
+  strips the property answers 200 on a tenant without the column, and the owner's rollback drops
+  the column on a migrated tenant, where an older producer answers 500 again. Write "sortable only
+  against producer ≥ X on the backend this client talks to" — in the code comment, the pinning spec's
+  comment, the changelog and the module guide. Field case: the wrong condition was written once
+  and copied into four places (a column comment, a spec comment, a guide, an index line); the
+  producer's note corrected it, and it was still in all four a week later when the next column
+  was added beside it. When a condition is corrected, grep the old phrase and fix every copy in
+  the PR that touches any of them.
+
+## 11. "No contract yet" is a statement about `origin` — when the producer's checkout shares your disk, read its local tip and its untracked files too
+
+`SCHEMA_CONTRACT_HANDOFF.md` tells the producer to push its plan-stage contract first, because a
+sibling's gate reads `origin`. That protects a consumer that can see only `origin`. A consumer
+whose producers are checked out beside it — the usual layout when one person runs the three
+repositories in parallel sessions — can and must do better, because on the day everyone plans the
+same feature `origin` is the stalest view there is.
+
+Field case, one afternoon. The consumer's `/plan` fetched both producers: the owner's branch showed
+its plan commit, the API repository's branch a bare capture — so the plan said "no UI contract yet,
+the release that carries the sort strip is unnamed". On disk at that moment the owner was several
+commits into `/work` (migration scaffolded and walked) and the API repository had an **untracked**
+archive directory holding a plan-stage UI contract and a note addressed to the consumer — naming
+the release number the consumer's sort decision was waiting on. The architect's claim check found
+both; the first read had not looked. Within the hour the files were committed and pushed with the
+same shapes — but the plan had been about to ship a "condition unnamed" decision and a note asking
+for an answer that already existed.
+
+Per producer, at every re-read gate (`/plan`, `/work` start, `/work` end, before un-drafting,
+`/wrap`):
+
+- **Unpushed commits** — `git -C <repo> log --oneline origin/<branch>..<branch>`.
+- **Untracked and modified files** — `git -C <repo> status --porcelain -- docs/` and a listing of
+  the producer's archive / ideas directory. A status on the *contract's path* cannot find a file
+  whose path you do not know yet: the directory itself is new.
+- **Read through the branch, not the working tree** — `git -C <repo> show <branch>:<path>`. The
+  producer's checkout may be on another branch by the time you look (field: the contract "did not
+  exist" at the path because that session had moved its checkout to the default branch); fall back
+  to the working-tree file only for what is not committed anywhere.
+- **Cite what you read by provenance** — "pushed `<sha>` / local tip `<sha>` / uncommitted working
+  tree as of `<time>`", with a content hash for an uncommitted file. An uncommitted read is the
+  weakest: re-read it once committed, and say in your note which state you read — its author may
+  still change it before the commit.
+- **Give the reviewer the sibling paths.** The architect pass is the longest step of `/plan`; a
+  brief that lists the producers' checkouts turns "it happened to look" into a step.
+- **Not on the same disk** (CI, a remote host, another machine): `origin` is all there is. Write
+  the absence as "none on `origin` as of `<time>`", not "no contract yet".
+
+## 12. The capture is your first note — a sentence about your own client in the IDEA is copied before you check it
+
+§ 8 labels every sentence of the consumer *note* as measured or predicted. The same sentences
+exist earlier, in the consumer's **capture**: when three repositories capture one feature the same
+day, each sibling's `/plan` reads the others' IDEA files as source, and a claim made there travels
+before any note is written.
+
+Field case. The consumer's capture said, in passing, that a neighbouring screen "already
+translates" the three labels the new column would reuse — which sized the IDEA as one field and
+one column. The owner's contract repeated it in its hand-off as fact ("the window already
+translates …") and wrote an acceptance row expecting translated labels. At the consumer's `/plan`
+the sentence was false on **both** of its conditions: the labels were computed before the
+dictionary loads, and the dictionary had no rows for those keys. The work grew by a shared label
+map, a change to the neighbouring screen and three translation keys; two notes had to correct a
+sentence in someone else's contract that the consumer itself had planted.
+
+- **"Already" is a claim.** `RULE_self-sweep-before-push` trigger 5 (7) covers negatives ("X has no
+  Y") and novelty; a *positive* existence claim — "already translated", "already validated", "the
+  screen already does X" — passes every reader because it is convenient. Check it at capture when
+  one grep or one request settles it; otherwise write "predicted — not checked" beside it.
+- **"It works" usually has more than one condition** — the code path runs at the right moment *and*
+  the data it needs exists. Name each and check each: a test double proves the code half only.
+- **When the claim falls at `/plan`, correct it in three places**: the IDEA's status line (dated),
+  a note to each producer naming *their* sentence that repeats it, and the inherited acceptance row
+  (§ 5).
+- **Re-size.** Scope class, sensitive-path and unattended-run gates set at capture were set on the
+  false premise; re-decide them at `/plan` and say why they moved.
 
 ## Anti-patterns
 
 - ❌ "Ships independently of the migration" argued from the read path alone, while the same column
   is sortable or filterable on a list the producer sorts in SQL.
+- ❌ "Not sortable until the migration is fleet-wide" — a rollback makes it insufficient and a stripping producer makes it unnecessary; name the producer release.
+- ❌ "No contract yet" concluded from `origin` while the producer's checkout — unpushed commits, an untracked archive directory — sits on the same disk.
+- ❌ "The neighbouring screen already does X" written into a capture unchecked; a sibling's contract will repeat it as fact.
 - ❌ "Empty picker ⇒ send `[]`, the degraded tenant accepts it" — the harmless case is the only one you thought about.
 - ❌ Deriving a write payload from a lookup / reference store instead of state seeded from the record.
 - ❌ Reading the contract once at `/plan` and never again — the owner's corrections land in their working tree while you build.
