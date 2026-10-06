@@ -116,6 +116,25 @@ completeness); report what the probe observed, not what the source implies." Ask
 leave the worktree as found (no committed probes, servers stopped) and to say what the baseline
 count was.
 
+### Have the reviewer apply the planned change and run the whole suite
+
+The probes above test the plan's *new* rows. A structural change — a column, a field, a list entry,
+a tab inserted between two existing ones — can also turn a **sibling's** existing row red, and that
+file is then missing from the plan's scope. Field case: a plan added a grid column between two
+neighbours; an earlier idea's spec pinned those two as adjacent (`indexOf(a) === indexOf(b) - 1`).
+The reviewer injected the planned column into the live class on the harness page and ran the full
+suite: one row outside the plan's file list failed, so the plan's per-step count gate was
+unreachable as written and the fix was a cross-idea amendment nobody had scheduled.
+
+Handoff-prompt addition: "Apply the planned structural change in the running harness (patch the
+class in-page; no files) and run the **full** existing suite; report every row that changes colour
+and the file it lives in." Plan-side twin: before inserting next to existing members, grep the
+suite for position pins on both neighbours — every hit is a file in scope.
+
+When the plan builds against contracts in sibling repositories checked out on the same machine,
+list those paths in the brief and ask the reviewer to re-read their **local** branch tips and
+untracked files, not only `origin` (`CONTRACT_CONSUMER_DISCIPLINE.md` § 11).
+
 ## Architect amendments can be imprecisely-phrased — separate intent from mechanics
 
 Architect amendments to a drafted plan sometimes pair a CORRECT structural intent with a WRONG-DERIVED consequent mechanic. The intent describes *what invariant must hold*; the mechanic describes *where in the code to put a particular construct to achieve it*. Field-observed example: "empty-state moves OUTSIDE the cotton so the inner items container is always present as the OOB swap target" — the structural intent ("items container always present") was correct and survived the implementation, but the consequent mechanic ("therefore empty-state must move outside") was wrong because the architect had conflated two swap targets (OOB pager wrapper vs. beforeend items container). Applying the mechanic verbatim shipped a regression that the manual-eval walk caught immediately.
