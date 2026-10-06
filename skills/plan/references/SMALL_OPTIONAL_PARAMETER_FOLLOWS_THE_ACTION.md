@@ -119,6 +119,56 @@ Everything above still holds, and five things are specific to the gate:
   the owner excluded does not — which decides where the *schema* declares it (→
   `../../work/references/CAPTURE_FIRST_API_DOCS.md`, the shared-base trap).
 
+## 6. A second small parameter beside the first — the sequel keeps the shape, and shares the gate
+
+The next request is a sibling value on the same row ("which guest" was the first; "what kind of
+guest" is the second): one more nullable column, one more optional parameter on the same two actions,
+the same gate from § 5. Everything above holds; six things are specific to the second parameter:
+
+- **A second block beside the first, not a merged one.** Merging both parameters into one block
+  rewrites the first parameter's shipped code and every order pin on it; a hoisted memo (`$allowed`
+  computed once above both blocks) is the decorative variable the owner refused. The second block
+  copies the first's idiom — its own validator, its own clear spelling, its own refusal text — and
+  depends on the first through **one condition**: the gate runs in the second block only when the
+  first block did not run it (`$first === null` on create; `!($first_sent && $first !== null)` on
+  update). That gives *at most* one lookup per request by construction. Pin "at most once" — never
+  "exactly once": with the first value invalid, its block ends and the second block's condition is
+  false, so the lookup runs **zero** times; the refusal text order is the chain's (last assignment
+  wins on create, first `throw` wins on update) and the contract says so for a single failing link.
+- **The pins the change falsifies are amended in the same commit as the code that falsifies
+  them.** An eleventh argument on the writer breaks the first parameter's "last parameter" regex and
+  its call-site needle; a second lookup site breaks the `substr_count(…) === 1` pins and a spec
+  guard's "text once per action" count in a *different* test file. Scheduling the amendments one step
+  after the code — as the first plan draft did — makes that step a red commit inside the PR. The
+  architect's inventory of every count / regex / needle the change moves is the step-sequencing
+  input; grep for the first parameter's symbol across the whole test tree, not only its own file.
+- **The value rule is the framework's again, with the list as a model fact.** "One of N codes" is
+  the framework's in-array validator in strict mode; the list is one constant on the model of the
+  *domain the column mirrors* (the guest model for a guest band — not the service model that
+  validates, or the arrow points the wrong way), built from the existing per-value constants, and
+  the spec guard pins the column's enum equal to the constant. Grep the same class for a retyped
+  copy of the list before writing "the only list in the code base" into its docblock — the setter
+  next to the constants had one.
+- **A type gate ahead of the validator, for both parameters — the refusal, not a `catch`.** The
+  framework's validators throw only from configuration paths (a constructor without its option, an
+  unknown message key) — constants here, so never at runtime. But `isValid()` on an array reaches
+  the message builder's `(string)` cast: a logged warning under today's error settings, an HTML
+  error page on the catch-less create action the day a warnings-to-exceptions handler lands on the
+  request path, and an `Error` the update action's `catch (Exception)` does not see. `!is_string($x)
+  || !$validator->isValid($x)` keeps a non-string away from every validator call, including the
+  first parameter's (a cross-IDEA amendment, pins moved in the same commit). Read the validator
+  sources before choosing: a `try` around each `isValid()` is the catch-per-parameter shape the
+  owner rejected, and it protects against nothing the gate does not. Re-walk the array rows and
+  count the warning lines before and after.
+- **"Stop duplicating" has a named trigger.** Two blocks with one cross-block condition is the
+  honest cost; a **third** sibling parameter on the same actions is the point to merge the blocks
+  into one shared gate — write that sentence into the plan's decision so the next IDEA does not
+  re-argue it.
+- **The before / after hash of the absent-parameter path masks the row id.** A create response that
+  carries the new row's id differs between the oracle and the branch on every run; compare with the
+  id masked (`"id":"N"`) and say so in the verification doc — an unmasked "hashes differ" row reads
+  as a behaviour change.
+
 ## Plan checklist
 
 - [ ] The four questions of § 2 answered in the plan's decisions, each with the sibling idiom it copies (file:line).
@@ -129,3 +179,4 @@ Everything above still holds, and five things are specific to the gate:
 - [ ] The pins listed as *shape* pins; the framework's validator not re-tested.
 - [ ] The un-migrated walk row restated after any change of shape.
 - [ ] For a gating flag: one stem per wholesale-copy target, the snapshot's first; the gate reads the live catalogue; the type → table map is executed, unknown fails closed; the gate's lookup skipped when the earlier link's input is empty; the flipped-back walk row.
+- [ ] For a second parameter: a second block behind one "the first block did not run it" condition, pinned as *at most* one lookup; every pin the change falsifies (last-parameter regex, call-site needle, lookup counts, the spec guard's text count — across the whole test tree) amended in the same commit as the code; the list a constant on the model of the mirrored domain, the class grepped for a retyped copy; an `is_string` gate ahead of every validator call for both parameters, array rows re-walked; the third-parameter merge trigger written into the plan; the create-response hash compared with the id masked.

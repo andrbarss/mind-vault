@@ -574,3 +574,22 @@ Practice: after a fix push, read the push run's summary **body**, not just its p
 "already reviewed previously" note means retrigger once; and keep the independent two-lens pass for
 what the engine's own scope line says it skimmed.
 
+## § calibration update — the explicit re-review after one fix push answers in ~20 s with "No blocking issues" plus a Nits section the finder reads as FINDINGS=true (downstream PHP project, 2026-10-06)
+
+Canonical workflow; the first review on the un-draft was a full 7-minute run (it ran the suite and the
+artefact check itself and posted "No issues found"). One fix push (the independent two-lens review's
+batch) followed by `claude_retrigger.sh`: the `synchronize` run completed in ~60 s and posted nothing
+(the post-review skip), the explicit `@claude review once` run completed in **22 s** and posted a
+task-format comment — "### Code review (once) / No blocking issues found." with a **Checks run** block
+(suite count, openapi regen, artefact diff), a **What I read** list naming the exact surfaces, and a
+**Nits (non-blocking)** section of two items. The finder emitted `CLAUDE_CHECKRUN=… completed` (from the
+skip run) and `CLAUDE_LATEST_REVIEW=… CLEAN=false FINDINGS=true` — the Nits section matched the
+findings classifier, zero inline comments.
+
+Practice: a task-format verdict whose body opens with a no-blocking phrase and carries only a
+"non-blocking" / "Nits" section is **CLEAN with residual nits**, not STILL_FINDING — read the body,
+check each nit against what the fix commit already changed (both here were already addressed: a
+precedence sentence the same commit had added, a deploy gate the PR body stated), and close the loop
+on the structural signal (DONE + zero inline) rather than re-cycling on the classifier's phrase match.
+Twenty seconds is not shallow when the "What I read" list names the changed surfaces and the checks
+block shows the suite was run; weigh the verdict by that list, as § 2026-10-05 says.
