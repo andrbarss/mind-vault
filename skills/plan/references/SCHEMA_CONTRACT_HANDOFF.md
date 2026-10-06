@@ -127,9 +127,20 @@ predicted shape" because nothing of the API plan had reached `origin`. Four disc
    carries every item you asked for (the field case: wire type, the sort clause, a baseline note,
    all folded into its § 4 / § 6 and marked "Final"), the note stays as the record of what was asked
    with a dated "closed" line at its top — never deleted, never edited into agreement after the fact.
+5. **Send the outgoing note as each item becomes known — never batched for `/work` end.** The
+   owner's `/work` → review → `/wrap` can fit *inside* your `/work`. Second field case, one
+   afternoon: the owner planned at 13:23, shipped its stem at 13:39, fixed a review finding at 14:00
+   and marked the body **final** at 14:34 ("told on their PRs"); the consumer's note — the wire type
+   measured, the release number the sort is safe on, the date the shared dev database gained the
+   column — was written at its `/work` end and reached `origin` after the owner had wrapped. Two of
+   the three items were knowable at `/work` start. Push the first version of the note with the
+   plan-stage contract and revise it per gate. When the owner is already final, the unfolded items
+   stand in the mirror's blockquote as record, with a dated line in the note saying so; nothing is
+   owed in either direction, and a later owner IDEA that amends the body owes a backref there and a
+   re-mirror here. Item 4 still closes a note; item 5 is what to do when the owner closes first.
 
-The count that results is unremarkable and worth expecting: four mirrors in three days, the DDL
-never moving, every change reader-side or on the owner's own write rules.
+The count that results is unremarkable and worth expecting: four mirrors in three days — or in one
+afternoon — the DDL never moving, every change reader-side or on the owner's own write rules.
 
 ## Charset and collation are part of the DDL — pin them on `ADD COLUMN` against a legacy table
 
@@ -140,6 +151,7 @@ Three disciplines, in order:
 1. **Read the table default before writing the DDL** — `SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '<table>'` plus the `CHARACTER_SET_NAME` of two existing text columns. A dump in which every text column spells its own `CHARACTER SET` is the tell that the default is something else. If the default is not the charset you want, **every new text column in the contract's UP DDL pins `CHARACTER SET … COLLATE …` explicitly**, matching the table's newest text columns, and the migration header says why (so a later "tidy-up" does not drop it).
 2. **The contract under-specifies without it.** `VARCHAR(100) NULL` is not a complete column definition on such a schema; the consumer building a form against the contract will validate length in characters that the column then cannot store. Treat charset/collation as part of the frozen DDL, like the type and the nullability.
 3. **The seed probe is the acceptance gate for the bytes, not just the arithmetic.** Seed at least one value with a non-ASCII letter and read back `HEX(col), CHAR_LENGTH(col), LENGTH(col)`: the bytes must be the UTF-8 sequence and `LENGTH > CHAR_LENGTH`. Run it before the first push, while rolling the stem back still costs nothing — a stem that has reached a tenant is content-hashed and gets a *second* migration instead of an edit. (Seed from a client set to utf8mb4; a latin1 *client* produces a different, double-encoded symptom that looks like the same bug.)
+4. **The server reports some charsets under another name — a shape guard compares the *reported* form.** MySQL 8 answers `utf8mb3_general_ci` (`SHOW FULL COLUMNS`, `information_schema`) for a column the DDL spells `CHARACTER SET utf8 COLLATE utf8_general_ci` — a spelling an owner may pin on purpose because every supported server version accepts it. A consumer fixture that derives the expected shape from the contract's DDL text and compares it to the live column then reads a *correct* column as drifted: the guard is red, and a conform path `MODIFY`s the live table on every run. Normalise once in the shared mirror parser (`utf8_` → `utf8mb3_` on the exact prefix; `utf8mb3_` / `utf8mb4_` pass through; the existing refusals unreached), never at each fixture's compare site, and never by asking the owner to respell a deliberate DDL. While naming the fixture's parking table: a name derived from a long column can exceed MySQL's **64-character identifier limit** — count it (a 67-character first draft in the field case).
 
 ## A per-pair setting stored on per-child rows — invariant, tolerance, and a two-direction probe
 

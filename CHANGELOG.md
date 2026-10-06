@@ -12,6 +12,35 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.105 — compound: a degrade path only for a reachable window; the reported collation; the note that outruns the owner's wrap
+
+Single-PR section. Provenance is on this paragraph (2026-10-06). Routed from a downstream PHP admin-API
+project's second contract column of the week on one table, where the owner — reading the shipped
+per-column shape — chose a generic per-list strip instead.
+
+### Added
+
+- **`skills/plan/references/DEGRADE_PATH_ONLY_FOR_A_REAL_WINDOW.md`** — before building a per-column
+  schema oracle / exact-name strip for a tenant that has not yet received a column, ask the owner whether
+  that state is reachable under its deploy order and what the error costs when it is a mistake; three
+  shapes (generic per-list whitelist from the live listing — the default for wholesale reads, the next
+  column is zero code; no strip; per-column oracle — for writers and for acting on absence by name); keep
+  the degrade tests, they pin behaviour not the class; reverse a shipped per-column shape as a
+  rename-before-drop pair with a dated plan section listing what it supersedes; a principle a plan asserts
+  must be grep-checked against the repo's own precedents (a generically named binding had been widened in
+  place — the real argument was the rename cost of column-named classes). Pointer added to `skills/plan/SKILL.md`.
+
+### Changed
+
+- **`skills/plan/references/SCHEMA_CONTRACT_HANDOFF.md`** — § *the request-side race* gains item 5: send
+  the outgoing note as each item becomes known, never batched for `/work` end — the owner's whole
+  `/work` → review → `/wrap` can fit inside yours and mark the body final first; unfolded items stand in
+  the mirror blockquote as record, nothing owed. § *Charset and collation* gains bullet 4: a shape guard
+  compares the collation the server *reports* (`utf8` spelled, `utf8mb3` reported on MySQL 8), normalised
+  once in the shared mirror parser, never by asking the owner to respell; count a derived identifier
+  against the 64-character limit.
+- **`skills/plan/SKILL.md`** — the `SCHEMA_CONTRACT_HANDOFF` one-liner carries both additions.
+
 ## v4.6.104 — compound: read the remote run; the second contract column; counting doubles for when-claims
 
 ### Changed
