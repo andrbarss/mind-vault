@@ -12,6 +12,42 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.109 — compound: a host-local value in a row another host will queue; walking a batch drain on a private copy
+
+Single-PR section (2026-10-08). A downstream project's queued mail rows carried an absolute template path on
+the consumer's own disk. A second application on another host was about to write the same rows and could not
+know that path. The fix was a closed name map resolved by the consumer. Verifying it meant running two cron
+drains for real, but the shared development database held other pending rows those drains would have taken.
+
+### Added
+
+- **`skills/plan/references/HOST_LOCAL_VALUE_IN_A_QUEUED_ROW.md`** — name a host-local value; don't spell it:
+  - a closed map computed from the consumer's own root, one name per use, and a cross-use rule documented
+    rather than enforced;
+  - the legacy key wins unchanged through one resolver that every drain calls;
+  - each drain's outcome derived from what it has already committed: refuse when the value gates the effect;
+    complete and report when the effect is already done, because a retry would stop at "already done";
+  - nothing new ahead of a narrow `catch (Exception)` that can throw an `Error`: an untyped resolver,
+    `is_string` before a map lookup, and `??` in log lines. A JSON-string body crashed a drain's first log
+    line, and a mutation pass showed an `is_array` gate redundant;
+  - a producer contract (the JSON column per row type, dedup key, retry cap, outcome table);
+  - the writer switched off before a consumer rollback.
+
+  Pointer in `skills/plan/SKILL.md`; cross-link from `AMEND_A_QUEUED_TASK_PAYLOAD.md`.
+- **`skills/work/references/WALK_A_BATCH_DRAIN_ON_A_PRIVATE_COPY.md`** — a drain acts on every pending row
+  of its type:
+  - count the pending rows on the target database before the first run;
+  - walk against a private `mysqldump` copy, with the pending copies deleted and the outbound configuration
+    blanked;
+  - a sink for each effect: a capture-file `sendmail_path`, a walk-only prepended stand-in for a missing
+    extension, fixtures that take the no-call branch;
+  - the drain run unmodified through its real entry;
+  - variants compared one row per run, because a batch shares process state. A mixed-batch language
+    difference turned out to be a real defect;
+  - a discriminating row per guard, plus a malformed-body row that must not stop the batch.
+
+  Pointer in `skills/work/SKILL.md`.
+
 ## v4.6.108 — compound: seeding settings another codebase consumes; Docker Desktop mounts that lag behind a host edit
 
 Single-PR section (2026-10-08). A downstream project seeded ten per-tenant setting rows that a separate

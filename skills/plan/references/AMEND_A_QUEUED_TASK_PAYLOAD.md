@@ -77,3 +77,5 @@ otherwise breaks the new writer's contract without any test failing.
 - `LOCAL_FLAG_INTO_AN_EXTERNAL_RECORD.md`: the value being carried is often a local flag headed for
   an external record.
 - `CLAIM_BEFORE_SIDE_EFFECTS_NEEDS_A_WAY_BACK.md`: the worker side of the same ledger.
+- `HOST_LOCAL_VALUE_IN_A_QUEUED_ROW.md`: when a second producer on another host writes the rows, and a
+  value in them only exists on the consumer's host.
