@@ -593,3 +593,37 @@ precedence sentence the same commit had added, a deploy gate the PR body stated)
 on the structural signal (DONE + zero inline) rather than re-cycling on the classifier's phrase match.
 Twenty seconds is not shallow when the "What I read" list names the changed surfaces and the checks
 block shows the suite was run; weigh the verdict by that list, as § 2026-10-05 says.
+
+## § calibration update — a docs-only wrap push posted "No issues found" while saying it did not re-run the review; the finder read CLEAN (downstream PHP project, 2026-10-08)
+
+Canonical workflow. Pass 1 was clean twice:
+- a full review on the un-draft;
+- a full re-review on the review-1 fix push, which arrived on its own, without a retrigger.
+
+The wrap push was docs-only: the IDEA flip, the ideas index, the devlog and a new archive README. Its
+`synchronize` run completed in about 90 s. Unlike § 2026-09-08, where such a run posted nothing, this one
+posted a full-looking summary:
+
+> No issues found. Checked for bugs and CLAUDE.md compliance. Verification run on head `<sha>`. The code
+> was already reviewed clean at `<sha>`. I did not re-run the agent review for this head, because the
+> commits since then (the `/wrap`) only touch docs.
+
+It then listed the suite and artefact-check results it had run. So the run executed the checks and
+reviewed none of the new commits.
+
+The summary does not open with "Skipped", so `CLAUDE_NOOP_PATTERNS` did not exclude it. Clean phrase, no
+finding marker, newer than the head commit: the finder emitted `CLAUDE_LATEST_REVIEW=… CLEAN=true` on the
+wrap SHA, and the docs pass was recorded clean. The human merged on that state.
+
+- **Fix (tooling):** `CLAUDE_PARTIAL_REVIEW_PATTERNS` (`did not re-run the agent review` /
+  `didn't re-review`) excludes such a summary from selection when the body carries no finding marker. A
+  findings body that says the same thing stays a verdict, because the unsafe direction is dropping
+  findings. With the summary excluded, the newest summary predates the head, so `CLAUDE_STALE_SUMMARY`
+  fires and the loop retriggers.
+  - `tests/test_claude_clean_classification.sh` pins both directions.
+  - The patched finder was replayed on the field PR: `CLEAN=true` became `STALE_SUMMARY` /
+    `CLEAN=false`.
+- **Practice:** a wrap push's summary is the docs-pass verdict only when it says it *read* the new
+  commits. "Checks run, no issues" over a head it says it did not review is the § 2026-09-08 situation in
+  different clothes. Fire `claude_retrigger.sh` once, or record in the scratch file that the docs pass did
+  not happen.

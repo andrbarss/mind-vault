@@ -12,6 +12,52 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.110 — compound: a docs pass the Claude finder read as clean; one "absent" test across a queued hop; a reversible walk on a shared database
+
+Single-PR section (2026-10-08). A downstream PHP project's API had three probe-found fatals (an optional date
+bound as an object, a read that assumed its record already existed, a tenant-wide lookup used as a per-entity
+set), plus a fourth on the same date field in the queue worker. The walk that verified the fixes ran on the
+shared development database. After the wrap, a docs-only push's review summary said it had not reviewed the
+head, and the finder still reported CLEAN.
+
+### Fixed
+
+- **`tools/find_claude_comments.sh`** — `CLAUDE_PARTIAL_REVIEW_PATTERNS` treats a summary that says "I did not
+  re-run the agent review" / "didn't re-review" as no verdict when its body carries no finding marker.
+  - The field body opened with "No issues found" and listed the checks it ran over a head it said it had not
+    reviewed. It does not open with "Skipped", so `CLAUDE_NOOP_PATTERNS` let it through and the docs pass
+    read `CLEAN=true`.
+  - A findings-bearing body that says the same stays a verdict.
+  - With the summary excluded, `CLAUDE_STALE_SUMMARY` fires and the loop retriggers.
+  - `tests/test_claude_clean_classification.sh` gains 6 selection cases (17 pass). Replaying the patched
+    finder on the field PR turned `CLEAN=true` into `STALE_SUMMARY` / `CLEAN=false`.
+  - Calibration block in `skills/review-loop/references/engine-claude.md`.
+
+### Added
+
+- **`skills/plan/references/ONE_ABSENCE_TEST_ACROSS_A_QUEUED_HOP.md`** — the action validates an optional
+  field with one absence test and enqueues the raw request; the worker re-reads it with another.
+  - `''` / `'0'` skip validation into a forgiving converter: `date_create('')` is now; `'0'` → `false` → a
+    `TypeError`.
+  - Fix: one test on both sides, or queue the normalised value.
+  - Prove it with a per-class truth table and the real worker, not a re-implemented condition.
+  - Before deploy, a fingerprint query for tasks the old mismatch stranded outside a narrow
+    `catch (Exception)`.
+
+  Pointer in `skills/plan/SKILL.md`.
+- **`skills/work/references/SHARED_DATABASE_WALK_WATERMARKS.md`** — a narrow walk (one request, one task by
+  id) on a shared development database:
+  - whole-schema `AUTO_INCREMENT` snapshot (`information_schema_stats_expiry = 0` in the same session),
+    deleting what grew;
+  - the delete takes anyone's rows, so walk an idle database only;
+  - `UPDATE`d bytes backed up and restored from an EXIT trap, with a refuse-to-start check on a leftover
+    probe marker;
+  - new cache keys listed;
+  - the shell traps that made a cleanup silently partial: `docker exec -i` in a `while read` loop, `join`
+    and `sort` without `LC_ALL=C`, bash 3.2 empty arrays under `set -u`.
+
+  Pointer in `skills/work/SKILL.md`; cross-link from `WALK_A_BATCH_DRAIN_ON_A_PRIVATE_COPY.md`.
+
 ## v4.6.109 — compound: a host-local value in a row another host will queue; walking a batch drain on a private copy
 
 Single-PR section (2026-10-08). A downstream project's queued mail rows carried an absolute template path on

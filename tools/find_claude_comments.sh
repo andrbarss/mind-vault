@@ -324,6 +324,18 @@ export CLAUDE_FINDING_NEGATIONS='(?m)(?:^[ \t]*(?:[-*][ \t]+)?(?:no|none|zero)\b
 # regressed" → findings silently dropped (the unsafe direction). The heading-anchored
 # skip shape covers every observed no-op without that risk.
 export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipp(ed|ing)'
+# A no-verdict that does NOT open with "Skipped": on a docs-only push after a clean
+# review, claude posted "## Code review\n\nNo issues found. … The code was already
+# reviewed clean at <sha>. I did not re-run the agent review for this head, because the
+# commits since then … only touch docs." It ran the project's checks but reviewed none
+# of the new commits, so it is not a verdict on the head — read as one, the docs pass of
+# a wrap-before-review chain is recorded CLEAN with nobody having read the docs
+# (field case 2026-10-08, downstream PHP project). Applied ONLY to a body with no finding
+# marker (after the negation strip): a findings-bearing body that happens to say it did
+# not re-run something stays a verdict — dropping it would lose findings (the unsafe
+# direction). Excluding the summary leaves the head without a verdict, so the loop's
+# stale-summary path retriggers.
+export CLAUDE_PARTIAL_REVIEW_PATTERNS="\\b(did not|didn't) re-?run (the |an? )?(agent |code )?review\\b|\\b(did not|didn't) re-?review\\b"
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Review-state from the Actions job (A7/R2): synthesize CLAUDE_CHECKRUN
@@ -426,13 +438,21 @@ except Exception:
 logins = set(os.environ.get('CLAUDE_LOGINS', '').split())
 sig_re = re.compile(os.environ.get('CLAUDE_BODY_SIGNATURES', 'a^'), re.IGNORECASE)
 noop_re = re.compile(os.environ.get('CLAUDE_NOOP_PATTERNS', 'a^'), re.IGNORECASE | re.MULTILINE)
+partial_re = re.compile(os.environ.get('CLAUDE_PARTIAL_REVIEW_PATTERNS', 'a^'), re.IGNORECASE)
+finding_re = re.compile(os.environ.get('CLAUDE_FINDING_MARKERS', 'a^'), re.IGNORECASE)
+neg_re = re.compile(os.environ.get('CLAUDE_FINDING_NEGATIONS', 'a^'), re.IGNORECASE)
+def is_partial_noop(body):
+    # 'did not re-run the agent review' with no finding marker: not a verdict on the head.
+    return bool(partial_re.search(body)) and not finding_re.search(neg_re.sub(' ', body))
 def is_claude_summary(c):
     login = (c.get('user') or {}).get('login') or ''
     body = c.get('body') or ''
     # Signature AND login (BOTH-AND — a stray bot 'no issues' issue comment must not
-    # fake a claude summary). No-op bodies (draft/already-posted skips) are excluded
-    # so a no-op never masquerades as a verdict.
-    return login in logins and bool(sig_re.search(body)) and not noop_re.search(body)
+    # fake a claude summary). No-op bodies (draft/already-posted skips, and a summary that
+    # says it did not re-review the head) are excluded so a no-op never masquerades as a
+    # verdict.
+    return (login in logins and bool(sig_re.search(body)) and not noop_re.search(body)
+            and not is_partial_noop(body))
 claude = [c for c in comments if is_claude_summary(c)]
 if not claude:
     sys.exit(0)
