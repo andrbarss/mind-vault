@@ -77,3 +77,5 @@ unprocessed.
 - `FALLBACK_HIDES_THE_BRANCH.md`: prove the branch ran, not a fallback that answers the same.
 - `MUTATION_PASS_DISCIPLINE.md`: the walk row must be able to fail on the unfixed code.
 - `../plan/references/HOST_LOCAL_VALUE_IN_A_QUEUED_ROW.md`: the change shape this walk was written for.
+- `SHARED_DATABASE_WALK_WATERMARKS.md`: the narrow case (one request, one task by id) walked on the shared
+  database itself, cleaned by whole-schema `AUTO_INCREMENT` watermarks.

@@ -18,7 +18,7 @@ PASS=0
 FAIL=0
 
 # Load the exported patterns without running the tool (it calls gh).
-eval "$(grep -E '^export CLAUDE_(CLEAN_PATTERNS|FINDING_MARKERS|FINDING_NEGATIONS)=' "$TOOL")"
+eval "$(grep -E '^export CLAUDE_(CLEAN_PATTERNS|FINDING_MARKERS|FINDING_NEGATIONS|NOOP_PATTERNS|PARTIAL_REVIEW_PATTERNS)=' "$TOOL")"
 
 classify() {
     python3 -c '
@@ -124,6 +124,72 @@ if grep -q "marker_body = neg_re.sub(' ', body)" "$TOOL" && grep -q "finding_re.
     PASS=$((PASS + 1)); echo "  ✓ tool classify pass strips negations before the marker search"
 else
     FAIL=$((FAIL + 1)); echo "  ✗ tool classify pass does not strip negations before the marker search"
+fi
+
+# --- Summary selection: which bodies are verdicts at all (before clean-vs-findings).
+# A no-op (draft / already-reviewed skip) and a summary that says it did not re-review
+# the head are not verdicts; a findings body is always a verdict.
+select_body() {
+    python3 -c '
+import os, re, sys
+body = sys.stdin.read()
+noop_re = re.compile(os.environ.get("CLAUDE_NOOP_PATTERNS", "a^"), re.IGNORECASE | re.MULTILINE)
+partial_re = re.compile(os.environ.get("CLAUDE_PARTIAL_REVIEW_PATTERNS", "a^"), re.IGNORECASE)
+finding_re = re.compile(os.environ.get("CLAUDE_FINDING_MARKERS", "a^"), re.IGNORECASE)
+neg_re = re.compile(os.environ.get("CLAUDE_FINDING_NEGATIONS", "a^"), re.IGNORECASE)
+partial = bool(partial_re.search(body)) and not finding_re.search(neg_re.sub(" ", body))
+print("no-verdict" if (noop_re.search(body) or partial) else "verdict")
+'
+}
+
+assert_select() {
+    local name="$1" expected="$2" body="$3" actual
+    actual=$(printf '%s' "$body" | select_body)
+    if [ "$actual" = "$expected" ]; then
+        PASS=$((PASS + 1)); echo "  ✓ $name → $actual"
+    else
+        FAIL=$((FAIL + 1)); echo "  ✗ $name → expected $expected, got $actual"
+    fi
+}
+
+echo ""
+echo "claude summary selection (verdict vs no-verdict)"
+
+assert_select "docs-only push: clean phrase but did not re-run the agent review (field case)" no-verdict \
+'## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+
+Verification run on head `1cc5fe9` (PR merge ref). The code was already reviewed clean at `1b303b1`. I did not re-run the agent review for this head, because the commits since then (the `/wrap`) only touch docs.
+- `composer test`: `OK (2678 tests, 23532 assertions)`'
+
+assert_select "the did-not-re-review spelling" no-verdict \
+'## Code review
+
+No issues found. I didn'"'"'t re-review the documentation commits.'
+
+assert_select "a findings body that also says it did not re-run something stays a verdict" verdict \
+'## Code review
+
+One issue found. I did not re-run the agent review for the unchanged files.
+
+### `docs/README.md`'
+
+assert_select "a full clean review is a verdict" verdict \
+'## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.'
+
+assert_select "draft skip is not a verdict" no-verdict \
+'## Code review
+
+Skipped — this pull request is still in **draft** status.'
+
+# The tool itself must apply the partial-review exclusion in its summary selection.
+if grep -q "def is_partial_noop(body):" "$TOOL" && grep -q "and not is_partial_noop(body))" "$TOOL"; then
+    PASS=$((PASS + 1)); echo "  ✓ tool summary selection excludes did-not-re-review summaries"
+else
+    FAIL=$((FAIL + 1)); echo "  ✗ tool summary selection does not exclude did-not-re-review summaries"
 fi
 
 echo ""
