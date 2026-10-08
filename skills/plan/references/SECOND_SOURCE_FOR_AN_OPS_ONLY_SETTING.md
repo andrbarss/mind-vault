@@ -148,6 +148,8 @@ State these on the operator page as consequences, file the ones you do not fix, 
 
 - [`OPERATOR_LIST_THAT_RECEIVES_A_SECRET.md`](OPERATOR_LIST_THAT_RECEIVES_A_SECRET.md) — the validator this
   sits in front of; nothing of a refused entry is rendered.
+- [`SEEDING_SETTINGS_A_CONSUMER_READS.md`](SEEDING_SETTINGS_A_CONSUMER_READS.md) — when the setting's reader
+  is another codebase: its writer's precedence decides what a row does, not its document.
 - [`API_OWNED_ROWS_IN_A_SHARED_TABLE.md`](API_OWNED_ROWS_IN_A_SHARED_TABLE.md) — one comparator per concept;
   no UNIQUE key possible.
 - [`WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md`](WHOLESALE_EMITTERS_DEFEAT_NEGATIVE_GREPS.md) — the emitter

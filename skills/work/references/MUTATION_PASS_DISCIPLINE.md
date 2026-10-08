@@ -125,8 +125,10 @@ bootstrap can take longer than the gap. The listing order proves nothing on its 
 - ❌ Hostile-input rows whose outcome depends on which ids the shared database happens to hold.
 - ❌ `fail()` inside a `try` whose `catch` names a base class of the framework's failure exception.
 - ❌ Letting the script that runs the pass also write "all killed" into the docs.
+- ❌ Reading a containerised run right after a host-side edit (or restore) without confirming the container sees the new bytes. Docker Desktop directory mounts can lag ([`LOCAL_DOCKER_DEV_GOTCHAS.md` § 5](../../deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md)).
 
 ## Related
 
 - [`EXECUTE_OVER_PIN.md`](EXECUTE_OVER_PIN.md) — a pin proves text; a mutation proves the test behind it can fail.
+- [`../../deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md`](../../deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md) § 5 — check the in-container hash before trusting a mutation result run in a one-off container.
 - [`../../../rules/RULE_self-sweep-before-push.md`](../../../rules/RULE_self-sweep-before-push.md) — trigger 4 (read the count, not the colour) and trigger 7 (staged-set verification).
