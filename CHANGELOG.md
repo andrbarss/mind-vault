@@ -12,6 +12,40 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.108 — compound: seeding settings another codebase consumes; Docker Desktop mounts that lag behind a host edit
+
+Single-PR section (2026-10-08). A downstream project seeded ten per-tenant setting rows that a separate
+consumer turns into its tenants' env files, following the consumer's published key list. The consumer's
+document said a non-empty backend value overrides; its writer kept the tenant file's own value for the
+access-control pair. The plan, the architect review and the implementation all trusted the document. Only an
+independent review that read the writer caught it.
+
+### Added
+
+- **`skills/plan/references/SEEDING_SETTINGS_A_CONSUMER_READS.md`** — the consumer's writer, read per key,
+  decides what a seeded row does; its document and fetch adapter do not. It covers:
+  - a per-key precedence table naming what a row reaches;
+  - consumer key transforms (lowercase, last wins) that turn rows the producer keeps distinct into collisions:
+    a normalised pre-migrate inventory and a post-edit duplicate check, with the emission order observed to
+    move between runs;
+  - empty inherits, non-empty overrides, so the seed value is an owner decision;
+  - a permissive seed that is inert under today's precedence becomes live when the consumer aligns its code
+    with its document (an empty seed is safe under both), so record the hazard where the consumer's team
+    sees it;
+  - every operator, rollback, security and deploy sentence rewritten to the writer.
+
+  Pointer in `skills/plan/SKILL.md`; cross-link from `SECOND_SOURCE_FOR_AN_OPS_ONLY_SETTING.md`.
+
+### Changed
+
+- **`skills/deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md`** § 5 — on Docker Desktop (macOS) a brand-new
+  one-off container on a *directory* mount can read a stale file right after a host edit or restore. This is
+  not § 2's single-file inode case; it reproduced with in-place rewrites too. Before trusting a containerised
+  result as evidence, wait until the in-container hash equals the host's. The tells are errors where a single
+  failure was expected, and a "restored" file still failing.
+- **`skills/work/references/MUTATION_PASS_DISCIPLINE.md`** — an anti-pattern bullet and a Related pointer to
+  that check.
+
 ## v4.6.107 — compound: a degrade path only for a reachable window; the reported collation; the note that outruns the owner's wrap
 
 Single-PR section. Provenance is on this paragraph (2026-10-06; renumbered from v4.6.105 at the forward-sync — two sibling compounds, #112 and #113, took .105 and .106 first). Routed from a downstream PHP admin-API

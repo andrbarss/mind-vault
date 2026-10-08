@@ -71,8 +71,25 @@ Crucially, **do not** list convenience aliases like `localhost` in the app vhost
 
 **Reviewer heuristic**: whenever a dev/staging proxy is a `default_server` AND the app behind it derives backend/secret selection from the Host header, check what an unmatched Host does. If the answer is "loads a hardcoded production default," that's a prod-data footgun — require a Host allowlist + reject-unknown. The deeper root cause (a prod literal as the *default* in app config) is usually pre-existing app code and out of scope for a dev-env PR, but the proxy guard closes the practical exposure.
 
+## 5. Docker Desktop directory mounts can hand a fresh container a stale file (macOS)
+
+**Symptom**: you edit a file on the host, then immediately run a one-off container on the same tree (`docker run --rm -v "$PWD":/app … <test command>`), and the container still reads the **previous** content. In the field case this was a mutation pass: a mutation had been restored on the host, and the next run still failed on it. The first pass also showed bursts of *errors* instead of the expected single failure. Unlike § 2, this is a **directory** mount and a **brand-new** container: there is no long-lived container holding an old inode. It reproduced both with rename-style edits (`perl -pi`) and with in-place rewrites of the same inode.
+
+**Cause (observed, mechanism not verified)**: Docker Desktop's VM file-sharing layer propagates host changes to the Linux VM with a lag. A container started inside that window sees the old bytes.
+
+**Fix**: when a containerised run is **evidence** (a mutation pass, a before/after comparison, a verification row), confirm the container sees the bytes you just wrote before reading the result:
+
+```bash
+want=$(md5 -q "$FILE")                                    # host (macOS)
+until [ "$(docker run --rm -v "$PWD":/app -w /app <image> md5sum "$FILE" | cut -d' ' -f1)" = "$want" ]; do sleep 1; done
+```
+
+Then run the test. The same check applies after **restoring** the file: a "restored, green again" baseline can also be read from stale bytes. Editing inside the container, through `docker compose exec` into a long-running service, avoids the round trip but not the lag for *other* containers.
+
+**Reviewer heuristic**: a mutation or verification result read from a one-off container within seconds of a host edit, with no sync check, is not evidence yet. Errors where a single failure was expected, or a "restored" file still failing, are the tell.
+
 ---
 
-**Provenance**: surfaced standing up a Dockerized local dev stack for a legacy PHP / Zend Framework 1 app (IDEA-002, 2026-06). Gotchas 1, 2, 4 surfaced during build + GitHub Copilot review; 3 during the first `docker compose build`.
+**Provenance**: surfaced standing up a Dockerized local dev stack for a legacy PHP / Zend Framework 1 app (IDEA-002, 2026-06). Gotchas 1, 2, 4 surfaced during build + GitHub Copilot review; 3 during the first `docker compose build`. Gotcha 5 surfaced during a migration pin test's mutation pass on the same stack (2026-10).
 
-**Last Updated**: 2026-06-01
+**Last Updated**: 2026-10-08
