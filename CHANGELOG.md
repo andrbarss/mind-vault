@@ -12,6 +12,35 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.111 — compound: replaying a window-swallowed effect after a deferred write; walking a worker the dev stack never reaches; a "DB-free constructor" two levels deep
+
+Single-PR section (2026-10-09). A downstream PHP project's deferred-registration worker gained a replay of
+the child records (check-in guests) a second writer had tried to send while the parent had no external id.
+The independent review found two real risks the engine's clean pass did not; the plan's dev-stack walk was
+unreachable for two configuration reasons and ran instead on a worktree stack with a prepend stand-in for
+the outbound client.
+
+### Added
+
+- **`skills/plan/references/REPLAY_A_WINDOW_SWALLOWED_EFFECT_AFTER_A_DEFERRED_WRITE.md`** — eligibility
+  as the save-time trigger's persisted form ∧ the empty marker, with a writer census; the replay after the
+  tail inside one `Throwable` catch that covers the pre-loop resolution too (an escape repeats the task and
+  replays the tail through adopt); every ledger-asserted value the replay changes written back to the
+  ledger (a retry otherwise reverts the parent while the child keeps the new id); a budget on starts when
+  the adapters' per-call timeouts exceed the worker's; lazy factory seams; the two dev-stack gates read at
+  plan time. Pointer in `skills/plan/SKILL.md`.
+- **`skills/work/references/WALK_A_WORKER_THE_DEV_STACK_NEVER_REACHES.md`** — the producer's gate, the
+  consumer's gate and the collaborator's branch before designing the walk; the task row inserted by hand
+  with ids from `LAST_INSERT_ID()` + `mysql -N`; a prepend-declared stand-in for an autoloaded application
+  class (never one that is `require_once`d), a mode file for branch flips, a hits file as evidence; the
+  happy / retry / skip variants; cleanup by fingerprint. Pointer in `skills/work/SKILL.md`.
+
+### Changed
+
+- **`skills/plan/references/VERIFY_ARCHITECTURAL_CLAIMS_AT_RUNTIME.md`** — sibling trap: "its constructor
+  is DB-free" read one level deep, when the service it builds binds a table two levels down; construct it
+  in the DB-free suite before claiming, resolve costly seam defaults lazily.
+
 ## v4.6.110 — compound: a docs pass the Claude finder read as clean; one "absent" test across a queued hop; a reversible walk on a shared database
 
 Single-PR section (2026-10-08). A downstream PHP project's API had three probe-found fatals (an optional date
