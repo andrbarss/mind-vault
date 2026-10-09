@@ -109,8 +109,20 @@ answers 500", which is what the code actually does. If the dev-image reproductio
 available, label it in the transcript as the mail failure it is, and note the wall-time (remote
 timeouts run before the absorb), which is the real production cost the outage carries.
 
+## Sibling trap: "its constructor is DB-free" — a constructor that news a service binds a table
+
+An architect review approved a defaulted constructor seam (`$factory ?: Factory::singleton()`) on the
+grounds that the factory's constructor was DB-free, so a DB-free suite could construct the worker with
+its six other fakes and leave this one to default. The factory's constructor built a service object, and
+that service's constructor instantiated a table gateway, which bound a database adapter — the whole
+existing suite errored on construction, on the paths that never touch the factory included. The claim
+had been read off the factory's *own* constructor body, one level deep; the binding was two levels down.
+Discharge it by **constructing the object in the DB-free suite** before writing the claim into a plan
+(one line in a scratch test); and when a seam's default has any construction cost, resolve it lazily at
+first use rather than in the constructor, so paths that never reach it never pay it.
+
 ## Anchor case (2026-06)
 
 Documenting an unfamiliar door-lock subsystem in a multi-tenant legacy PHP (Zend Framework 1) app. The guide asserted **"vendor selection is GLOBAL per deployment — one instance = one vendor"**, citing the exact line where a registry key is set from an env var (`Registry::set('locks_factory_class', env('LOCKS_FACTORY_CLASS'))`). That line was real and correctly cited. But the bootstrap loads a **per-tenant env file** (keyed off the request `Host`'s first label) *and then* requires the config file — so the registry is set **per request, from each org's own env**. The true architecture was the opposite: **per-org multi-tenant** — every organisation on the one instance picks its own vendor. The inverted claim cleared a 5-agent fan-out map, a self source-verification pass, and **3 rounds of review-bot review** (which fixed type-name fidelity and an undefined snippet var around the claim while never questioning it). The maintainer caught it in one read. The fix added the host→env→config load-order trace to the doc and reframed per-org selection as the key feature.
 
-**Last Updated**: 2026-09-14 (added the absorbed-remote-failure sibling trap — a 500 observed on the dev image was the support mail failing after the remote failure was caught; read the catch before writing a failure mode into a contract). Previous: 2026-09-09 (added the sign-to-magnitude sibling trap — a boolean promoted to a count exposes every inflation the sign absorbed; verify with an independent count, never with parity against the sibling that shares the reducer). Previous: 2026-08-28 (added the time-anchored-branch sibling trap — a future-dated probe never executes a `== today` path, so "constant query count" was verified on the one axis the product never sends; 2026-07-16: mid-flight-producer sibling trap)
+**Last Updated**: 2026-10-09 (added the "DB-free constructor" sibling trap — a factory whose service binds a table two levels down; construct it in the suite, resolve seam defaults lazily). Previous: 2026-09-14 (added the absorbed-remote-failure sibling trap — a 500 observed on the dev image was the support mail failing after the remote failure was caught; read the catch before writing a failure mode into a contract). Previous: 2026-09-09 (added the sign-to-magnitude sibling trap — a boolean promoted to a count exposes every inflation the sign absorbed; verify with an independent count, never with parity against the sibling that shares the reducer). Previous: 2026-08-28 (added the time-anchored-branch sibling trap — a future-dated probe never executes a `== today` path, so "constant query count" was verified on the one axis the product never sends; 2026-07-16: mid-flight-producer sibling trap)
