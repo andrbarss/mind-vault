@@ -101,3 +101,13 @@ Write down what the container was given, so that the deploy check can ask the sa
 - `FALLBACK_HIDES_THE_BRANCH.md` — equal documents do not say which branch drew them.
 - `MUTATION_PASS_DISCIPLINE.md` — a comparison must be able to fail.
 - `skills/plan/references/PREVIEW_BEFORE_CREATE.md` — the plan this method verifies.
+
+## The one-stack variant — a caller switch flipped on the same code
+
+When the behaviour under test sits behind a switch that one caller sets (a flag on the model
+instance, an optional parameter with the old default), the two stacks are unnecessary: send the
+request once with the switch forced off and once with it on, on the same checkout, and compare
+the created row and its child rows the same way. It answers "does the switched path store what
+the unswitched path stores" in a minute and survives review fixes; it does **not** answer "is
+the unswitched path itself unchanged" — the equivalence-preserving part of the diff still needs
+the readers census and the suite ([`HOT_PATH_MEASURE_THEN_SPLIT.md`](HOT_PATH_MEASURE_THEN_SPLIT.md)).
