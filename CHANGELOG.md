@@ -12,6 +12,37 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.112 — compound: a slow legacy hot path measured first, then split by who can observe each change; a skip guard as a claim about the skipped call
+
+Single-PR section (2026-10-12). A downstream PHP project's booking request went from 1.2 s to
+0.33 s on its dev stack without an architecture change. The method that got it there: measure with
+the action's own timing line and a DB-profiler probe before editing; sort every change into
+equivalence-preserving (shared method, readers census) vs caller-observable (behind a switch only
+the hot caller sets); the independent review then found two gaps in a "nothing could change" skip
+guard that only reading the skipped call exposed.
+
+### Added
+
+- **`skills/work/references/HOT_PATH_MEASURE_THEN_SPLIT.md`** — the three instruments (timing line
+  via an env key, a profiler probe controller with query-shape histogram, a 1/3/10/N scaling probe
+  that tells a per-item PHP loop from an N+1) and what they tend to find (the same aggregate
+  computed twice, a range loader called per day, a sibling-stored value recomputed on every add, a
+  house-wide scan for a one-type question, a second pass for a value the first produced, a filter
+  using the first column of a composite index); the two-column split and the instance-flag switch
+  read in one place; optional parameters defaulting to today's behaviour; the lean loader's readers
+  census and separate memo; the skip guard as a claim about the skipped call (its own gate, its
+  own exclusion), early returns mirroring the scan's pre-gates and the index's key shape; the
+  switch off/on oracle and the named follow-up for every branch no run entered. Pointer in
+  `skills/work/SKILL.md`.
+
+### Changed
+
+- **`skills/work/references/LIVE_BEFORE_ORACLE.md`** — the one-stack variant: a caller switch
+  flipped off / on on the same code, what it proves and what it does not.
+- **`skills/review-loop/references/common-review-findings.md`** — entry 28: a skip guard around a
+  legacy call encodes a claim about the skipped call; review it by listing the skipped call's
+  effects the fast path lacks.
+
 ## v4.6.111 — compound: replaying a window-swallowed effect after a deferred write; walking a worker the dev stack never reaches; a "DB-free constructor" two levels deep
 
 Single-PR section (2026-10-09). A downstream PHP project's deferred-registration worker gained a replay of
