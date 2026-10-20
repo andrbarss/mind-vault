@@ -41,6 +41,19 @@ real carts, cancel real reservations, or call a real external API with the clone
   never commit it, and remember that `php -r` does not honour the prepend while a script does.
 - **External APIs:** pick fixtures that take the documented no-call branch (an unregistered record),
   confirm that branch in the code, and say so in the verification doc.
+- **A stubbed sender still lets the send path's bookkeeping run.** Replacing the transport (or the
+  autoloaded sender class, prepend-declared, when nothing `require`s its file) stops delivery, not the
+  writes around it: an "invitation sent" flag and its log row, a `last_email_date`, a sent counter.
+  Before the first request, grep the send path for every write it makes after (or because of) a
+  successful send, snapshot those rows for the fixture records, and restore them from the snapshot —
+  reconstructing an old timestamp from a neighbouring log row is a guess, say so if you had to.
+- **When the change suppresses a send, the recorded effects are the oracle.** A dev stack without mail
+  answers the same failure before and after on every row that still sends; record recipients,
+  attachment count and the items the rendered body lists, per row, on the fix and on the base, and
+  compare those ([`skills/plan/references/SUPPRESS_A_SEND_ALERT_INSTEAD.md`](../../plan/references/SUPPRESS_A_SEND_ALERT_INSTEAD.md) § 6). Keep
+  the capture append-only — deleting a bind-mounted capture directory from a macOS host between
+  requests can leave the container writing into a directory it no longer sees
+  ([`skills/deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md`](../../deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md) § 5).
 
 ## 4. The drain runs unmodified, through its real entry
 
