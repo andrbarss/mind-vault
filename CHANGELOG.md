@@ -12,6 +12,47 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.114 — compound: tag the release-prep merge on a main-only flow; merged counts add both deltas; 4-byte filter values against utf8mb3 columns; recount and check by patch
+
+Single-PR section (2026-10-20). A downstream PHP project shipped a new list endpoint and a docs fix in parallel PRs,
+released, then retired its `dev` branch for a main-only flow. Four lessons generalise.
+
+1. **Tagging.** Its release docs kept "tag `origin/main`", which was correct only while `main` moved at releases.
+2. **Counts.** Both PRs added a smoke probe and bumped every prose count to the same number. The forward-sync left
+   that number, one short of the real total.
+3. **Charset.** An emoji in a filter compared against a legacy `utf8mb3` joined column answered 500 (MySQL 3988), and
+   the bound SQL went to the log.
+4. **Stale figures and branch checks.** A devlog backfill quoted a PR description's test count from before that PR's
+   review. A branch whose stranded commit had been cherry-picked read as "not merged" by ancestry.
+
+### Added
+
+- **`skills/wrap/references/RELEASE_TAG_ON_THE_PREP_MERGE.md`**:
+  - tag the release-prep PR's merge commit (`gh pr view --json mergeCommit`), read `VERSION` from that commit, and
+    push only that tag;
+  - the other "`main` == the release" assumptions to re-read when an integration branch is retired;
+  - a checklist.
+
+  Pointers in Step 4b item 6 and the References of `skills/wrap/SKILL.md`.
+
+### Changed
+
+- **`skills/wrap/references/PRE_WRAP_FORWARD_SYNC.md`** — § Counts both sides bumped: the merged figure is the
+  merge-base plus both deltas. Grep every phrasing tree-wide (the auto-merged ones too), recount the set, and name the
+  counts that must not move. Plus a checklist line.
+- **`skills/plan/references/API_OWNED_ROWS_IN_A_SHARED_TABLE.md`** § 5 — the read side:
+  - a 4-byte or invalid-UTF-8 value compared against a narrower-charset column raises MySQL 3988, a 500 with the bound
+    values logged;
+  - validate free-text filter values at parse (`mb_check_encoding`, no code point above U+FFFF);
+  - census the joined tables' columns too.
+
+  The `skills/plan/SKILL.md` pointer now names filtered reads.
+- **`docs/rules/RULE_self-sweep-before-push-rationale.md`** trigger 5 (5) — the reverse drift: a later doc quoting a
+  merged PR's description inherits its opening-time figures. Recount from the merged code.
+- **`skills/review-loop/references/MERGED_MID_LOOP.md`** — § Branch cleanup later: a branch whose commit was recovered
+  by cherry-pick never becomes an ancestor. Check with `git cherry -v` (`-` = merged by content) before keeping or
+  deleting it.
+
 ## v4.6.113 — compound: suppressing a customer-facing send and alerting your own team instead; a changed helper effect falsifies every caller's contract
 
 Single-PR section (2026-10-20). A downstream PHP project's cart confirmation listed every reservation

@@ -81,6 +81,22 @@ So:
   otherwise. One sentence — "PR A merged mid-review and captured commit X rather than the tip;
   PR B carries the remainder" — saves the re-derivation.
 
+## Branch cleanup later: "not merged" by ancestry can be merged by content
+
+The recovery above usually cherry-picks the stranded commit onto a new branch off the default branch. The original
+branch's tip then **never becomes an ancestor** of the default branch. Every later cleanup pass that tests
+`git merge-base --is-ancestor origin/<branch> origin/<default>` lists it as unmerged, and a cautious agent keeps it
+forever or asks about it every time. Test by patch instead:
+
+```bash
+git cherry -v origin/<default> origin/<branch>
+# "-" = an equivalent patch is already on the default branch (merged by content)
+# "+" = a commit whose change is genuinely missing: keep the branch, or recover it
+```
+
+A branch whose every commit shows `-` is safe to delete. Say in the hand-back that it was merged by content, and name
+the PR that carried the change.
+
 ## Prevention
 
 - **Keep the PR in draft until the loop hands back.** `/work` already opens PRs as draft, and

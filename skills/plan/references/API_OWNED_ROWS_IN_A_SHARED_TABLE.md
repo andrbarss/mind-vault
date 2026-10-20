@@ -104,6 +104,16 @@ charset than the connection (4-byte characters cut the value at that character),
 Check whether the application *disables* strict mode at connect: then truncation is a fleet fact,
 not a dev-stack quirk.
 
+**The read side fails louder.** A user-supplied value *compared against* a narrower-charset column (a filter, a
+search, an `IN` list over a legacy `utf8mb3` name column on a `utf8mb4` connection) is not truncated. When the value
+holds a 4-byte character (an emoji), MySQL raises error 3988, "conversion from collation … impossible". The request
+answers 500, and the framework's error log records the statement **with its bound values**, which may be personal
+data. Invalid UTF-8 fails the same way. Validate every free-text filter value and search term at parse time: valid
+UTF-8 (`mb_check_encoding`), no code point above U+FFFF (`/[\x{10000}-\x{10FFFF}]/u`), refused with a 400 that names
+the property and not the value. The legacy columns are the joined ones (status, type and package names), so a column
+census of the base table alone misses them. Check `information_schema.COLUMNS` for every joined table. Reproduce
+against the real server: a mock never raises 3988.
+
 ## Make the orchestration executable
 
 The ordering guarantees above ("no update after a failed create read-back", "no cache reload after
