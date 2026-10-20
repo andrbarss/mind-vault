@@ -55,6 +55,27 @@ After every keep-both on an index / devlog / changelog:
 2. Check the separators at both seams (the `---` between entries, the blank line before a heading): each side's hunk usually carried one separator, and the resolved file has either two in a row or none between the two inserted entries.
 3. Keep the two new entries in **ship order** (the later-merging IDEA above the earlier one) — the newest-first convention reads by merge date, not by the date the entry was authored.
 
+## Counts both sides bumped: recompute from the merge-base
+
+Two PRs in flight each add one item to the same enumerated set: a smoke probe, a test, a route, a list entry. Each
+also bumps every prose count of it ("27 probes" → "28", "26 ok + 1 skip" → "27 ok + 1 skip"). When the second PR is
+forward-synced, both sides wrote **the same new number**. The line auto-merges with no conflict, or a keep-both
+resolution keeps one copy, so the merged file says 28 while the merged tree has 29. Nothing fails: markdown has no
+parser, and the suite counts the items, not the prose.
+
+After every forward-merge whose two sides both touched a counted set:
+
+1. Read each count at the merge-base (`git show $(git merge-base HEAD origin/<default>):<file>`), at HEAD and at the
+   incoming side. Base + delta(ours) + delta(theirs) is the merged figure. When both sides moved a count the same way,
+   the auto-merged value is wrong by one delta.
+2. Grep the whole tree for every phrasing of the count, not just the conflicted files. The auto-merged ones are the
+   dangerous ones: derived forms ("N ok", "N − 1 in the production form", "(N on <date>)") sit in docs neither side's
+   conflict touched.
+3. Recount the set itself (run the suite, the script, `grep -c`), and compare it with the prose figures before
+   committing the merge.
+4. Check the counts that **must not** move. Here a new probe that bypasses the request log leaves the "N counter
+   increments" figure as it was. Name in the merge commit which counts changed and which did not, and why.
+
 ## The second-order catch: a parallel module missed this IDEA's new convention
 
 When the forward-merge brings in a **sibling module** that was authored while this IDEA was
@@ -162,6 +183,7 @@ renumber with no explanation will assume it was a mistake.
 - [ ] `git fetch origin && git log --oneline HEAD..origin/<default>` — non-empty?
 - [ ] merge, resolve keep-both in ship order, lint/parse the resolved files, run the suite
 - [ ] after a keep-both on an index / devlog / changelog: every heading once, separators at both seams, entries in ship order (§ Keep-both seams)
+- [ ] both sides bumped the same count? merged figure = base + both deltas; grep every phrasing tree-wide, recount the set (§ Counts both sides bumped)
 - [ ] commit the merge **before** any wrap edit
 - [ ] (legacy) stacked pair? merge the default branch into the **docs** branch first, push, then merge the docs branch into the feature branch (regenerate artefacts instead of hand-merging them) — new IDEAs are single-branch
 - [ ] incoming modules grepped for this IDEA's new convention; gaps recorded in index / devlog / CLAUDE.md
