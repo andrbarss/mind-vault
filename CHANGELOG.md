@@ -12,6 +12,45 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.113 — compound: suppressing a customer-facing send and alerting your own team instead; a changed helper effect falsifies every caller's contract
+
+Single-PR section (2026-10-20). A downstream PHP project's cart confirmation listed every reservation
+the shared reader returned (ended stays, awaiting-payment rows) and mailed an empty confirmation when
+nothing was left. The fix filters per template, sends nothing and alerts support when nothing remains.
+Four lessons generalise. The filter is scoped by message purpose, not by method: a pay-later notice is
+sent before payment, and a staff alert exists to show the cancelled row. "Expired" is judged by the
+status the expiry path writes, not by a flag a reopen path leaves set. The house support-mail helper
+turns its message into the subject and dumps request parameters behind a debug flag. And changing a
+shared private method's effect made three sibling operations' API descriptions false; only an
+independent doc lens caught that.
+
+### Added
+
+- **`skills/plan/references/SUPPRESS_A_SEND_ALERT_INSTEAD.md`** covers:
+  - per-template admitted states as a map (absent = unfiltered, never suppressed), with each caller's item state at send time
+  - an expiry flag's writer census (a reopen path revives the row without clearing it)
+  - the decision placed after every content kind loads and before the first effect, the locale reset on both exits
+  - the internal alert: best-effort in `catch (Throwable)` inside payment paths, a pinned call shape for the support helper, request values reduced before an HTML body, one log line either way, a distinguishable reply on a manual re-send
+  - re-indexing a list a view reads positionally; whole-record totals; sibling senders as follow-ups
+  - verification by recorded effects, not status codes
+  - the sibling operations' contracts
+
+  Pointer in `skills/plan/SKILL.md`.
+
+### Changed
+
+- **`skills/review-loop/references/common-review-findings.md`** — entry 29: a changed observable
+  effect in a shared private helper falsifies every calling operation's published contract
+  ("ALWAYS sends"). None of those operations is in the diff, so diff-reading reviewers pass it.
+- **`rules/RULE_self-sweep-before-push.md`** — trigger 2 (contract-change sweep): an
+  observable-effect change counts too, so re-read each caller's published contract in the same PR.
+- **`skills/work/references/WALK_A_BATCH_DRAIN_ON_A_PRIVATE_COPY.md`** § 3:
+  - a stubbed sender still lets the send path's bookkeeping writes run (an invitation-sent flag and its log row); snapshot them before the first request
+  - a change that suppresses a send is verified by recorded effects per row, fix vs base
+  - keep the capture append-only on a macOS bind mount
+
+  Pointer line in `skills/work/SKILL.md` extended.
+
 ## v4.6.112 — compound: a slow legacy hot path measured first, then split by who can observe each change; a skip guard as a claim about the skipped call
 
 Single-PR section (2026-10-12). A downstream PHP project's booking request went from 1.2 s to

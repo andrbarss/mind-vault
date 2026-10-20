@@ -25,7 +25,7 @@ For JS, eyeball at minimum. Scope is **touched files entirely**, not just the ne
 
 ### 2. Contract-change sweep (when changing a public function's signature)
 
-When you change a function's return type, parameter signature, or thrown exceptions, grep ALL callers in the SAME commit. The most common wasted-bot-cycle pattern is missing a sibling caller in the same file. Recipes + "what counts as a contract change" → rationale doc.
+When you change a function's return type, parameter signature, or thrown exceptions, grep ALL callers in the SAME commit. The most common wasted-bot-cycle pattern is missing a sibling caller in the same file. **An observable-effect change is a contract change too** — when a shared helper starts sending, writing or skipping differently, re-read every caller's *published* contract (API description, docblock) in the same PR, not only its code ([common-review-findings](../skills/review-loop/references/common-review-findings.md) #29). Recipes + "what counts as a contract change" → rationale doc.
 
 ### 3. Defensive-code sweep (when adding a defensive read of someone else's field)
 
