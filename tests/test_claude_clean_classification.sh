@@ -185,11 +185,67 @@ assert_select "draft skip is not a verdict" no-verdict \
 
 Skipped — this pull request is still in **draft** status.'
 
+assert_select "docs-only push: 'no new code to review' (field case 2026-10-21)" no-verdict \
+'## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+
+Scope: current head <sha>. The code was reviewed at <sha>. The only commit since then is docs-only (archive wrap), so no new code to review.'
+
+assert_select "'did not re-run the multi-agent review' (field case 2026-10-21)" no-verdict \
+'## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+
+Scope: head <sha>. This pass re-read `app/util/Helper.js` in full. I did not re-run the multi-agent review or re-read the window, controller and spec files.'
+
 # The tool itself must apply the partial-review exclusion in its summary selection.
 if grep -q "def is_partial_noop(body):" "$TOOL" && grep -q "and not is_partial_noop(body))" "$TOOL"; then
     PASS=$((PASS + 1)); echo "  ✓ tool summary selection excludes did-not-re-review summaries"
 else
     FAIL=$((FAIL + 1)); echo "  ✗ tool summary selection does not exclude did-not-re-review summaries"
+fi
+
+echo ""
+echo "claude shallow-run guard (a clean summary from a single-digit-turn run is not a verdict)"
+
+# The decision is the tool's own python block, extracted between its markers and run with env.
+SHALLOW_PY=$(sed -n '/# >>> shallow-run decision/,/# <<< shallow-run decision/p' "$TOOL")
+
+assert_shallow() {
+    local name="$1" expected="$2" summary_at="$3" start="$4" end="$5" turns="$6" min="${7:-10}" actual
+    actual=$(SUMMARY_AT="$summary_at" RUN_START="$start" RUN_END="$end" NUM_TURNS="$turns" MIN_TURNS="$min" \
+        python3 -c "$SHALLOW_PY" 2>/dev/null)
+    if [ "$actual" = "$expected" ]; then
+        PASS=$((PASS + 1)); echo "  ✓ $name → $actual"
+    else
+        FAIL=$((FAIL + 1)); echo "  ✗ $name → expected $expected, got $actual"
+    fi
+}
+
+if [ -n "$SHALLOW_PY" ]; then
+    assert_shallow "6-turn run posted the clean summary inside its window (field case)" true \
+        2026-10-20T19:26:09Z 2026-10-20T19:25:25Z 2026-10-20T19:26:15Z 6
+    assert_shallow "summary posted up to 2 min after the run's updated_at still counts" true \
+        2026-10-20T19:28:00Z 2026-10-20T19:25:25Z 2026-10-20T19:26:15Z 7
+    assert_shallow "a full run (tens of turns) is a verdict" false \
+        2026-10-20T19:31:00Z 2026-10-20T19:25:00Z 2026-10-20T19:32:00Z 41
+    assert_shallow "summary from outside the run's window (an explicit claude.yml review) is left alone" false \
+        2026-10-20T19:31:15Z 2026-10-20T19:25:25Z 2026-10-20T19:26:15Z 6
+    assert_shallow "unreadable log (no num_turns) leaves the summary alone" false \
+        2026-10-20T19:26:09Z 2026-10-20T19:25:25Z 2026-10-20T19:26:15Z ""
+    assert_shallow "MIN_TURNS=0 disables the guard" false \
+        2026-10-20T19:26:09Z 2026-10-20T19:25:25Z 2026-10-20T19:26:15Z 6 0
+else
+    FAIL=$((FAIL + 1)); echo "  ✗ tool has no shallow-run decision block"
+fi
+
+# Structural pin: the guard clears only the clean signal, never a findings signal.
+if sed -n '/Shallow-run guard/,/^if \[ -n "\$CLAUDE_INLINE_JSON" \]/p' "$TOOL" | grep -q 'SUMMARY_CLEAN=false' \
+   && ! sed -n '/Shallow-run guard/,/^if \[ -n "\$CLAUDE_INLINE_JSON" \]/p' "$TOOL" | grep -q 'SUMMARY_FINDINGS=false'; then
+    PASS=$((PASS + 1)); echo "  ✓ shallow-run guard drops the clean signal only"
+else
+    FAIL=$((FAIL + 1)); echo "  ✗ shallow-run guard must clear SUMMARY_CLEAN and never SUMMARY_FINDINGS"
 fi
 
 echo ""

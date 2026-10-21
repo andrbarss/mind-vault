@@ -627,3 +627,61 @@ wrap SHA, and the docs pass was recorded clean. The human merged on that state.
   commits. "Checks run, no issues" over a head it says it did not review is the § 2026-09-08 situation in
   different clothes. Fire `claude_retrigger.sh` once, or record in the scratch file that the docs pass did
   not happen.
+
+## § calibration update — after draft-skip summaries, every automatic run was a 6–8-turn skip that still posted a clean summary; the explicit review skips docs-only commits (downstream ExtJS project, 2026-10-21)
+
+Canonical workflow (write perms, forced summary, `claude[bot]`). The PR was opened as a draft and stayed
+draft through `/idea`, `/plan` and `/work`. Each draft push collected a `## Code review — Skipped: this PR
+is a draft` summary, three in all. Un-drafted only after the last push's skip had posted (§ 2026-09-08
+discipline), the PR then received:
+
+| Event | Workflow, wall time | `num_turns` | Posted | Finder before the fix |
+| --- | --- | --- | --- | --- |
+| `gh pr ready` (~1 700-line diff, ~1 000 of it code and specs) | `claude-code-review.yml`, 50 s | 6 ($0.12) | "No issues found. Checked for bugs and CLAUDE.md compliance." | `CLEAN=true` |
+| one-line fix push | `claude-code-review.yml`, 68 s | 7 | the same, plus "Scope: all 7 commits up to `<sha>`" | `CLEAN=true` |
+| code-and-docs fix push | `claude-code-review.yml`, 63 s | 8 | the same, "Scope: current head" | `CLEAN=true` |
+| docs-only wrap push | `claude-code-review.yml`, 60 s | 6 | "…the only commit since then is docs-only, so no new code to review" | `CLEAN=true` (pattern miss) |
+| docs-only fix push | `claude-code-review.yml`, 52 s | 6 | "…I did not re-run the multi-agent review…" | `CLEAN=true` (pattern miss) |
+| explicit `@claude review`, three times | `claude.yml`, 16–26 s | 5 | a task-format review naming exactly what it read: part of the diff, never the specs or plan; it skipped the docs-only commit | not tracked |
+
+The `code-review` plugin's full multi-agent pass **never ran on this PR**. The full pass on a diff this
+size takes tens of turns (§ `num_turns`). Every automatic run did a few turns and then the forced-summary
+prompt made it post the clean line. The likely cause, unverified because the action hides its output:
+the plugin's "already reviewed" eligibility check counted the three draft-skip summaries as a prior
+review. This differs from § 2026-09-18, where `ready_for_review` re-reviewed the head after draft
+pushes that had posted nothing.
+
+The § `num_turns` diagnostic was written for runs that post **nothing**. Here a single-digit run posted
+a clean summary, which every structural signal accepts: DONE run, positive clean phrase, newer than the
+head, zero inline. Prose cannot tell these apart. "Scope: all 7 commits" was posted by a 7-turn run.
+
+- **Fix (tooling):**
+  - `find_claude_comments.sh` gains a **shallow-run guard**. When the clean summary was posted inside
+    the tracked run's window, so that run wrote it, and the run log's `num_turns` is below
+    `CLAUDE_MIN_REVIEW_TURNS` (default 10), it emits `CLAUDE_SHALLOW_RUN=true … NUM_TURNS=n` and drops
+    the clean signal only. A findings signal is never dropped.
+    - The engine then reads SILENT (held RUNNING), and the loop retriggers.
+    - A summary from outside the window, such as an explicit `claude.yml` review, is left alone, and so
+      is an unreadable log.
+    - `CLAUDE_MIN_REVIEW_TURNS=0` disables the guard.
+  - `CLAUDE_PARTIAL_REVIEW_PATTERNS` gains "no new code to review" and the "multi-agent" spelling of
+    "did not re-run the … review".
+  - `tests/test_claude_clean_classification.sh` pins both: it extracts the guard's decision block and
+    runs a six-row table.
+  - Replayed on the field PR: the original finder read `CLEAN=true` on the merged head, the patched one
+    `CLAUDE_SHALLOW_RUN=true NUM_TURNS=6` → `CLAUDE_REVIEW_SILENT`.
+- **Practice:**
+  - **Read `num_turns` before recording any automatic-run clean verdict** on a PR that collected
+    draft-skip summaries. Better still, rely on the guard.
+  - **The explicit `@claude review` is a light read, not the plugin's pass.** It took 5 turns in 16–26 s
+    and stated what it had read. It found no blockers here and skipped the docs-only commit outright,
+    so it cannot be the docs pass of a wrap-before-review chain.
+  - **When the plugin's full pass never ran, substitute an independent net-diff review**
+    ([`LARGE_PR_INDEPENDENT_REVIEW.md`](LARGE_PR_INDEPENDENT_REVIEW.md) shape, two read-only lenses):
+    - on the code, it found two real behaviour gaps (a stored-value comparison broken by the textarea
+      stripping `\r`; a copy path inheriting an exemption) and nine factual errors in docs and UI text,
+      none of which the engine's passes raised;
+    - a single docs reviewer on the wrap found walk steps that would have failed for reasons unrelated
+      to the change.
+  - **Open, untested:** a draft path that posts **nothing** (no skip summary) may avoid the poisoned
+    eligibility check. Try it in the canonical workflow before relying on it.

@@ -12,6 +12,40 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.116 — compound: a clean summary from a single-digit-turn Claude run is not a verdict
+
+Single-PR section (2026-10-21). On a downstream ExtJS project the PR collected three "Skipped: this PR is a
+draft" summaries during `/work`. After that, every automatic Claude Code Review run was a 6–8-turn skip that
+still posted the forced "No issues found" summary. One said "Scope: all 7 commits". `find_claude_comments.sh`
+read `CLEAN=true` each time, and the plugin's full multi-agent pass never ran. Merge after #122 (v4.6.115).
+
+### Fixed
+
+- **`tools/find_claude_comments.sh`:**
+  - A **shallow-run guard**. When the clean summary was posted inside the tracked run's window and the
+    run log's `num_turns` is below `CLAUDE_MIN_REVIEW_TURNS` (default 10), it emits
+    `CLAUDE_SHALLOW_RUN=true` and drops the clean signal only. The engine then reads SILENT and the loop
+    retriggers. An explicit `claude.yml` review, an unreadable log, or `CLAUDE_MIN_REVIEW_TURNS=0` leaves
+    the summary alone.
+  - `CLAUDE_PARTIAL_REVIEW_PATTERNS` gains "no new code to review" and the "multi-agent" spelling of "did
+    not re-run the … review". Both were misses on docs-only pushes.
+  - Replayed on the field PR: `CLEAN=true` → `CLAUDE_SHALLOW_RUN=true NUM_TURNS=6` →
+    `CLAUDE_REVIEW_SILENT`.
+- **`tests/test_claude_clean_classification.sh`:** two selection rows for the new spellings, and a six-row
+  table over the guard's decision block (extracted from the tool), plus a pin that it never drops a
+  findings signal. 17 → 26 checks.
+
+### Added
+
+- **`skills/review-loop/references/engine-claude.md`** § calibration update 2026-10-21 covers:
+  - the per-run table (turns, wall time, what each run posted, what the finder read);
+  - why prose cannot tell these runs from a review;
+  - that the explicit `@claude review` is a light 5-turn read that skips docs-only commits, so it cannot
+    be the docs pass;
+  - the independent net-diff review that substituted for the missing full pass, and what it found;
+  - an untested candidate root fix: a draft path that posts nothing.
+- **`skills/review-loop/SKILL.md`:** the `engine-claude.md` reference line names the case.
+
 ## v4.6.114 — compound: tag the release-prep merge on a main-only flow; merged counts add both deltas; 4-byte filter values against utf8mb3 columns; recount and check by patch
 
 Single-PR section (2026-10-20). A downstream PHP project shipped a new list endpoint and a docs fix in parallel PRs,
