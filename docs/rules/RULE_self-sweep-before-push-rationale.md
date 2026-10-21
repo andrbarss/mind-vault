@@ -230,6 +230,23 @@ Doc-heavy commits (IDEA files, the ideas index/README, plan docs, dev logs) draw
 
 3. **Count / range claims vs the listed set.** Any "N-item cohort" or "(X→Y)" range phrasing must match what's actually enumerated below it. Adding an item outside the stated range silently invalidates the count — prefer "(IDs A–B, with gaps)" or drop the hard count entirely rather than maintain a brittle number.
 
+   **A count tied to a past date is a claim about that date's commit.** History lines ("from <date> the routes kept their
+   verbs: 7 methods GET + POST, the other 10 GET only") quote a number that was true once. Later work changes the set,
+   and a wrap or release note that restates the line inherits a number nobody re-counted. Field case: a wrap restated
+   such a line. Correcting it took three review rounds:
+   - the first fix recounted the *current* end state, but attached it with "(at the time)" to the old date, when the set
+     had been smaller;
+   - its own parenthetical named the wrong added method, because the "added since" list was guessed, not taken from
+     history.
+
+   Sweep:
+   - read the set **at the dated commit**: `git log --until=<date> -1 --format=%h -- <file>`, then
+     `git show <sha>:<file>`;
+   - read "added since" from `git log --diff-filter=A` or the per-commit diffs;
+   - and first ask whether the reader needs the dated number at all. Usually a history line needs only "kept as
+     ported, until X", plus the one state you can recount from a named commit (`git show <merge>^1:<file>`). Drop the
+     rest: an unrecomputed history count costs a review round each time someone corrects it.
+
 4. **Domain-terminology precision.** Name the actual layer, not a plausible-sounding neighbour. Multi-tenancy example (django-tenants): a model that lives in a `SHARED_APPS` app is shared/public-schema — adding a field to it is a **shared-schema migration**, NOT a per-tenant one. "Per-tenant" describes data that *varies* per tenant, not the schema it physically lives in. Mis-scoped schema/auth/permission terminology is a favourite bot nit because it reads as a correctness risk.
 
 5. **PR-description ↔ final-diff drift.** After a mid-PR reorder or a dependency-edge flip, the PR body written for the first commit goes stale. The same drift bites **in the other direction**: a later doc (a devlog backfill, a release note, an archive README) that quotes a merged PR's description inherits the figures *as they stood when the PR was opened*. A test count written before the PR's own review added cases is wrong by those cases (13 quoted, 16 in the merged file). Recount every figure from the merged code (`phpunit <file>`, `grep -c`), and use the PR text only for intent and provenance. Re-read the PR description against the *final* diff before the next trigger — bots compare the two resources and flag conflicting guidance. A one-line "earlier draft said X; reversed in a follow-up — the diff below is authoritative" note also resolves it.

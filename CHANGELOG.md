@@ -12,6 +12,46 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.115 — compound: restricting HTTP verbs on an existing API; dated history counts; the amended-IDEA list from the diff; one harness at a time
+
+Single-PR section (2026-10-21). A downstream PHP API moved from "some methods GET + POST" to one verb per method:
+reads GET, writes POST, the other verb the router's 405. It then wrapped and released the change. Four lessons
+generalise.
+
+1. **Verbs.** Tests sending the old verb could pass "nothing was written" over a 405. A runbook's `curl -G` helper
+   would have turned every write into a 405; only an independent review caught it.
+2. **History counts.** A wrap restated "from <date>, 7 / 10" without re-counting. Its corrections took three review
+   rounds, until the dated counts were dropped.
+3. **Amendment lists.** Written from memory, the list missed IDEAs whose files the sweep touched, and credited a file
+   created by a plain docs PR to an IDEA.
+4. **Concurrent traffic.** A smoke run during a log-diff parity run made a read probe DIFF; a cache census right
+   after live traffic saw throttle keys expire.
+
+### Added
+
+- **`skills/work/references/RESTRICT_HTTP_VERBS.md`**:
+  - a 405 guard in the feature-test base: opt-in, mutation-checked, and the tool that lists every call site to flip;
+  - one expected-verb table held to the router, covering the exact 405 text, OPTIONS and HEAD;
+  - "not logged / not counted" with a positive control per sink, the refusal coming before *route* middleware;
+  - the docs' command-example and universal-claim sweep;
+  - 301/302 → 308;
+  - the same verb to both hosts in parity, the rollback target's proxy, the previous release's rollback asymmetry;
+  - a checklist.
+
+  Pointer in `skills/work/SKILL.md`'s References.
+
+### Changed
+
+- **`rules/RULE_self-sweep-before-push.md`** trigger 5 (3) and its rationale — a count tied to a past date is read at
+  that date's commit (`git show <sha>:<file>`), or dropped when nothing needs it. Adding "(at the time)" to a recount
+  rebinds it to the wrong date.
+- **`docs/rules/RULE_cross-idea-amendments-rationale.md`** — § Building the amended-IDEA list from the diff: the
+  `git log --diff-filter=A` loop; a non-IDEA PR's file is no amendment; complete a short `Amends` trailer in a later
+  commit; backref sections have a direction.
+- **`skills/work/references/SHARED_DATABASE_WALK_WATERMARKS.md`** § 2 — log byte offsets and cache-key censuses are
+  watermarks too: one harness at a time, rerun a lone differing probe, let throttle keys expire before a census.
+  `skills/work/SKILL.md`'s pointer says so.
+
 ## v4.6.114 — compound: tag the release-prep merge on a main-only flow; merged counts add both deltas; 4-byte filter values against utf8mb3 columns; recount and check by patch
 
 Single-PR section (2026-10-20). A downstream PHP project shipped a new list endpoint and a docs fix in parallel PRs,
