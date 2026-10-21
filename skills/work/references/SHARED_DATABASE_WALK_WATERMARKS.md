@@ -23,6 +23,17 @@ The watermark delete cannot tell your rows from a concurrent writer's. Run the w
 writes: no primary stack in use and no cron. Say so in the script header and in the verification doc. If the
 database cannot be quiet, walk on a private copy instead.
 
+The same holds for every byte-offset or key-set watermark, not only table ids. A parity harness that reads "what this
+request appended to the client's log file" attributes any other traffic for that client to the probe. Field case: a smoke
+run started while the parity run was in progress. One read probe's log records interleaved with smoke's, and the probe
+read as a DIFF. Run alone, the same probe was byte-identical. A census of cache keys taken straight after live traffic
+can show rate-limiter keys (an md5 key and its `:timer`) expiring during the suite, and read as "unexplained change".
+Before calling such a difference real:
+
+- run one harness at a time against a stack, and no other client of the same channel or token in the meantime;
+- rerun the differing probe alone (`ONLY=<id>`) before triaging it;
+- give a census at least one throttle window (60 s) after the last live request, or exclude keys with a TTL.
+
 ## 3. State that is not new rows
 
 - **Rows you change with `UPDATE`** (a client's settings, a feature flag) have no watermark:

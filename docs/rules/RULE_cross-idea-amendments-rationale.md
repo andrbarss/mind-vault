@@ -28,6 +28,33 @@ For these files the bidirectional trail still holds, through the other three ste
 
 **The data a hashed stem seeded is amendable even though the stem is not.** When a later IDEA makes a *row* the earlier stem wrote false — an operator-facing description that said "the listed price is the minimum" once a configurable minimum exists — the fix is one more statement in the **new** stem: `UPDATE … SET <text> = <new> WHERE <key> = … AND <text> IN (<every text the seeds have ever written>)`. Equality on the seeded texts is what keeps an operator-written value untouched (the same convergence contract the original seed used); the down-file restores the latest seeded text where the value equals the new one; the header names the stems whose data it amends and the commit trailer carries `Amends IDEA-MMM <stem> (seeded text)`; the walk proves both directions and the operator-edited case. Field case and the surrounding bound-semantics decisions: `skills/plan/references/CONFIGURED_BOUND_OVER_A_DERIVED_FLOOR.md` § 6.
 
+## Building the amended-IDEA list from the diff
+
+Steps 1 and 3 need the full list of amended IDEAs. Write it from the diff, never from memory. Recall gives the IDEAs
+whose *idea* you were thinking about. It misses the ones whose *files* you touched mechanically: a test helper flipped
+in a sweep, a harness file, a doc an earlier IDEA created.
+
+```bash
+for f in $(git diff --name-only origin/<default>...HEAD); do
+  printf '%s\t%s\n' "$f" "$(git log --diff-filter=A --format=%s -- "$f" | tail -1)"
+done
+```
+
+The creating commit's subject names the owning IDEA. Read the file's own header comment too, because ownership can
+move: a later IDEA rewrote the file. Three traps, all field-observed on one IDEA that touched 16 others' files:
+
+- **A file created by a non-IDEA PR is not an amendment.** Examples: a docs PR, a release-prep PR, a hotfix.
+  Attributing it to the IDEA "it feels like" plants a false backref in that IDEA's archive. An independent review
+  caught exactly this: a runbook created by a plain docs PR was credited to the cut-over IDEA.
+- **The first commit's `Amends` trailer is usually short.** It lists the IDEAs you meant to change; the mechanical
+  sweep amends more. Rewriting pushed history is worse than an incomplete trailer, so complete the list in a later
+  commit's trailer ("the full list for this PR, completing <sha>'s"). Repeat it in the execution record and the PR text,
+  where `/wrap` reads it for the backrefs.
+- **Backref sections have a direction.** Where an archive README keeps both "Amended" (what this IDEA changed in
+  others) and "Amended later" (later IDEAs that changed this one), a backref goes under "Amended later". Before
+  appending, check that the section you append to is the last one and has that meaning. Misfiled bullets look right
+  in isolation.
+
 ## Anti-patterns
 
 - ❌ **Re-opening the original IDEA's branch** to make the change. The original IDEA is shipped; the change belongs in the current IDEA's commits.
