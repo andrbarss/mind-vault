@@ -335,7 +335,9 @@ export CLAUDE_NOOP_PATTERNS='^##\s+code[ -]?review\s*\n+\s*skipp(ed|ing)'
 # not re-run something stays a verdict — dropping it would lose findings (the unsafe
 # direction). Excluding the summary leaves the head without a verdict, so the loop's
 # stale-summary path retriggers.
-export CLAUDE_PARTIAL_REVIEW_PATTERNS="\\b(did not|didn't) re-?run (the |an? )?(agent |code )?review\\b|\\b(did not|didn't) re-?review\\b"
+# Field case 2026-10-21 (downstream ExtJS project) added two spellings: "The only commit since
+# then is docs-only, so no new code to review." and "I did not re-run the multi-agent review".
+export CLAUDE_PARTIAL_REVIEW_PATTERNS="\\b(did not|didn't) re-?run (the |an? )?((multi-)?agent |code )?review\\b|\\b(did not|didn't) re-?review\\b|\\bno new code to review\\b"
 
 # ------------------------------------------------------------------------------
 # Pass 1 — Review-state from the Actions job (A7/R2): synthesize CLAUDE_CHECKRUN
@@ -536,6 +538,53 @@ if [ "$STALE_SUMMARY" = "true" ]; then
     echo -e "${YELLOW}⚠️  Newest claude summary (${SUMMARY_AT}) predates the head commit (${HEAD_COMMIT_AT}) — it reviewed a PREVIOUS SHA. Not a verdict for ${PR_HEAD_SHA:0:7}; the synchronize auto-run skip-no-ops once a review exists. Fire claude_retrigger.sh once and verify against the claude.yml (issue_comment) run.${NC}"
     SUMMARY_CLEAN=false
     SUMMARY_FINDINGS=false
+fi
+
+# ── Shallow-run guard (engine-claude.md § 2026-10-21). The forced-summary workflow posts a
+# clean "No issues found" even from a run that reviewed nothing: field case, a PR whose draft
+# pushes had collected three "Skipped: draft" summaries got 6-, 7- and 8-turn runs on the
+# un-draft and on two later pushes, each posting a clean summary (one claiming "Scope: all 7
+# commits"), and this tool read CLEAN three times. A real code-review pass takes tens of turns;
+# the run log's `num_turns` is the only tell. When the clean summary was posted INSIDE the
+# tracked run's window (so that run wrote it — an explicit @claude review comes from the
+# separate claude.yml run and is left alone) and the run took fewer than
+# CLAUDE_MIN_REVIEW_TURNS turns, the summary is not a verdict: clear the clean signal only
+# (a findings signal is never dropped — the unsafe direction). CLAUDE_MIN_REVIEW_TURNS=0
+# disables the guard; an unreadable log leaves the summary as it was.
+CLAUDE_MIN_REVIEW_TURNS=${CLAUDE_MIN_REVIEW_TURNS:-10}
+if [ "$SUMMARY_CLEAN" = "true" ] && [ -n "$CLAUDE_CHECKRUN_LINE" ] && [ "$CLAUDE_MIN_REVIEW_TURNS" -gt 0 ] 2>/dev/null; then
+    sr_id=$(echo "$CLAUDE_CHECKRUN_LINE" | grep -oE 'CLAUDE_CHECKRUN=[^ ]+' | cut -d= -f2 || true)
+    sr_status=$(echo "$CLAUDE_CHECKRUN_LINE" | grep -oE 'STATUS=[^ ]+' | cut -d= -f2 || true)
+    if [ -n "$sr_id" ] && [ "$sr_status" = "completed" ]; then
+        sr_window=$(gh api "repos/$REPO_OWNER/$REPO_NAME/actions/runs/$sr_id" -q '"\(.run_started_at) \(.updated_at)"' 2>/dev/null || echo "")
+        sr_turns=$(gh run view "$sr_id" -R "$REPO_OWNER/$REPO_NAME" --log 2>/dev/null \
+            | grep -oE '"num_turns": ?[0-9]+' | tail -1 | grep -oE '[0-9]+$' || true)
+        SHALLOW_RUN=$(SUMMARY_AT="$SUMMARY_AT" RUN_START="${sr_window%% *}" RUN_END="${sr_window##* }" \
+            NUM_TURNS="$sr_turns" MIN_TURNS="$CLAUDE_MIN_REVIEW_TURNS" python3 -c "
+# >>> shallow-run decision (tests/test_claude_clean_classification.sh extracts this block)
+import os
+from datetime import datetime, timedelta, timezone
+def parse(s):
+    return datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone(timezone.utc)
+def shallow(summary_at, run_start, run_end, num_turns, min_turns):
+    try:
+        turns, floor = int(num_turns), int(min_turns)
+        posted = parse(summary_at)
+        inside = parse(run_start) <= posted <= parse(run_end) + timedelta(seconds=120)
+    except Exception:
+        return False                      # unreadable log or window: leave the summary alone
+    return inside and turns < floor
+print('true' if shallow(os.environ.get('SUMMARY_AT', ''), os.environ.get('RUN_START', ''),
+                        os.environ.get('RUN_END', ''), os.environ.get('NUM_TURNS', ''),
+                        os.environ.get('MIN_TURNS', '10')) else 'false')
+# <<< shallow-run decision
+" 2>/dev/null || echo false)
+        if [ "$SHALLOW_RUN" = "true" ]; then
+            echo "CLAUDE_SHALLOW_RUN=true RUN=${sr_id} NUM_TURNS=${sr_turns} MIN=${CLAUDE_MIN_REVIEW_TURNS} SUMMARY=${SUMMARY_ID}"
+            echo -e "${YELLOW}⚠️  The clean summary ${SUMMARY_ID} came from run ${sr_id}, which took only ${sr_turns} turns (< ${CLAUDE_MIN_REVIEW_TURNS}): a skip that posted the forced clean summary, NOT a review. Fire claude_retrigger.sh once and read the claude.yml run, or use an independent reviewer. See engine-claude.md § 2026-10-21.${NC}"
+            SUMMARY_CLEAN=false
+        fi
+    fi
 fi
 
 if [ -n "$CLAUDE_INLINE_JSON" ]; then
