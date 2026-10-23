@@ -73,6 +73,10 @@ one the "leftover toast" explanation was standing in for:
   the gesture (`dragZone.scroll = false` in ExtJS, beside the repair-animation neutralisation) and
   compute any caller-supplied drop point *after* the scroll reset, never from a rect read earlier.
 
+Server-side, the same class shows up as a process-wide key restored as a registered `null` instead
+of absent, which a later presence check reads as configured: see
+[`RESTORE_ABSENT_GLOBALS_AS_ABSENT.md`](RESTORE_ABSENT_GLOBALS_AS_ABSENT.md).
+
 ## Diagnosis that works
 
 1. **A/B the suite with and without the new file**, several runs each. Build a throwaway copy of the

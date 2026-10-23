@@ -12,6 +12,33 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.117 — compound: a drain-once feed's time floor must outlast the longest poll gap; restore an absent global as absent
+
+Single-PR section (2026-10-23). Routed from a downstream PHP project. A PMS integration polls a feed that returns unsent
+records modified since a floor and marks them sent. The floor was "today 00:00", so records that arrived after the
+consumer's last poll of the day were stranded. The review loop's random-order run surfaced an unrelated test leak.
+
+### Added
+
+- **`skills/plan/references/DRAIN_ONCE_FEED_TIME_FLOOR.md`:**
+  - The rule: on a drain-once feed, a floor that advances on its own must look back at least as far as the longest gap
+    between polls.
+  - What a wider floor does not recover: edits that never reset the marker, resets that do not bump the compared
+    column, and responses lost after the rows were marked.
+  - The caller and access audit a wider window needs.
+  - The NULL-safe, literal-date deploy sizing query.
+  - Test design: the expected value is the owner's literal, never the constant, computed before and after the call.
+- **`skills/work/references/RESTORE_ABSENT_GLOBALS_AS_ABSENT.md`:**
+  - The leak: a save/restore that turns an absent registry or env key into a registered `null` breaks a later
+    presence check under random order.
+  - Record presence separately and unset on restore.
+  - Reproduce the seed on the right tree, grep the whole suite for the idiom, and prove the fix on many seeds.
+
+### Changed
+
+- **`skills/plan/SKILL.md`, `skills/work/SKILL.md`:** reference pointers.
+- **`skills/work/references/CROSS_SPEC_UI_LEAKAGE.md`:** links its server-side sibling.
+
 ## v4.6.116 — compound: a clean summary from a single-digit-turn Claude run is not a verdict
 
 Single-PR section (2026-10-21). On a downstream ExtJS project the PR collected three "Skipped: this PR is a
