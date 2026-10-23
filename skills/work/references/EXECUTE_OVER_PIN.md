@@ -167,6 +167,29 @@ made the bug a requirement.
   legacy rows. Rows that cannot fail are not evidence; say so next to them and cover the branch in
   the suite.
 
+## A hand-written fake of a client library tests your beliefs about the library
+
+When the suite cannot reach the real service (a DB-free suite and a Redis / queue / HTTP client), the
+usual move is an in-memory fake of the client. The fake then answers every question the code asks
+**the way you believe the library answers it**, and the tests pass on that belief. Field case: an
+optimistic-transaction de-dup (`WATCH` → check → `MULTI` … `EXEC`) relied on two facts about the
+client: an aborted `EXEC` returns `false` (not an empty array, not an exception), and a `SET` with an
+expiry option queued inside `MULTI` sets the TTL. The fake encoded both; the walk had to prove them.
+
+- **List the library facts the code branches on**, one line each: the return value of an aborted
+  transaction, of a missing key (`false` vs `null`), of a no-op write (`0` vs `false`), the option
+  spelling that a queued command accepts.
+- **Settle each with a two-connection probe on the real server** at the deployed client version:
+  connection A watches and opens the transaction, connection B writes the key, A executes; print the
+  raw return with its type. A TTL check (`TTL key` after the `EXEC`) settles the option.
+- **Cite the probe next to the fake** (version, command, output), so the next reader knows which
+  answers are measured and which are assumed.
+- **Match the real signatures.** A fake that subclasses the client with looser parameter types can
+  clash with real methods (a fake helper named like a client command overrides it); prefix the fake's
+  own helpers (`fakeSeed()`), and copy typed signatures from the installed version.
+- **Capture state before re-entrant hooks.** A fake whose `exec()` hook runs another push (to
+  simulate the race) must snapshot its queued commands first, or the nested call consumes them.
+
 ## A second environment cloned from the first hides every cross-environment lookup
 
 Verifying code that reads across tenants / schemas / services ("resolve this id in the *owning*

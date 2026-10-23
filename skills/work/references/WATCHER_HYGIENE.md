@@ -14,7 +14,7 @@ Orchestrator agents that arm `run_in_background` Bash watchers to poll external 
 
 4. **`cd` inside the loop body, not before the watcher arms.** Watchers wrapping a tool with cwd-auto-detect behaviour (e.g. tools that resolve the GitHub repo from `git rev-parse --show-toplevel` of cwd) MUST `cd` into the correct working directory at the START of each iteration of the watcher's loop. Bash subshell `cd` does NOT persist between separate `run_in_background` invocations, and the orchestrator's outer cwd may have moved between when the watcher was authored and when it actually runs.
 
-5. **Avoid self-matching exit conditions in `pgrep` / process-table watchers.** A `until ! pgrep -f '<pattern>' >/dev/null; do sleep 5; done` loop that uses `pgrep -f` (full command-line match) WILL match the watcher's own process — because the watcher's bash command line CONTAINS the pattern as an argument. The until-loop never exits because it sees itself as a still-running match. Workarounds: (a) use `pgrep -x` (exact basename) when the target is a single program; (b) use `pgrep -f '<pattern>' | grep -v $$` to exclude the current shell PID; (c) prefer Monitor / file-tail watchers over `pgrep` polling for "is the other process still running" questions.
+5. **Avoid self-matching exit conditions in `pgrep` / process-table watchers** (and in pane / log watchers, whose scrollback holds the typed command — § Concrete Log / Pane Marker Self-Match Avoidance). A `until ! pgrep -f '<pattern>' >/dev/null; do sleep 5; done` loop that uses `pgrep -f` (full command-line match) WILL match the watcher's own process — because the watcher's bash command line CONTAINS the pattern as an argument. The until-loop never exits because it sees itself as a still-running match. Workarounds: (a) use `pgrep -x` (exact basename) when the target is a single program; (b) use `pgrep -f '<pattern>' | grep -v $$` to exclude the current shell PID; (c) prefer Monitor / file-tail watchers over `pgrep` polling for "is the other process still running" questions.
 
 6. **Optional but recommended: session-end `tasks/` sweep.** At session-end (orchestrator-completion hook, or end of an unattended overnight batch), the orchestrator should sweep its task-output directory to drop spent files. Each file is small (~5-10 KB) but accumulates across long sessions — especially overnight batches that cycle through dozens of watchers.
 
@@ -105,6 +105,30 @@ until ! pgrep -x pytest >/dev/null; do sleep 5; done
 ```
 
 In a Claude Code orchestrator: prefer awaiting the `task-notification` event for the backgrounded job over polling `pgrep`. The notification fires reliably on exit and doesn't require a separate watcher process at all.
+
+## Concrete Log / Pane Marker Self-Match Avoidance
+
+The same self-match bites a watcher that greps a **terminal pane, a scrollback or a tee'd log** for a
+done-marker the operator's command prints. The pasted command line is in the scrollback too, and it
+contains the marker text (`…; echo "### redeploy rc=$?"`), so the watcher fires the moment the
+command is *typed*, long before it finishes. Field-observed twice in one deploy: once on the previous
+run's marker still in the scrollback, once on the command's own echo.
+
+```bash
+# Wrong: matches the typed command line that contains the marker text
+until tmux capture-pane -p -J -t sess:win -S -400 | grep -q '### redeploy rc='; do sleep 15; done
+
+# Right: anchor at line start (the command line starts with the prompt), and scope the
+# capture to output after a line this run printed first
+until tmux capture-pane -p -J -t sess:win -S -3000 \
+      | sed -n '/^ROLLBACK_TARGET=[0-9a-f]/,$p' | grep -qE '^### redeploy rc='; do sleep 15; done
+```
+
+- Anchor the marker at **line start** (`^### done`); a prompt-prefixed command line never matches.
+- Scope the search to output **after** a line this run printed first (`sed -n '/^start-marker/,$p'`),
+  so an earlier run's marker in the scrollback cannot match.
+- Prefer a log file the command writes (`| tee ~/run.log`) and grep that file: the typed command is
+  not in it.
 
 ## Optional `/tmp` Cleanup
 

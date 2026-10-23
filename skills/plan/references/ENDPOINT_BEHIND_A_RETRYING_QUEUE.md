@@ -143,6 +143,8 @@ Cite it from the action's docblock. See [`WAIVED_RULE_AMEND_THE_SOURCE.md`](WAIV
 
 ## Related
 
+- [`CAP_A_RETRY_FOREVER_QUEUE.md`](CAP_A_RETRY_FOREVER_QUEUE.md): the producer side of § 1's
+  "unlimited retries": the default, busy targets, newest-push de-dup and the park.
 - [`FAN_OUT_THROUGH_A_SHARED_SERIAL_QUEUE.md`](FAN_OUT_THROUGH_A_SHARED_SERIAL_QUEUE.md): the
   producer side. It covers the drain's timeouts, single-flight, and what one bad target does to
   unrelated work.
