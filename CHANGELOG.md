@@ -12,6 +12,31 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.118 — compound: capping a queue that retried forever; a hand-written client fake; a pane watcher that matches its own command
+
+Single-PR section (2026-10-23). Routed from a downstream PHP project. An async-HTTP queue gave every task an effectively
+infinite try count, and duplicate full-state PMS updates looped for weeks. The fix capped the default, sized limits to
+lock windows, de-duplicated pushes and parked the old tasks.
+
+### Added
+
+- **`skills/plan/references/CAP_A_RETRY_FOREVER_QUEUE.md`:**
+  - A finite default, and producers whose target answers 5xx while merely busy: a limit sized to the lock window,
+    found by reading the target's busy reply, pinned per call site.
+  - De-duplicating full-state pushes: skip only the newest untried identical push to the origin (A, B, A queues
+    three), byte for byte; one optimistic transaction on a key-value store, the drain's own predicate on a table.
+  - The one-off park: select above every legitimate limit, take before moving, skip held jobs, dry run first.
+  - The give-up branch a cap makes reachable must not print the URL.
+
+### Changed
+
+- **`skills/work/references/EXECUTE_OVER_PIN.md`:** new section, a hand-written fake of a client library tests your
+  beliefs about the library; settle each branch-deciding fact with a two-connection probe on the real server.
+- **`skills/work/references/WATCHER_HYGIENE.md`:** the pane / log variant of the self-match trap (the typed command
+  echoes the marker); anchor at line start and scope to this run's output.
+- **`skills/plan/SKILL.md`, `skills/work/SKILL.md`:** reference pointers.
+- **`skills/plan/references/ENDPOINT_BEHIND_A_RETRYING_QUEUE.md`:** links its producer-side sibling.
+
 ## v4.6.117 — compound: a drain-once feed's time floor must outlast the longest poll gap; restore an absent global as absent
 
 Single-PR section (2026-10-23). Routed from a downstream PHP project. A PMS integration polls a feed that returns unsent
