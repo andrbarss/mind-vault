@@ -96,3 +96,49 @@ The per-stage table before / after; the readers census for every lean loader; th
 with each change assigned; for each guard, the list of effects of the skipped call and the term
 that covers each; the follow-up for every branch no oracle entered; and the follow-up migration
 when the `EXPLAIN` showed an index that stops at its first column.
+
+## 6. When the dev clone cannot show the cost, ship the timing line
+
+A request that takes 8–20 s in production can take 50 ms on the dev clone:
+- the clone's catalogue is a fifth of the size;
+- nothing else is running;
+- the slow part only appears under the tenant's real data and load.
+
+Measuring on dev then optimises the wrong stage. Instead, make the per-stage line a production
+instrument, and fix one stage per change:
+
+- **Ship it off by default, on per tenant.** An env key read on every request, one line per
+  request:
+  - **file name:** names the tenant and the caller (`<tenant>_<channel>_<endpoint>_timings.log`),
+    so one investigation reads one file;
+  - **parameters:** non-personal only;
+  - **failures:** a write failure is swallowed;
+  - **stages:** every check and insert gets its own stage, plus `bootstrap` (request start →
+    action) and an `untimed` remainder. A large `untimed` means a stage is missing.
+- **A flow probe that produces comparable lines.** A small script that runs the real client
+  sequence (create cart → book → cancel) N times with a fixed request, prints its own external
+  timings, and tags its rows (`PERFTEST-…`) so they can be told apart from live traffic in the
+  log. Before / after always means **the same request** with the same token, so the lines land in
+  the same file.
+- **Split the dominant stage before choosing its fix.** When one stage owns the time, add
+  sub-stages to the same line, printed after their parent (`stage.child`) and **not** summed into
+  `untimed`, and ship that first. The first split here named one getter as 66–87 % of every
+  request, a getter nobody would have picked from reading the code.
+  - **Warm a cache in its own sub-stage.** When the parent stage is a validator that warms caches
+    internally, call those warm-ups from the controller, each in its own sub-stage, in the
+    validator's own order. A warm-up can change the answer (see the stub trap in
+    [`../../plan/references/SEED_ONE_ITEM_INTO_A_CATALOGUE_CACHE.md`](../../plan/references/SEED_ONE_ITEM_INTO_A_CATALOGUE_CACHE.md)),
+    so pin the order.
+- **One stage per change, each closed by a production before / after.** Make the production probe
+  an owner-gated acceptance criterion of every change: deployed, the same probe run ≥ 10 times,
+  the stage's median / p90 / max recorded before and after in the archive. Bucket the log lines by
+  deploy time and by probe tag:
+  - the probe-vs-probe comparison is the result;
+  - the live lines between deploys are context (they carry the load spikes the probe in a quiet
+    minute may miss).
+
+  A sequence of three such changes took a request's median from 1.48 s to 0.17 s. Each step was
+  chosen by the previous step's log.
+- **Keep the line on after the fix** when the remaining question is load spikes: a quiet-minute
+  probe cannot show that the 10 s outliers are gone, only weeks of live lines can. Record this as
+  an explicit owner decision.

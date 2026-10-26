@@ -12,6 +12,45 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.119 — compound: a check about one item must not build the whole catalogue; ship the timing line when dev cannot show the cost; the in-process parity oracle
+
+Single-PR section (2026-10-26). Routed from a downstream PHP project. A channel booking endpoint took 8–20 s in production
+and ~50 ms on the dev clone. Three changes followed, each chosen by the previous change's production log and each closed
+by a production probe before/after:
+- a per-stage timing line, env-gated per tenant;
+- the nights check building one package instead of the catalogue;
+- the package validator doing the same.
+
+The median request went from 1.48 to 0.17 s.
+
+### Added
+
+- **`skills/plan/references/SEED_ONE_ITEM_INTO_A_CATALOGUE_CACHE.md`** — a check about one item that goes through a
+  getter filling a whole-catalogue cache:
+  - build the item with the catalogue's own per-row body (extracted verbatim) and selection predicate;
+  - seed only the hot caller's fresh, empty instance;
+  - a miss seeds nothing, so the error answers stay, raw-id spellings included;
+  - pin the validator's calls on the partial cache;
+  - the secondary-loader stub trap;
+  - the proof set: an executed one-row test, a parity oracle, mutations.
+
+### Changed
+
+- **`skills/work/references/HOT_PATH_MEASURE_THEN_SPLIT.md`** — new § 6, for when the dev clone cannot show the cost:
+  - ship an env-gated per-request stage line to production;
+  - add a flow probe tagged so it can be told apart from live traffic;
+  - split the dominant stage into sub-stages before choosing its fix;
+  - one stage per change, each closed by a same-request production probe;
+  - keep the line on for load spikes.
+- **`skills/work/references/LIVE_BEFORE_ORACLE.md`** — the in-process variant: one script against a detached
+  default-branch worktree and the branch, compared byte for byte. Traps covered:
+  - explicit ids for every fixture row;
+  - unique sort keys (MyISAM physical order);
+  - the warmed cache restored before every call;
+  - a self-check on the before output;
+  - dev-only guards.
+- **`skills/plan/SKILL.md`, `skills/work/SKILL.md`** — reference pointers.
+
 ## v4.6.118 — compound: capping a queue that retried forever; a hand-written client fake; a pane watcher that matches its own command
 
 Single-PR section (2026-10-23). Routed from a downstream PHP project. An async-HTTP queue gave every task an effectively
