@@ -111,3 +111,42 @@ the created row and its child rows the same way. It answers "does the switched p
 the unswitched path stores" in a minute and survives review fixes; it does **not** answer "is
 the unswitched path itself unchanged" — the equivalence-preserving part of the diff still needs
 the readers census and the suite ([`HOT_PATH_MEASURE_THEN_SPLIT.md`](HOT_PATH_MEASURE_THEN_SPLIT.md)).
+
+## The in-process variant — one script, two checkouts, a byte diff
+
+When the code under test is a model method rather than an action (a getter, a validator, an
+extracted builder), skip HTTP: write one oracle script that boots the framework from a checkout
+given as an argument and prints every answer as one JSON line per key. Then:
+- run it against a **detached worktree of the default branch** and against the branch, same
+  database;
+- `cmp` the two outputs.
+
+It reaches input spaces no walk can. One run here covered:
+- every item × 4 locales × 7 raw-id spellings;
+- 236,160 validator calls;
+- the whole catalogue in two argument forms.
+
+Traps met:
+
+- **Compare against the default branch's code, not old-vs-new in one tree.** Extracting a shared
+  builder moves the "old" function too. A comparison inside the branch compares the extraction
+  with itself.
+- **Fixture rows need explicit ids, all of them.** A fixture whose child rows are re-inserted on
+  each run (copied link rows, say) gets new auto-increment ids every time. When those ids appear in
+  the output, the two runs differ on exactly those lines. Field case: 16 differing lines, every
+  one a link-row id. Give every inserted row an explicit id from a reserved range. Refuse to start
+  when the range holds rows, delete by id on exit, and document the manual clean-up for an
+  interrupted run.
+- **Tied sort keys return in physical order.** With equal `position` values, a table without a
+  clustered index (MyISAM) returns rows in insertion order, which the fixture inserts reshuffle.
+  Give each fixture its own sort key.
+- **Restore cached state before every call.** A model instance warmed once and reused across
+  combinations accumulates side effects of earlier calls, such as a stub entry written after a
+  miss. Snapshot the warmed cache and restore it before every combination.
+- **Self-check the "before" output.** "Identical" proves nothing if every fixture answered "not
+  found". A second script asserts on the default branch's output that each fixture reached the
+  branch it was made for (inactive → not found, a custom rule → accepted and refused where
+  expected, an override → applied in its locale only), with hit counts. Then run seeded mutations
+  of the new code, each of which must differ ([`MUTATION_PASS_DISCIPLINE.md`](MUTATION_PASS_DISCIPLINE.md)).
+- **The script is dev-only.** It writes fixtures. Hard-code the dev host and database, and fail
+  early when the fixture source row is missing, because an empty fixture set compares equal.
