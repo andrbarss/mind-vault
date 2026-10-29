@@ -12,6 +12,28 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.122 — compound: strip secrets from a forwarded XML body; a parity signature nobody may decide
+
+Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its second message handler, which forwards
+an XML update upstream without the client's credentials.
+
+### Added
+
+- **`skills/plan/references/STRIP_SECRETS_FROM_A_FORWARDED_XML_BODY.md`** — byte-exact removal from a forwarded body:
+  - remove as text, then verify by re-parsing as authentication did;
+  - fail closed: refuse, send nothing, log the reason;
+  - **any DOCTYPE fails closed**, because a DTD internal entity carried the password past a removal that every
+    structural check passed (found by an adversarial review);
+  - possessive patterns for linear time;
+  - the shapes that fail closed, and what is forwarded as sent.
+
+### Changed
+
+- **`skills/work/references/LEGACY_REWRITE_PARITY_HARNESS.md`** — a forwarded body the rewrite strips on purpose:
+  - compare it after the harness's own strip (`without-credentials`);
+  - an identical body that still holds secrets is `credentials-forwarded`, a signature no registry entry may decide;
+  - mutation-checked.
+
 ## v4.6.121 — compound: a PHP 7.4 value shim; writing XML text the way SimpleXML's addChild() did
 
 Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its first message handler: a

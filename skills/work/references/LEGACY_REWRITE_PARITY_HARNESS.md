@@ -72,6 +72,22 @@ recorded `application/x-www-form-urlencoded`). Send such cases over a raw socket
 is never chunked), keep the wrapper case under its true name (`form-encoded`), and **verify the raw request once
 against a mock journal** — "both sides answered the same" cannot show that the header was absent.
 
+## A forwarded body the rewrite changes on purpose — and a signature nobody may decide
+
+When a decision makes the rewrite forward *less* than the legacy (secrets stripped from a body it passes upstream),
+a plain `journal…body value` entry would hide every other change to that body. Instead:
+
+- **Compare after the harness's own strip.** When a forwarded body differs, remove the secrets from **legacy's** body
+  with an independent implementation (a string search, not a copy of the app's regex) and compare the rest byte for
+  byte; a match is the narrow signature `journal.<mock>.<i>.body without-credentials`. A whitespace or rewrite bug in
+  the rest still shows as `body value`.
+- **Make the unsafe outcome undecidable.** When the two bodies are *identical* while legacy's still holds the secrets,
+  the rewrite forwarded them: emit `journal.<mock>.<i>.body credentials-forwarded`, and fail the run if any
+  decided-differences or known-gaps entry lists a signature ending in `credentials-forwarded`. Without this, a case
+  whose stripping broke reads SAME, and a glob entry still "used" by its sibling cases never goes NOW CLEAN.
+- **Mutation-check it once**: make the running rewrite forward the raw body (an in-container edit), run the case,
+  see `credentials-forwarded` fail it, recreate the container.
+
 ## Prove the harness can fail
 
 Before trusting a green run, make it red three ways, once each, and revert:
@@ -90,3 +106,5 @@ Before trusting a green run, make it red three ways, once each, and revert:
 - [ ] `app_expect` on incomparable decided cases; trace markers checked on every rewrite body.
 - [ ] Absent-header cases sent raw and checked against a journal.
 - [ ] The three red runs done once.
+- [ ] A body the rewrite strips on purpose: compared after the harness's own strip; an identical body that still holds
+      the secrets is a signature no entry may decide; mutation-checked.
