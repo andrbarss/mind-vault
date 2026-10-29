@@ -12,6 +12,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.124 — compound: a failed-login limit for an API whose callers are machines
+
+Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its last stage-2 step: a per-client
+HTTPS requirement and a failed-login limit in front of an endpoint each customer's PMS polls every few minutes.
+
+### Added
+
+- **`skills/plan/references/FAILED_LOGIN_LIMIT_FOR_MACHINE_CLIENTS.md`**: which counter may judge which login.
+  - An address counter judges unknown usernames only, never a registered account. A "known address" exemption lapses
+    (by TTL, or with a restart), and a stale password behind a shared egress address then locked out every other
+    customer.
+  - Check and reserve in one transaction; release a reservation only within its own window.
+  - The cap spares account keys and known pairs.
+  - Fail open, with the induced case and the timing oracle written down.
+  - SQLite on a tmpfs over APCu under prefork.
+  - The harness margin per key, with a reset before each run.
+
 ## v4.6.123 — compound: functions whose value changed between PHP 7.4 and 8.x; never fail after a destructive pull
 
 Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its third message handler: an
