@@ -12,6 +12,28 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.121 — compound: a PHP 7.4 value shim; writing XML text the way SimpleXML's addChild() did
+
+Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its first message handler: a
+configuration answer built from decoded upstream JSON with SimpleXML, copied byte for byte.
+
+### Changed
+
+- **`skills/plan/references/PHP_ERROR_POLICY_FOR_A_LEGACY_REWRITE.md`** — two new sections:
+  - § 5, a value shim for reading decoded data with PHP 7.4's semantics:
+    - string offsets read the first character;
+    - `> 0` is true for arrays;
+    - `@(int)` where PHP 8.5 only adds a warning to an identical value;
+    - proven by a hostile-shapes parity case;
+  - § 6, SimpleXML `addChild()`'s measured truth table:
+    - valid references are decoded;
+    - a bare `&` empties the element;
+    - invalid references are dropped or garbled;
+    - unknown entities pass raw;
+    - forbidden characters write `<T></T>` with an `asXML()` warning;
+
+    and how to copy it.
+
 ## v4.6.120 — compound: a legacy ↔ rewrite parity harness; a PHP error policy for a rewrite of an app that hid every warning; all-digit array keys; re-check the branch in a second repository
 
 Single-PR section (2026-10-29). Routed from a downstream PHP takeover: the skeleton of a rewrite, built against a parity
