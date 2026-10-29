@@ -28,6 +28,29 @@ Flipping frontmatter `status: in-progress → complete` isn't enough. IDEA files
 
 So wrap Step 2 gains a grep-and-sync sub-step: after editing frontmatter, grep the same file (and sibling plan/README docs) for a `**Status**:` / `Status:` line and sync it (`✅ Complete (YYYY-MM-DD)`). One-liner, zero review cost. See wrap SKILL.md Step 2.
 
+### 1b. Capture-time sentences go stale too — the status line is not the only one
+
+The IDEA, plan and consumer contract are written while things are still pending: the producer's PR
+is open, a sibling repository has not captured its half, a value is "to be measured at `/work`".
+When those resolve inside the same IDEA's life, the body keeps saying so — "PR #N, awaiting merge",
+"stage 3 to be captured there", "until PR #N merges", a contract headed "plan stage", degrade rows
+"to be measured" that `/work` documented by the code instead, a proposal bullet describing the shape
+the plan later replaced. Syncing the status line does not touch them. Field case: a producer merged
+two hours after capture and the sibling captured in parallel; the wrap synced every status line, and
+an independent docs review still found five such sentences in the IDEA plus the contract's status
+header.
+
+At wrap Step 2, after the status-line sync, grep the IDEA's archive directory:
+
+```bash
+grep -nE 'not merged|awaiting merge|until .* merges|to be (captured|measured|confirmed|decided)|plan stage|TBD|open question' docs/archive/<idea-dir>/*.md
+```
+
+Date each hit rather than delete it — the capture state is history: "(PR #N, merged YYYY-MM-DD)",
+"captured there as IDEA-NNN", "*(superseded at `/plan`, D1: …)*". Also re-read every count and
+status-code claim the devlog / changelog / README *summarise* from the contract: a summary that says
+"a save answers 200" where the contract says "create 201, update 200" is the same drift.
+
 ### 2. Review-cycle commits can outdate the devlog — re-touch only if material
 
 Most review commits are noise (lint nits, translation-map entries, decorators) that don't change the devlog narrative — leave them. If a cycle lands a *material* user-facing change (a real bug fix altering behaviour the devlog describes), re-touch the bullet at merge. The bar: "would a devlog reader be misled?" — usually no.

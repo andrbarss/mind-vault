@@ -27,7 +27,7 @@ than one:
 | Layer | Mechanism | Tell |
 | --- | --- | --- |
 | **Client model / serializer** | a typed numeric field converts empty to `0` unless told nulls are allowed (ExtJS `type: 'int'` without `allowNull`; a DTO with `int` not `?int`; a form library's `valueAsNumber` → `0`) | a `NULL` row *displays* as `0` on load — the conversion runs on read too |
-| **API validation** | the framework skips non-implicit rules on an empty string (Laravel's `nullable|integer` never sees `""`; Django's `blank=True` on a nullable field); no normaliser turns `""` into `null` (no `ConvertEmptyStringsToNull`-style middleware in the stack) | `""` passes validation and reaches the persistence layer unchanged |
+| **API validation** | the framework skips non-implicit rules on an empty **or whitespace-only** string (Laravel's `nullable|integer` never sees `""` or `"  "` — `Validator::presentOrRuleIsImplicit()` returns early on `is_string && trim === ''`; Django's `blank=True` on a nullable field); no normaliser turns `""` into `null` (no `ConvertEmptyStringsToNull`-style middleware in the stack) | `""` passes validation and reaches the persistence layer unchanged |
 | **Database** | non-strict mode coerces `""` to `0` / `0.00` with a warning nobody reads (MySQL `strict => false`); the column is `DEFAULT NULL` so the schema looks innocent | the schema dump says nullable; the rows say zero |
 
 Two consequences for the plan:
@@ -38,6 +38,13 @@ Two consequences for the plan:
   companion for the *other* writers of the same columns — there is usually a second client.
 - **The negative "nothing in the backend forbids `NULL`" is a claim about three places**: the
   schema, the model's write guard (`$guarded` / `$fillable` / casts), and the rules. Cite all three.
+- **Read the installed validator's empty-value rule before designing around it.** Field case: a plan
+  switched a create action to validate the normalised payload "so whitespace answers the same on
+  create and update" — the validator already skipped whitespace-only strings, so the switch bought
+  nothing and broke the plan's own "legacy validate lines unchanged" promise (the architect pass
+  caught it); a review engine later asserted the opposite ("whitespace fails `numeric`, 400") and
+  was refuted with the same vendor line. Put a whitespace row in the endpoint test: it pins the
+  behaviour and is the refutation, ready to cite.
 
 ## 3. Measure the payload through the production seam, not the bare object
 

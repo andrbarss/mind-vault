@@ -94,6 +94,40 @@ behavioural change). Name the actual cost. A principle that a sibling already vi
 by the next planner as a rule and propagated; a cost can be weighed — and here, once the owner said
 the window was not real, weighed to zero.
 
+## For a writer, read what the framework does with the unknown key — before pricing the window
+
+Question 2 above prices the window by its error. For a *writer* the owner's contract usually
+predicts the database's answer ("every save answers `Unknown column`"), but the consumer's ORM may
+never send the key. Read the write path before taking the prediction into the plan:
+
+- **Laravel / Eloquent, `$guarded` a short list (not `['*']`):** `GuardsAttributes::isGuarded()`
+  calls `isGuardableColumn()`, which lists the table's columns and treats any key the table lacks as
+  *guarded*; `fill()` / `new Model($data)` skip it **without an exception**. On a tenant without the
+  column a create answers 201 and an update 200, and the value is silently not stored. A value the
+  validator refuses still answers 400 — but only where validation reads the posted body; an update
+  that validates the merged model never sees the key at all. A raw `DB::table()->insert()` naming the
+  column is the opposite case: the database error the contract predicted.
+- So the window's cost for an ORM writer is a **silent discard**, not a loud error. That can change
+  the owner's answer to question 2; when it does not (migrate first, admin after), write the degrade
+  rows into the consumer contract **by the code** — the controller's validate line, the framework's
+  guard method, each with `file:line` — instead of measuring with DDL on a shared table. Label them
+  "by the code, not measured".
+
+**The same cache bites the test suite.** `isGuardableColumn()` memoises the column list in a
+`static` property keyed by model class — one request under PHP-FPM, the **whole process** under
+PHPUnit. A fixture that `ALTER`s the table mid-suite, after any earlier test wrote that model, keeps
+the stale list, and `fill()` keeps dropping the new keys. It reds only where the database starts
+without the column (CI's fresh dump) and only in an order where a writer runs first — green locally
+on a database that already has the column. Reset it right after the `ALTER`:
+
+```php
+$p = new ReflectionProperty(Illuminate\Database\Eloquent\Model::class, 'guardableColumns');
+$p->setAccessible(true);
+$p->setValue(null, []); // two-argument static form; the one-argument form is deprecated from PHP 8.3
+```
+
+Prove it with the full suite on a **fresh** test database, not a single file.
+
 ## Field case (2026-10)
 
 An admin API over a multi-tenant booking store; the storefront's repository owns the table and

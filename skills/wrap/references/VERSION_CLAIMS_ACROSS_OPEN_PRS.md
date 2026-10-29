@@ -46,6 +46,25 @@ default branch's.
    `git show origin/<default>:VERSION` against each still-open PR's claim. Do not push to another
    author's branch to fix it.
 
+## A release ships every merge since the last one — read its changelog against that window
+
+When the wrap cuts a version from the default branch, the release carries **every PR merged since
+the previous version**, not only this IDEA. Projects that log IDEAs in the devlog and operational
+PRs (deploy tooling, hotfixes) only in the changelog drift: an ops PR merged without its changelog
+line now ships unnoted inside a release named after a feature. Before writing the version section:
+
+```bash
+gh pr list --state merged --base <default> --search "merged:><previous release date>" --json number,title
+```
+
+and match each number against the changelog (`[Unreleased]` + the new section). Missing ones
+(≤ 3) are backfilled into the new section from their PR bodies — say which in the hand-back so the
+owner reviews bullets they did not write; more than three → ask. If `[Unreleased]` holds entries,
+whether the new version absorbs them is the owner's call (ask with the rest of Step 4b), and the
+headline paragraph names everything the version carries, not only the IDEA. Field case: a feature
+release absorbed two `[Unreleased]` entries and three ops PRs that had merged with no changelog line
+at all.
+
 ## Checklist (Step 4b, before editing the version source)
 
 - [ ] Open PRs against the release branch listed; each head's version claim read.
@@ -54,6 +73,8 @@ default branch's.
       the PR description.
 - [ ] Post-merge: the default branch's version compared with every still-open claim; an
       out-of-order merge reported with the late PR's resolution recipe.
+- [ ] PRs merged since the previous version matched against the changelog; gaps backfilled into the
+      new section (or asked about), `[Unreleased]` absorption decided by the owner.
 
 ## Related
 
