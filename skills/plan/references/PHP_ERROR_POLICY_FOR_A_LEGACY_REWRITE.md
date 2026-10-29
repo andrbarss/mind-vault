@@ -118,6 +118,36 @@ Rules for a rewrite that must copy the output:
 - `asXML()` with no encoding writes `<?xml version="1.0"?>` and every non-ASCII character as a numeric reference; the
   bytes depend on the libxml version, so pin them in a test that runs in the production image.
 
+## 7. Functions whose *value* changed between 7.4 and 8.x — sweep, never sample
+
+Some built-ins return a different value on 8.x for the same input, with no warning to show it. A handful of
+hand-picked samples agreeing proves nothing: in the field case six money quotients agreed, and a sweep of the real
+domain found the difference. Sweep the whole input domain the legacy sees, on both runtimes, and compare hashes.
+
+- **`number_format()` / `round()` lost pre-rounding.** PHP 7's `_php_math_round()` first rounds to 15 significant
+  digits; PHP 8 does not. Every price 0.00–3000.00 over 1–14 nights is 4.2 million quotients, and 17,653 of them differ
+  by a cent (`50.01 / 6`: 8.34 on 7.4, 8.33 on 8.5). Port 7.4's
+  `PHP_FUNCTION(number_format)`:
+  - the absolute value rounded by a port of `_php_math_round()`: pre-round when `14 − floor(log10|x|)` precision places
+    exceed the requested places, then `php_round_helper` HALF_UP, then the `ROUND_FUZZ` (1e-15) re-check, and powers
+    of ten from a `1e<n>` literal up to 22;
+  - printed with `%.*F`;
+  - the sign kept unless the rounded value is 0 (`-0.004` → `0.00`);
+  - `inf` and `nan` lower-case, with no sign.
+
+  Above about 1e13 the port must not hand back to 8.x's `number_format()`, which would round a second time. The port
+  matched 7.4 on the 4.2 million and on 400,000 random quotients up to 1e23.
+- **`date_diff()->days` across UTC-offset changes.** 7.4's timelib corrects the timestamp difference by the change of
+  UTC offset, truncated to whole minutes, when both dates are in the same named zone. 8.x counts calendar days. They
+  disagree across a zone's historical standard-offset changes (Europe/Vilnius before 1920: 529 of 408,191 date pairs),
+  never across DST. The model `intdiv(ts_b − ts_a + intdiv(off_b − off_a, 60) · 60, 86400)` (earlier date first)
+  matched 7.4 on 433,289 same-zone pairs. For mixed zones or explicit offsets it is wrong, so fall back to 8.x's count
+  and record the residual.
+- **A NUL byte in a date.** `DateTime::createFromFormat()` on 7.4 reads up to the NUL. `date_create()` reads the NUL
+  as a space (`"2026-11-20\0x"` is midnight in military zone X, −11:00). 8.x throws a `ValueError` on both.
+- **Generate a random sweep's inputs once and feed the same file to both runtimes:** `mt_rand()` with the same seed
+  gives different sequences on 7.4 and 8.x, so a sweep that generates its own inputs on each side compares garbage.
+
 ## Checklist
 
 - [ ] Phase split written into the plan: fail closed before the upstream answers, tolerant after a one-shot answer.
@@ -132,3 +162,5 @@ Rules for a rewrite that must copy the output:
 - [ ] A hostile-shapes parity case checks the shim against the legacy itself.
 - [ ] SimpleXML text: the `&` rule decided with the owner, forbidden characters as empty text nodes, the bytes pinned in
   the production image.
+- [ ] Money formatting, day counts and date parsing swept over the real input domain on both runtimes (one shared input
+  file); 7.4's `number_format()` ported, not sampled.
