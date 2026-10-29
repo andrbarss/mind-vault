@@ -2,7 +2,8 @@
 
 Load when a plan rewrites a legacy PHP service that ran with `error_reporting(0)` (or `display_errors` swallowing
 everything) onto a current PHP, and must copy what the legacy answered — or when it designs warning-to-exception
-conversion, a fatal-error answer, or the tests for either.
+conversion, a fatal-error answer, or the tests for either; when it reads decoded upstream values with 7.4's semantics
+(§ 5); when it writes XML text the way a legacy `SimpleXMLElement::addChild()` did (§ 6).
 
 ## 1. What `error_reporting(0)` was really doing
 
@@ -67,6 +68,56 @@ rest itself. A handler that respects `@` with `if ((error_reporting() & $errno) 
 tests, raise it around each test (`#[Before]`: `$this->saved = error_reporting(E_ALL)`, `#[After]`: restore) and say why
 in a comment; production keeps the `@` check.
 
+## 5. Reading decoded values as 7.4 did — one shim, no cast that warns
+
+Under a warning-to-exception policy, every raw read of decoded upstream data is a refusal waiting for a shape the
+legacy tolerated: `$entry['x']` on a string or an int, `(string)` / `.` on an array ("Array to string conversion"),
+`trim(array)`. Route every read through one small class whose methods branch on the type and reproduce 7.4's *value*
+without its warning. Measured on 7.4.33 against 8.5:
+
+| Expression | 7.4 value | shim |
+| --- | --- | --- |
+| `"abc"['k']` (non-numeric key) | `'a'` (illegal string offset reads offset 0); `""['k']` → `''` | `offset()`: arrays by key, strings their first char, else `null` |
+| `$int['k']`, `$bool['k']`, `null['k']` | `null` | `null` |
+| `[] > 0`, `[0] > 0` | **true** | `greaterThanZero()`: any array → true |
+| `"5abc" > 0` / `"abc" > 0` / `"0x1A" > 0` | true / false / false (8.5: `"abc"` and `"0x1A"` are true) | leading-numeric prefix as a number, else 0 |
+| `(string) [1]`, `"x" . []` | `'Array'` (notice) | `'Array'`, no notice |
+| `(string) 0.30000000000000004` | `"0.3"` — `precision=14` on **both** versions | plain cast |
+| `(int) 1e20`, `(int) 2**63`, `(int) INF` | `7766279631452241920`, `PHP_INT_MIN`, `0` | **8.5 gives the same values but warns** "not representable as an int": `@(int)` for floats only, with a comment |
+
+A narrowly scoped `@` is the right tool where the new runtime's value is already identical and only the warning is new:
+the handler's `@`-check (§ 4) leaves it to PHP, and ErrorPolicy does not refuse. Never use `@` to hide a *different*
+value. Prove the shim against the legacy, not against your own expectations: a parity case with deliberately hostile
+shapes (string and int entries, array-valued fields, `"2abc"` ids) is the oracle; the unit tests only pin the table.
+
+## 6. Writing text through SimpleXML the way the legacy did
+
+A legacy that builds XML with `SimpleXMLElement::addChild($name, $value)` passes `$value` through libxml's entity
+parsing, not as plain text. Measured on PHP 7.4.33 / libxml 2.9.10 (identical on 8.5 / 2.9.14):
+
+| Value | Output |
+| --- | --- |
+| `A &amp; B`, `&#279;`, `&#x10FFFF;`, `&lt;b&gt;` | decoded and re-serialised: the receiving client reads `A & B`, `ė`, `<b>` |
+| `Tom & Jerry` (bare `&`) | `<T/>` — the **whole element is emptied** (warning hidden by `error_reporting(0)`) |
+| `&#0;`, `&#9999999;`, `&;`, `&#;`, `&#12` alone | `<T/>`; inside text only the reference is dropped (`x&#0;y` → `xy`) |
+| `&#X41;` (upper-case X) | garbled to `X41;` |
+| `&nbsp;`, `&foo;`, `&AMP;` | passed through **raw**: the document is no longer well-formed XML |
+| a C0 control (not tab/LF/CR), U+FFFE, U+FFFF | `asXML()` warns "char out of range" and writes `<T></T>` (an empty *text node*, not `<T/>`); the rest of the document is intact |
+| NUL | the text is cut at the NUL (C string) |
+| `''` / no text | `<T/>` |
+
+Rules for a rewrite that must copy the output:
+- Decide the `&` cases with the owner — copying "valid references decoded, everything else escaped as text" keeps
+  the only difference where the legacy is broken. Implement it as a scan that keeps `&amp;|&lt;|&gt;|&quot;|&apos;|
+  &#d+;|&#xH+;` (code point allowed by XML 1.0) and escapes every other `&` before `addChild()`.
+- A text with a forbidden character: write an element with an empty DOM text node
+  (`dom_import_simplexml($child)->appendChild($doc->createTextNode(''))`) instead of passing it, so the bytes match
+  and `asXML()` never warns.
+- Attributes go through `addAttribute()`, which escapes `&<"` itself; U+FFFE/U+FFFF there still make `asXML()` warn
+  while writing the legacy's exact bytes (`&#xEF;&#xBF;&#xBF;`) — silence that one call (§ 5's rule).
+- `asXML()` with no encoding writes `<?xml version="1.0"?>` and every non-ASCII character as a numeric reference; the
+  bytes depend on the libxml version, so pin them in a test that runs in the production image.
+
 ## Checklist
 
 - [ ] Phase split written into the plan: fail closed before the upstream answers, tolerant after a one-shot answer.
@@ -77,3 +128,7 @@ in a comment; production keeps the `@` check.
 - [ ] `zend.exception_ignore_args = On` in the image.
 - [ ] A live fatal probe under the real SAPI; opcache revalidation waited out.
 - [ ] Handler tests raise `error_reporting()` around each test.
+- [ ] Every read of decoded upstream data goes through the value shim; `@` only where the value is measured identical.
+- [ ] A hostile-shapes parity case checks the shim against the legacy itself.
+- [ ] SimpleXML text: the `&` rule decided with the owner, forbidden characters as empty text nodes, the bytes pinned in
+  the production image.

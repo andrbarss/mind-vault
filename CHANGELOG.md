@@ -15,7 +15,7 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 ## v4.6.122 — compound: strip secrets from a forwarded XML body; a parity signature nobody may decide
 
 Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its second message handler, which forwards
-an XML update upstream without the client's credentials. Merge after the v4.6.121 PR.
+an XML update upstream without the client's credentials.
 
 ### Added
 
@@ -33,6 +33,28 @@ an XML update upstream without the client's credentials. Merge after the v4.6.12
   - compare it after the harness's own strip (`without-credentials`);
   - an identical body that still holds secrets is `credentials-forwarded`, a signature no registry entry may decide;
   - mutation-checked.
+
+## v4.6.121 — compound: a PHP 7.4 value shim; writing XML text the way SimpleXML's addChild() did
+
+Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its first message handler: a
+configuration answer built from decoded upstream JSON with SimpleXML, copied byte for byte.
+
+### Changed
+
+- **`skills/plan/references/PHP_ERROR_POLICY_FOR_A_LEGACY_REWRITE.md`** — two new sections:
+  - § 5, a value shim for reading decoded data with PHP 7.4's semantics:
+    - string offsets read the first character;
+    - `> 0` is true for arrays;
+    - `@(int)` where PHP 8.5 only adds a warning to an identical value;
+    - proven by a hostile-shapes parity case;
+  - § 6, SimpleXML `addChild()`'s measured truth table:
+    - valid references are decoded;
+    - a bare `&` empties the element;
+    - invalid references are dropped or garbled;
+    - unknown entities pass raw;
+    - forbidden characters write `<T></T>` with an `asXML()` warning;
+
+    and how to copy it.
 
 ## v4.6.120 — compound: a legacy ↔ rewrite parity harness; a PHP error policy for a rewrite of an app that hid every warning; all-digit array keys; re-check the branch in a second repository
 
