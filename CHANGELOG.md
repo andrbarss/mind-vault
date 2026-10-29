@@ -12,6 +12,34 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.122 — compound: what a guarded ORM does with a column the tenant lacks; whitespace is already skipped; stale capture-time sentences; a release ships the whole merge window
+
+Single-PR section (2026-10-29). Routed from a downstream PHP admin API: a writer for four nullable price columns
+another repository migrates, run through idea → plan → work → review → wrap in one day with the producer merging
+mid-run. Follows v4.6.121 (open PR, a PHP 7.4 shim); merge that one first.
+
+### Added
+
+- **`skills/plan/references/DEGRADE_PATH_ONLY_FOR_A_REAL_WINDOW.md`** § *For a writer, read what the framework does
+  with the unknown key*: a guarded Eloquent model drops a key the table lacks inside `fill()` (`isGuarded()` →
+  `isGuardableColumn()`), so on an un-migrated tenant a create answers 201 and an update 200 with nothing stored — a
+  silent discard, not the `Unknown column` the owner's contract predicted; write such degrade rows by the code. The
+  same `static` column cache lives for the whole PHPUnit process: reset it after a mid-suite `ALTER`, or CI reds by
+  test order.
+- **`skills/wrap/references/WRAP_BEFORE_REVIEW.md`** § 1b: capture-time sentences ("awaiting merge", "to be captured
+  there", "to be measured at `/work`", a contract headed "plan stage") survive the status-line sync when the producer
+  merges inside the IDEA's life — a grep for Step 2 and the "date it, don't delete it" rule.
+- **`skills/wrap/references/VERSION_CLAIMS_ACROSS_OPEN_PRS.md`** § *A release ships every merge since the last one*:
+  match the merge window against the changelog before writing the version section; backfill ≤ 3 missing lines, ask
+  above that; `[Unreleased]` absorption is the owner's call. Checklist row added.
+
+### Changed
+
+- **`skills/plan/references/EMPTY_IS_A_THIRD_STATE.md`** § 2: Laravel skips non-implicit rules for whitespace-only
+  strings as well as `""`; read the installed validator's empty-value rule before designing around it (a plan's
+  validate-what-you-save switch and a review engine's opposite claim were both refuted by the same vendor line).
+- `skills/plan/SKILL.md`, `skills/wrap/SKILL.md`: the four reference pointers extended.
+
 ## v4.6.120 — compound: a legacy ↔ rewrite parity harness; a PHP error policy for a rewrite of an app that hid every warning; all-digit array keys; re-check the branch in a second repository
 
 Single-PR section (2026-10-29). Routed from a downstream PHP takeover: the skeleton of a rewrite, built against a parity
