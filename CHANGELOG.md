@@ -12,6 +12,30 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.123 — compound: functions whose value changed between PHP 7.4 and 8.x; never fail after a destructive pull
+
+Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its third message handler: an
+at-most-once pull of reservations, mapped with the legacy's PHP 7.4 semantics.
+
+### Added
+
+- **`skills/plan/references/NEVER_FAIL_AFTER_A_DESTRUCTIVE_PULL.md`**: for an upstream that marks records delivered
+  as it answers.
+  - Ids are logged from the raw body before the decode.
+  - One decode, and a per-request memory limit that is read back after setting it.
+  - Map, then write, so a skipped record leaves nothing behind.
+  - Unbounded output is generated lazily.
+  - A size budget is set only above the legacy's own limit, measured over HTTP.
+
+### Changed
+
+- **`skills/plan/references/PHP_ERROR_POLICY_FOR_A_LEGACY_REWRITE.md`**: § 7 covers functions whose value changed
+  between 7.4 and 8.x.
+  - `number_format()` lost pre-rounding, with a ported `_php_math_round()`.
+  - `date_diff()` across historical offset changes, with the model.
+  - NUL bytes in the date parsers.
+  - Sweeps instead of samples, with one shared input file.
+
 ## v4.6.122 — compound: strip secrets from a forwarded XML body; a parity signature nobody may decide
 
 Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its second message handler, which forwards
