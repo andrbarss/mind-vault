@@ -12,6 +12,40 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.120 — compound: a legacy ↔ rewrite parity harness; a PHP error policy for a rewrite of an app that hid every warning; all-digit array keys; re-check the branch in a second repository
+
+Single-PR section (2026-10-29). Routed from a downstream PHP takeover: the skeleton of a rewrite, built against a parity
+harness and reviewed by the architect pass, the push-triggered engine and an independent reviewer.
+
+### Added
+
+- **`skills/work/references/LEGACY_REWRITE_PARITY_HARNESS.md`** — the harness shape that held on its second takeover:
+  - reset and re-arm mock faults per target;
+  - compare the outbound calls, including headers the legacy HTTP library added on its own (Guzzle drops
+    `Accept-Encoding` that libcurl sent);
+  - signatures, not values;
+  - decided differences with checked doc anchors, known gaps owned by roadmap steps;
+  - NOW CLEAN fails a full run (it caught a wrong premise on its first run);
+  - `app_expect` and trace markers on decided cases;
+  - raw-socket cases, because PHP's http wrapper adds a form Content-Type to any body;
+  - the three red runs.
+- **`skills/plan/references/PHP_ERROR_POLICY_FOR_A_LEGACY_REWRITE.md`** — copying an app that ran with
+  `error_reporting(0)`:
+  - fail closed before a one-shot upstream answers, tolerate after it;
+  - deprecations never converted;
+  - the 7.4 warnings that are `TypeError`s on 8.x cast explicitly;
+  - a fatal error still answers: a memory reserve, then `header()`'s status argument, because `http_response_code()`
+    refuses after a fatal;
+  - `zend.exception_ignore_args`;
+  - PHPUnit lowering `error_reporting()` during tests.
+- **`skills/review-loop/references/common-review-findings.md`** #30 — an all-digit string array key becomes an
+  integer, so a strict compare in a loader drops every row.
+
+### Changed
+
+- **`rules/RULE_git-safety.md`** § 1 — re-check the branch before every commit in a repository touched earlier in the
+  session: its PR may have been merged and the checkout switched to `main`.
+
 ## v4.6.119 — compound: a check about one item must not build the whole catalogue; ship the timing line when dev cannot show the cost; the in-process parity oracle
 
 Single-PR section (2026-10-26). Routed from a downstream PHP project. A channel booking endpoint took 8–20 s in production
