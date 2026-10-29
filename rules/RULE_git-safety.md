@@ -11,6 +11,7 @@ Worked examples, recovery prose, the full standard branch workflow, and commit-m
 - Always work on feature branches: `git checkout -b feature/name origin/main`.
 - Never `git checkout main` with intent to commit.
 - If accidentally on main: `git stash`, create a feature branch, `git stash pop`.
+- **Re-check the branch before every commit in a repository you last touched earlier in the session** (`git status -sb`). A human may have merged its PR and switched the checkout to `main` meanwhile; a commit + push there lands on `main` directly.
 - `main` is off limits for direct push, force-push, rewriting history, and direct merge.
 
 ### 2. NEVER MERGE OR PUSH INTO A PROTECTED BRANCH
