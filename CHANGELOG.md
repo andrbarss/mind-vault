@@ -12,6 +12,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.125 — compound: XML parsed before a login; `php:*-apache` as non-root; a scan that can fail
+
+Single-PR section (2026-10-30). Routed from the same downstream PHP takeover's security review, whose fixes each looked complete until the next reader.
+
+### Added
+
+- **`skills/plan/references/HOSTILE_XML_BEFORE_LOGIN.md`**: the bodies no libxml flag stops, measured.
+  - 1 KB of parameter entities, 1 MiB of attributes on one tag, or a stack of namespace declarations holds a worker until a hard kill, with no answer and no log line.
+  - Refuse on the bytes before the parser runs, and refuse the encodings in which that scan sees nothing.
+  - A limit before any read, a quadratic cast on a credential, a parse time bound for what nobody has found.
+  - The warnings that escape once the error list is off.
+- **`skills/deployment/references/NON_ROOT_READ_ONLY_PHP_APACHE.md`**: uid 33, no capability, read-only root; the tmpfs list; an entrypoint that refuses an unsafe start; `touch /app/x` proves nothing.
+
+### Changed
+
+- **`skills/work/references/MUTATION_PASS_DISCIPLINE.md`**: a scan over a run's output can be vacuous three ways: nothing ran, partial input, a self-test that cannot fail.
+
 ## v4.6.124 — compound: a failed-login limit for an API whose callers are machines
 
 Single-PR section (2026-10-29). Routed from the same downstream PHP takeover, its last stage-2 step: a per-client
