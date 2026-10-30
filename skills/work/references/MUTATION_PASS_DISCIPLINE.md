@@ -127,6 +127,16 @@ bootstrap can take longer than the gap. The listing order proves nothing on its 
 - ❌ Letting the script that runs the pass also write "all killed" into the docs.
 - ❌ Reading a containerised run right after a host-side edit (or restore) without confirming the container sees the new bytes. Docker Desktop directory mounts can lag ([`LOCAL_DOCKER_DEV_GOTCHAS.md` § 5](../../deployment/references/LOCAL_DOCKER_DEV_GOTCHAS.md)).
 
+## A scan over a run's output — the same question, three ways to be vacuous
+
+A gate that greps logs or output for secrets ("no password reached the log") passes easily. Before trusting it, make it able to fail each way:
+
+- **Nothing ran.** A clean scan of an empty log proves nothing. Fail when the log lacks evidence that each path ran (a pull's ids, a wrong password, a refused update), and pick paths whose lines could hold what you scan for.
+- **Partial input.** In `{ cat log; docker logs; } | scan`, a failed read on the left of the pipe still passes on what came before, and the pipe's exit status is the scanner's. Write a marker only on each source's success (`cat log && echo '=== end of log'`) and fail without it. Evidence markers do not cover this: all of them can sit in the first third of the log.
+- **A self-test that cannot fail.** Checking that a planted value is caught by searching a string built from that value is a tautology. Plant it in a copy of the real input once, by hand, through the real read path, and record the result; never plant it in a persistent log volume, which then fails every later run.
+
+Also search each value as the log's encoder would write it (JSON escapes), not only as typed.
+
 ## Related
 
 - [`EXECUTE_OVER_PIN.md`](EXECUTE_OVER_PIN.md) — a pin proves text; a mutation proves the test behind it can fail.
