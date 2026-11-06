@@ -12,6 +12,25 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.126 — compound: the hosts a deploy really targets; logs that hold credentials; a live check through the client's API
+
+Single-PR section (2026-11-06). Routed from a downstream PHP project's deploy and live check of a PMS integration, in which a moved test tenant, an undeployed earlier release, a leaked API token and stale partner test data each looked like something else first.
+
+### Added
+
+- **`skills/deployment/references/DEPLOY_TARGET_MAP.md`**: the runbook's host is not always the host that serves the tenant.
+  - Mid-migration estates: find where each changed tenant's code runs, read every host's live commit, and update a host with no redeploy mode image-only.
+  - An "already applied" guard returns without recreating the container.
+  - Environment files are per-host copies.
+  - A release branch ahead of what is deployed makes the redeploy ship more than your PR.
+- **`skills/deployment/references/READING_PRODUCTION_LOGS_WITHOUT_LEAKING.md`**: exception logs and stored payloads carry API tokens.
+  - A mask written for `key=value` misses `'key' => 'value'`.
+  - Extract allow-listed fields, drop by key name in every form, check what you printed, and report a leak at once.
+- **`skills/work/references/LIVE_CHECK_THROUGH_THE_CLIENT_API.md`**: copy the front end's API client, not the API reference.
+  - The client generates ids the API marks optional; a POST-only route opened by URL returns a fake 500.
+  - Check the test tenant's external mappings before blaming the code: rate codes with end dates, room types the partner doesn't price, versioned ids.
+  - Read the partner's per-line verdict, count fallback pairs, and plan the admin-side cleanup.
+
 ## v4.6.125 — compound: XML parsed before a login; `php:*-apache` as non-root; a scan that can fail
 
 Single-PR section (2026-10-30). Routed from the same downstream PHP takeover's security review, whose fixes each looked complete until the next reader.
