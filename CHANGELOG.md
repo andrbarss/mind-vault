@@ -12,6 +12,23 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.127 — compound: a hand-run Compose deploy script; a clean summary that reviewed the previous commit
+
+Single-PR section (2026-11-18). Routed from a downstream PHP project's deploy script for a single-container service, built with an architect review, an independent review and a review engine, each of which found a way the previous version could report success wrongly.
+
+### Added
+
+- **`skills/deployment/references/HAND_RUN_COMPOSE_DEPLOY_SCRIPT.md`** — a `deploy.sh <tag>` run by hand: exported release directories with an env copy each, one hardened base service extended by the test stack and production, `up` that never builds or pulls, a stop grace sized to the sequential upstream calls of one request, a record of success that cannot pass through `/tmp`, a lost output reader mid-switch (and bash 3.2's failed `printf` surfacing in the next command substitution), a smoke bracketed by marker requests when every refusal answers the same bytes, and the harness scenarios. Pointer in `skills/deployment/SKILL.md`.
+- **`skills/review-loop/references/engine-claude.md`** § A late summary for the previous SHA — a fix pushed while the previous SHA's run is still going gets that run's clean summary *after* the head commit, and the head's own run can post one inline finding and no summary.
+
+### Fixed
+
+- **`tools/find_claude_comments.sh`** — a summary whose `<!-- claude-review: reviewed <sha> -->` marker names another commit than the PR head is now `CLAUDE_STALE_SUMMARY=true … REASON=reviewed-sha-marker` and no verdict; the time-axis guard alone passed it when it was posted after the head commit. `tests/test_claude_clean_classification.sh` gains the cases (32 checks).
+
+### Changed
+
+- **`skills/work/references/MUTATION_PASS_DISCIPLINE.md`** — a fourth vacuous-check shape: an assertion over a command's whole output that passes on text an earlier step printed.
+
 ## v4.6.126 — compound: the hosts a deploy really targets; logs that hold credentials; a live check through the client's API
 
 Single-PR section (2026-11-06). Routed from a downstream PHP project's deploy and live check of a PMS integration, in which a moved test tenant, an undeployed earlier release, a leaked API token and stale partner test data each looked like something else first.

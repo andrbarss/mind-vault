@@ -279,6 +279,33 @@ What this settles — and partly reverses § Stale summary on a new SHA:
 - **Stale re-anchored inline comments still appear on the new head.** GitHub carried the fixed findings' comments (older `review <rid>`) onto SHA₂; the adapter listed them under "findings on the head SHA". Identify by `comment id` + `review <rid>` against `LATEST_REVIEW` (§ Staleness rule) — they are not active, and their threads were already resolved by the fix cycle.
 - **Read the second review as a new cycle, not as a contradiction**: triage its findings, fix, push, retrigger, and again wait for both runs.
 
+## § A late summary for the previous SHA — the time-axis guard is not enough
+
+Field-observed (2026-11-18). A fix was pushed while the previous SHA's review run was still going. That run
+finished a minute later and posted its clean summary **after** the new head commit's time, so the time-axis guard
+(§ Stale summary on a new SHA) passed it as a verdict for the head. The head's own run then found a bug and posted
+it as **one inline comment and no new summary**. The stream read:
+
+```text
+CLAUDE_CHECKRUN=<head run> COMMIT=<SHA₂> STATUS=completed CONCLUSION=success
+CLAUDE_LATEST_REVIEW=<summary of SHA₁> COMMIT=<SHA₂> AT=<after SHA₂'s commit time> CLEAN=true
+```
+
+Two tells, both outside that stream: the summary's own `<!-- claude-review: reviewed <sha> -->` marker named SHA₁,
+and the head run's log ended with `tools used: … mcp__github_inline_comment__create_inline_comment×1`. It happened
+again on the next push, with the next finding.
+
+- `find_claude_comments.sh` now reads the marker: a summary whose marker names another commit than the head is
+  `CLAUDE_STALE_SUMMARY=true … REASON=reviewed-sha-marker` and is no verdict, whatever its time. A summary without
+  a marker (older workflow) is still judged by time alone.
+- ✅ **DO** read the adapter's whole output, never a `grep` of its marker lines: the inline finding blocks carry
+  no `CLAUDE_` prefix, and a filtered read shows only the clean-looking lines.
+- ✅ **DO**, before calling a head clean, confirm two things directly: the newest summary's marker names the head
+  (`gh api repos/<o>/<r>/issues/<n>/comments -q '.[-1].body'`), and `pulls/<n>/comments` has no comment whose
+  `commit_id` is the head.
+- A findings-only run posts **no summary at all**: "the run is DONE and the newest summary is clean" is not a
+  verdict until that summary is the head's.
+
 ## § Failure mode — org Actions billing block (downstream, 2026-08-28)
 
 A fourth infrastructure state that presents like an engine failure: **every** workflow run in the organisation — the test workflow, `claude-code-review.yml`, `claude.yml`, on every branch including pushes to the default branch — completes `failure` within seconds with a job that has **zero steps** (no runner ever started). githubstatus.com is all-green. The job's check-run annotation carries the cause verbatim: *"The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings"* (`gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations`). `gh api /orgs/<org>/settings/billing/actions` needs the `admin:org` scope and is not the fast path — the annotation is.

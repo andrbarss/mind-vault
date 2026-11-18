@@ -540,6 +540,40 @@ if [ "$STALE_SUMMARY" = "true" ]; then
     SUMMARY_FINDINGS=false
 fi
 
+# ── Reviewed-SHA marker guard (engine-claude.md § A late summary for the previous SHA). The
+# time-axis guard above assumes a summary posted after the head commit reviewed the head. It
+# does not hold when a fix is pushed while the previous SHA's run is still going: that run's
+# summary lands AFTER the new head commit, and it names the previous SHA. When the workflow's
+# summary carries a `<!-- claude-review: reviewed <sha> -->` marker, the marker decides: a
+# marker naming another commit means the summary is not a verdict for this head, whatever its
+# time. No marker (older workflow) leaves the summary to the time-axis guard alone.
+if [ "$STALE_SUMMARY" != "true" ] && [ -n "$SUMMARY_ID" ] && [ -n "$PR_HEAD_SHA" ]; then
+    MARKER_STALE=$(echo "${CLAUDE_SUMMARY_JSON:-}" | PR_HEAD_SHA="$PR_HEAD_SHA" python3 -c "
+# >>> reviewed-sha marker decision (tests/test_claude_clean_classification.sh extracts this block)
+import json, os, re, sys
+def marker_stale(body, head):
+    shas = re.findall(r'<!--\\s*claude-review:\\s*reviewed\\s+([0-9a-fA-F]{7,40})\\s*-->', body or '')
+    if not shas or not head:
+        return False                      # no marker: the time-axis guard is the only judge
+    last = shas[-1].lower()
+    return not (head.lower().startswith(last) or last.startswith(head.lower()))
+raw = sys.stdin.read()
+try:
+    body = (json.loads(raw).get('body') or '') if raw.strip().startswith('{') else raw
+except Exception:
+    body = ''
+print('true' if marker_stale(body, os.environ.get('PR_HEAD_SHA', '')) else 'false')
+# <<< reviewed-sha marker decision
+" 2>/dev/null || echo false)
+    if [ "$MARKER_STALE" = "true" ]; then
+        STALE_SUMMARY=true
+        echo "CLAUDE_STALE_SUMMARY=true SUMMARY=${SUMMARY_ID} SUMMARY_AT=${SUMMARY_AT} REASON=reviewed-sha-marker HEAD=${PR_HEAD_SHA:0:7}"
+        echo -e "${YELLOW}⚠️  Newest claude summary (${SUMMARY_AT}) says it reviewed another commit than the head ${PR_HEAD_SHA:0:7}: it was posted after the head commit by the previous SHA's run. Not a verdict for the head; wait for the head's run and read its summary and its inline comments.${NC}"
+        SUMMARY_CLEAN=false
+        SUMMARY_FINDINGS=false
+    fi
+fi
+
 # ── Shallow-run guard (engine-claude.md § 2026-10-21). The forced-summary workflow posts a
 # clean "No issues found" even from a run that reviewed nothing: field case, a PR whose draft
 # pushes had collected three "Skipped: draft" summaries got 6-, 7- and 8-turn runs on the

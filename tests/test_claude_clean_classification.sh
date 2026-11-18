@@ -240,6 +240,50 @@ else
     FAIL=$((FAIL + 1)); echo "  ✗ tool has no shallow-run decision block"
 fi
 
+echo ""
+echo "claude reviewed-sha marker guard (a summary naming another commit is not a verdict for the head)"
+
+MARKER_PY=$(sed -n '/# >>> reviewed-sha marker decision/,/# <<< reviewed-sha marker decision/p' "$TOOL" | sed 's/\\\\/\\/g')
+
+assert_marker() {
+    local name="$1" expected="$2" body="$3" head="$4" actual
+    actual=$(printf '%s' "$body" | PR_HEAD_SHA="$head" python3 -c "$MARKER_PY" 2>/dev/null)
+    if [ "$actual" = "$expected" ]; then
+        PASS=$((PASS + 1)); echo "  ✓ $name → $actual"
+    else
+        FAIL=$((FAIL + 1)); echo "  ✗ $name → expected $expected, got $actual"
+    fi
+}
+
+if [ -n "$MARKER_PY" ]; then
+    HEAD_SHA=aaaa111122223333444455556666777788889999
+    PREV_SHA=bbbb000011112222333344445555666677778888
+    assert_marker "a clean summary naming the previous SHA, posted after the head commit (field case)" true \
+        "## Code review
+
+No issues found. Checked for bugs and CLAUDE.md compliance.
+
+<!-- claude-review: reviewed $PREV_SHA -->" "$HEAD_SHA"
+    assert_marker "a summary naming the head is a verdict" false \
+        "## Code review
+
+No issues found.
+
+<!-- claude-review: reviewed $HEAD_SHA -->" "$HEAD_SHA"
+    assert_marker "a short marker sha that prefixes the head is the head" false \
+        "No issues found. <!-- claude-review: reviewed aaaa111 -->" "$HEAD_SHA"
+    assert_marker "no marker leaves the summary to the time-axis guard" false \
+        "## Code review
+
+No issues found." "$HEAD_SHA"
+    assert_marker "the last marker decides when a body quotes an older one" true \
+        "<!-- claude-review: reviewed $HEAD_SHA --> … <!-- claude-review: reviewed $PREV_SHA -->" "$HEAD_SHA"
+    assert_marker "the summary as the tool passes it (a JSON comment object)" true \
+        "{\"id\": 1, \"body\": \"No issues found.\\n<!-- claude-review: reviewed $PREV_SHA -->\"}" "$HEAD_SHA"
+else
+    FAIL=$((FAIL + 1)); echo "  ✗ tool has no reviewed-sha marker decision block"
+fi
+
 # Structural pin: the guard clears only the clean signal, never a findings signal.
 if sed -n '/Shallow-run guard/,/^if \[ -n "\$CLAUDE_INLINE_JSON" \]/p' "$TOOL" | grep -q 'SUMMARY_CLEAN=false' \
    && ! sed -n '/Shallow-run guard/,/^if \[ -n "\$CLAUDE_INLINE_JSON" \]/p' "$TOOL" | grep -q 'SUMMARY_FINDINGS=false'; then
