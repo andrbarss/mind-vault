@@ -68,6 +68,42 @@ having it reviewed three times; each item is a way the first design was wrong.
 10. **Bind mounts create missing host paths as root.** A typo in the clients directory becomes "no valid client".
     Long syntax with `bind.create_host_path: false`, plus an existence check.
 
+## Behind a host-side proxy on a rootless daemon
+
+Under rootless Docker (slirp4netns, builtin port driver) the container does not see the caller: every connection
+through a published port arrives from one internal address, documented as the bridge gateway of the container's
+network. The app's trusted-proxy setting must name that address, and four things follow.
+
+11. **Pin the project network's subnet** (`networks.default.ipam.config.subnet` from a required variable), so the
+    gateway is known before the first start and survives `down`/`up`. An address Docker picks is an observation that
+    changes whenever the network is made again, while a release's env copy keeps the old one. Keep the example
+    outside Docker's default pools: a fixed `/24` inside `172.31.0.0/16` failed with "Pool overlaps" once a later
+    automatic network had taken that block (measured). Refuse 10/8 where slirp4netns or the provider network uses it.
+12. **A subnet cannot change inside a deploy.** A `compose run` with the new subnet fails with "has active
+    endpoints" while the old container serves; with an unchanged container one Compose version recreated the
+    network and then failed to start the container, leaving it stopped, and a newer one restarted it. Refuse the
+    change in the checks phase (compare with `docker network inspect`), for a rollback too, and document `down` then
+    deploy. Tell "the network does not exist" from "inspect failed".
+13. **Read the gateway from the container, not from the network.** One engine major leaves a network's IPAM
+    gateway empty when only a subnet was given; the next fills it in. A post-start check written on the newer one
+    took every release down on the older — the one production ran. `docker inspect -f '{{range
+    .NetworkSettings.Networks}}{{.Gateway}} {{end}}' <container>` answers on both. Run the harness on the engine
+    version production has; CI was the only place that did.
+14. **Compare the trusted-proxy value the way the app reads it.** Compute the expected gateway before the build and
+    check it against the setting by CIDR arithmetic, verified against the app's own parser on a table of inputs: a
+    prefix `/08` is octal to bash arithmetic (an abort, not a refusal) — use `10#`; three-digit prefixes and
+    IPv4-mapped IPv6 forms differ too. Warn in both directions: port on loopback and gateway not trusted (every
+    caller is one address; an `https://` smoke cannot pass), and gateway trusted with the port off loopback (any
+    caller can then set the forwarded headers).
+
+What a first deploy does **not** show: a smoke to the loopback port passes whatever the peer is, and a log line that
+names no address measures nothing. The signals that vary are an `https://` URL through the proxy (it fails on the
+scheme when the peer is not trusted) and a pair of requests with a forged `X-Forwarded-Proto`, one through the
+published port and one from a throwaway container on the project's network. With the gateway trusted, the trust
+boundary is the host's loopback: a local process that posts to the published port is believed. Say so in the
+decision record. And check what the host proxy does with `X-Forwarded-Proto` from a caller that skipped the edge:
+passed through, it satisfies a "require TLS" rule over plain HTTP.
+
 ## A smoke that cannot pass on a broken deployment
 
 When every refusal of the API answers the same bytes (a deliberate property: no oracle for strangers), "the refused
