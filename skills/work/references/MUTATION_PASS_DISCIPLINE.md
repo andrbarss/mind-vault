@@ -135,6 +135,8 @@ A gate that greps logs or output for secrets ("no password reached the log") pas
 - **Partial input.** In `{ cat log; docker logs; } | scan`, a failed read on the left of the pipe still passes on what came before, and the pipe's exit status is the scanner's. Write a marker only on each source's success (`cat log && echo '=== end of log'`) and fail without it. Evidence markers do not cover this: all of them can sit in the first third of the log.
 - **A self-test that cannot fail.** Checking that a planted value is caught by searching a string built from that value is a tautology. Plant it in a copy of the real input once, by hand, through the real read path, and record the result; never plant it in a persistent log volume, which then fails every later run.
 
+- **Text an earlier step printed.** A check that greps a command's whole output passes on a line printed before the step under test: a pre-switch smoke's `ok` line satisfied "the rollback ran the smoke", and a tool's own progress lines satisfied "the status listing is printed". Assert on the output after the step's own heading line, or on a string only that step writes.
+
 Also search each value as the log's encoder would write it (JSON escapes), not only as typed.
 
 ## Related
