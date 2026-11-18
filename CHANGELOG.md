@@ -12,6 +12,14 @@ Category keys follow [Keep a Changelog](https://keepachangelog.com/): **Added**,
 
 - **`tools/sprint-auto-bootstrap.sh`** — the `.env` credential-sentinel substitutions now run through a portable `sed_inplace` helper (temp-file rewrite) instead of `sed -i -E`. BSD/macOS sed misparses `sed -i -E 'script'` — `-i` swallows `-E` as its backup-suffix argument, the regex then runs in basic mode, and `\1` backrefs fail with `\1 not defined in the RE`, aborting the bootstrap at `.env` generation. The helper behaves identically on GNU and BSD sed, so the integration bootstrap works on a macOS dev host as well as a Linux VPS. Found while enabling sprint-auto on a Laravel project from a macOS host.
 
+## v4.6.128 — compound: credentials out of a legacy config, without running it or showing them
+
+Single-PR section (2026-11-18). Routed from a downstream PHP project's converter for per-customer credentials and its one-request account check; an independent review reproduced each fail-open by running the same synthetic config with PHP.
+
+### Added
+
+- **`skills/work/references/SECRETS_OUT_OF_A_LEGACY_CONFIG.md`** — tokenise, never execute; a whitelist grammar that refuses the whole run; literal evaluation compared with the language on generated literals; a stock runtime image prints a failing call's arguments; an output directory and a cleanup trap that cannot touch what the run refused; what each check proves; a real request whose credential comes from what the service compares and whose destination comes from configuration. Pointer in `skills/work/SKILL.md`.
+
 ## v4.6.127 — compound: a hand-run Compose deploy script; a clean summary that reviewed the previous commit
 
 Single-PR section (2026-11-18). Routed from a downstream PHP project's deploy script for a single-container service, built with an architect review, an independent review and a review engine, each of which found a way the previous version could report success wrongly.
